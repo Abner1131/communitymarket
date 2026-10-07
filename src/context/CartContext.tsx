@@ -9,7 +9,6 @@ import {
 } from "react";
 
 import type { Product } from "../data/products";
-import { getProductsWithOverrides } from "../services/productStorage";
 
 const CART_STORAGE_KEY =
   "@communitymarket/cart";
@@ -145,23 +144,12 @@ export function CartProvider({
    */
   async function getLiveProduct(
     productId: string
-  ) {
-    try {
-      const liveProducts =
-        await getProductsWithOverrides();
-
-      return liveProducts.find(
-        (product) =>
-          product.id === productId
-      );
-    } catch (error) {
-      console.error(
-        "LIVE PRODUCT LOOKUP ERROR:",
-        error
-      );
-
-      return undefined;
-    }
+  ): Promise<Product | undefined> {
+    // Products now come live from the database (Home screen), and the server
+    // re-checks price and stock at checkout, so the product passed in is
+    // already current. The old on-phone overrides are no longer used.
+    void productId;
+    return undefined;
   }
 
   /*

@@ -23,6 +23,7 @@ export type RiderTrip = {
     sellerName: string;
     location: RiderPoint | null;
     status: "pending" | "picked_up";
+    ready: boolean; // false until the seller marks the order packed
     items: { orderId: string; productName: string; quantity: number }[];
   }[];
   dropoffs: {

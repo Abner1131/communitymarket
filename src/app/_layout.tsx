@@ -11,8 +11,7 @@ import { RiderProvider } from "../context/RiderContext";
 // signed-in user. The server enforces the same rules on its side.
 const ROLE_ROUTES: { prefix: string; roles: string[] }[] = [
   { prefix: "/rider", roles: ["rider", "admin"] },
-  { prefix: "/seller-", roles: ["seller", "admin"] },
-  { prefix: "/role-onboarding", roles: ["seller", "admin"] },
+  { prefix: "/seller", roles: ["seller", "admin"] },
 ];
 
 function AuthGate() {

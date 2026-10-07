@@ -162,13 +162,13 @@ export default function AccountScreen() {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Seller</Text>
             <Text style={styles.description}>
-              Manage your products. (Seller tools are being upgraded to the live system next.)
+              Prepare paid orders for pickup and manage your products.
             </Text>
             <Pressable
               style={styles.primaryButton}
-              onPress={() => router.push("/seller-products" as any)}
+              onPress={() => router.push("/seller" as any)}
             >
-              <Text style={styles.primaryButtonText}>Open Seller Tools</Text>
+              <Text style={styles.primaryButtonText}>Open Seller Dashboard</Text>
             </Pressable>
           </View>
         )}

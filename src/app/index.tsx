@@ -14,7 +14,7 @@ import PoweredByGreenFusion from "../components/PoweredByGreenFusion";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { products } from "../data/products";
-import { getProductsWithOverrides } from "../services/productStorage";
+import { emojiFor, subscribeCatalog } from "../lib/catalog";
 const categories = [
   "All",
   "Groceries",
@@ -24,6 +24,9 @@ const categories = [
   "Household",
   "Agriculture",
   "Beauty",
+  "Food",
+  "Health",
+  "Other",
 ];
 
 /*
@@ -96,15 +99,7 @@ export default function HomeScreen() {
     useState("");
 
   const [marketProducts, setMarketProducts] =
-    useState<MarketplaceProduct[]>(
-      () =>
-        products.map(
-          (product) => ({
-            ...product,
-            isActive: true,
-          })
-        )
-    );
+    useState<MarketplaceProduct[]>([]);
 
   const {
     cartCount,
@@ -116,88 +111,27 @@ export default function HomeScreen() {
     useAuth();
 
   /*
-   * Load persisted seller changes.
+   * Live catalogue from the database: every customer sees the same
+   * products, and sellers' changes appear instantly.
    */
+  const [catalogLoaded, setCatalogLoaded] =
+    useState(false);
+  const [catalogError, setCatalogError] =
+    useState("");
+
   useEffect(() => {
-    let active = true;
-
-    async function loadMarketplaceProducts() {
-      try {
-        const liveProducts =
-          await getProductsWithOverrides();
-
-        const liveById =
-          new Map(
-            liveProducts.map(
-              (product) => [
-                String(product.id),
-                product,
-              ]
-            )
-          );
-
-        const mergedProducts:
-          MarketplaceProduct[] =
-          products.map(
-            (product) => {
-              const liveProduct =
-                liveById.get(
-                  String(product.id)
-                );
-
-              if (!liveProduct) {
-                return {
-                  ...product,
-                  isActive: true,
-                };
-              }
-
-              return {
-                ...product,
-                name:
-                  liveProduct.name,
-                category:
-                  liveProduct.category,
-                price:
-                  liveProduct.price,
-                description:
-                  liveProduct.description,
-                stock:
-                  liveProduct.stock,
-                isActive:
-                  liveProduct.isActive,
-                emoji:
-                  productEmojiById[
-                    String(product.id)
-                  ] ??
-                  product.emoji,
-              };
-            }
-          );
-
-        if (active) {
-          setMarketProducts(
-            mergedProducts
-          );
-        }
-
-        console.log(
-          "MARKETPLACE PRODUCTS SYNCED:",
-          mergedProducts
-        );
-      } catch (error) {
-        console.error(
-          "MARKETPLACE PRODUCT SYNC ERROR:",
-          error
-        );
-      }
-    }
-
-    loadMarketplaceProducts();
-
-    return () => {
-      active = false;
-    };
+    return subscribeCatalog(
+      (liveProducts) => {
+        setMarketProducts(liveProducts);
+        setCatalogLoaded(true);
+        setCatalogError("");
+      },
+      (error) => {
+        console.error("CATALOG LOAD ERROR:", error);
+        setCatalogLoaded(true);
+        setCatalogError("Could not load products. Check your internet connection.");
+      },
+    );
   }, []);
 
   /*
@@ -406,7 +340,7 @@ export default function HomeScreen() {
               styles.riderButton
             }
             onPress={() =>
-               router.push(
+              router.push(
                 "/rider" as any
               )
             }
@@ -503,7 +437,7 @@ export default function HomeScreen() {
               }
               onPress={() =>
                 router.push(
-                  "/seller-products"
+                  "/seller" as any
                 )
               }
             >
@@ -682,6 +616,20 @@ export default function HomeScreen() {
         <View
           style={styles.products}
         >
+          {!catalogLoaded ? (
+            <Text style={{ color: "#777", padding: 12 }}>
+              Loading products...
+            </Text>
+          ) : catalogError ? (
+            <Text style={{ color: "#b00020", padding: 12 }}>
+              {catalogError}
+            </Text>
+          ) : filteredProducts.length === 0 ? (
+            <Text style={{ color: "#777", padding: 12 }}>
+              No products found.
+            </Text>
+          ) : null}
+
           {filteredProducts.map(
             (product) => (
               <View
@@ -695,10 +643,10 @@ export default function HomeScreen() {
                     styles.productEmoji
                   }
                 >
-                  {productEmojiById[
-                    String(product.id)
-                  ] ??
-                    product.emoji}
+                  {emojiFor(
+                    String(product.id),
+                    product.category
+                  )}
                 </Text>
 
                 <Text

@@ -341,6 +341,9 @@ export default function RiderScreen() {
                         <Text style={styles.cardTitle}>{stop.sellerName}</Text>
                         {done && <Text style={styles.doneText}>{"✓"} Collected</Text>}
                       </View>
+                      {!done && stop.ready === false ? (
+                        <Text style={styles.waitText}>The seller is still packing this order.</Text>
+                      ) : null}
                       {stop.items.map((item, i) => (
                         <Text key={i} style={styles.item}>
                           {"•"} {item.productName} {"×"} {item.quantity}
@@ -352,14 +355,18 @@ export default function RiderScreen() {
                             <Text style={styles.smallButtonText}>Directions</Text>
                           </Pressable>
                           <Pressable
-                            style={[styles.smallButton, styles.smallPrimary]}
-                            disabled={working !== null}
+                            style={[styles.smallButton, styles.smallPrimary, stop.ready === false && { opacity: 0.4 }]}
+                            disabled={working !== null || stop.ready === false}
                             onPress={() =>
                               void run(`pick-${stop.sellerId}`, "pickedUp", { sellerId: stop.sellerId }, true)
                             }
                           >
                             <Text style={styles.smallPrimaryText}>
-                              {working === `pick-${stop.sellerId}` ? "Saving..." : "Picked up"}
+                              {working === `pick-${stop.sellerId}`
+                                ? "Saving..."
+                                : stop.ready !== false
+                                  ? "Picked up"
+                                  : "Waiting for seller"}
                             </Text>
                           </Pressable>
                         </View>
@@ -459,6 +466,7 @@ const styles = StyleSheet.create({
   bannerTitle: { color: "#fff", fontSize: 16, fontWeight: "800" },
   bannerText: { color: "#e3f2fd", marginTop: 6 },
   doneText: { color: "#1e7d32", fontWeight: "800" },
+  waitText: { color: "#b26a00", fontWeight: "700", marginTop: 6 },
   buttonRow: { flexDirection: "row", gap: 8, marginTop: 14, flexWrap: "wrap" },
   smallButton: {
     borderWidth: 1,
