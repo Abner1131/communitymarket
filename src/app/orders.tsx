@@ -316,7 +316,7 @@ export default function OrdersScreen() {
                     style={styles.primaryButton}
                     onPress={() =>
                       router.push({
-                        pathname: "/delivery",
+                        pathname: "/rider",
                         params: {
                           orderId:
                             order.orderId,

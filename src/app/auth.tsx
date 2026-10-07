@@ -1,335 +1,215 @@
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import PoweredByGreenFusion from "../components/PoweredByGreenFusion";
 
-import { useAuth } from "../context/AuthContext";
-import type { UserRole } from "../types/community";
+import { friendlyAuthError, useAuth } from "../context/AuthContext";
 
-type Mode = "signin" | "signup";
-
-const roles: { value: UserRole; label: string }[] = [
-  { value: "customer", label: "Customer" },
-  { value: "seller", label: "Seller" },
-  { value: "rider", label: "Rider" },
-];
-
+// The one sign-in screen for everybody: customers, sellers, riders, admin.
+// Navigation after sign-in is handled by the AuthGate in _layout.tsx.
 export default function AuthScreen() {
-  const router = useRouter();
-  const { user, isLoading, signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
 
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<UserRole>("customer");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(true);
 
-  useEffect(() => {
-    if (!user || !needsOnboarding) return;
-
-    if (user.role === "seller" || user.role === "rider") {
-      router.replace("/role-onboarding" as any);
-    } else {
-      router.replace("/");
-    }
-
-    setNeedsOnboarding(false);
-  }, [user, needsOnboarding, router]);
+  function show(text: string, error = true) {
+    setMessage(text);
+    setIsError(error);
+  }
 
   async function handleSubmit() {
-    setError("");
-
-    const normalizedPhone = phone.trim();
-
-    if (!normalizedPhone) {
-      setError("Enter your phone number.");
-      return;
+    setMessage("");
+    if (!email.trim()) return show("Enter your email address.");
+    if (password.length < 6) return show("Enter a password of at least 6 characters.");
+    if (mode === "signup") {
+      if (!name.trim()) return show("Enter your full name.");
+      if (!/^[0-9+\s-]{7,20}$/.test(phone.trim())) return show("Enter a valid phone number.");
     }
 
-    if (mode === "signup" && !name.trim()) {
-      setError("Enter your name.");
-      return;
-    }
-
+    setBusy(true);
     try {
-      setSubmitting(true);
-
       if (mode === "signin") {
-        await signIn(normalizedPhone);
-        return;
+        await signIn(email, password);
+      } else {
+        await signUp({ name, phone, email, password });
       }
-
-      await signUp({
-        name: name.trim(),
-        phone: normalizedPhone,
-        role,
-      });
-
-      setNeedsOnboarding(role === "seller" || role === "rider");
-    } catch (submitError) {
-      console.error("AUTH ERROR:", submitError);
-
-      const message =
-        submitError instanceof Error
-          ? submitError.message
-          : "Authentication failed.";
-
-      setError(message);
+    } catch (e) {
+      show(friendlyAuthError(e));
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   }
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Loading account...</Text>
-      </SafeAreaView>
-    );
-  }
-
-  if (user) {
-    return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Opening CommunityMarket...</Text>
-      </SafeAreaView>
-    );
+  async function handleReset() {
+    if (!email.trim()) return show("Type your email above first, then tap Forgot password.");
+    setBusy(true);
+    try {
+      await resetPassword(email);
+      show("Password reset email sent. Check your inbox.", false);
+    } catch (e) {
+      show(friendlyAuthError(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <Text style={styles.title}>CommunityMarket</Text>
-        <Text style={styles.subtitle}>
-          {mode === "signin"
-            ? "Sign in to continue"
-            : "Create your CommunityMarket account"}
-        </Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={styles.brand}>CommunityMarket</Text>
+          <Text style={styles.tagline}>Shop local. Delivered fast.</Text>
 
-        {mode === "signup" && (
-          <>
-            <Text style={styles.label}>Name</Text>
+          <View style={styles.tabs}>
+            <Pressable
+              style={[styles.tab, mode === "signin" && styles.tabActive]}
+              onPress={() => {
+                setMode("signin");
+                setMessage("");
+              }}
+            >
+              <Text style={[styles.tabText, mode === "signin" && styles.tabTextActive]}>Sign in</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.tab, mode === "signup" && styles.tabActive]}
+              onPress={() => {
+                setMode("signup");
+                setMessage("");
+              }}
+            >
+              <Text style={[styles.tabText, mode === "signup" && styles.tabTextActive]}>
+                Create account
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.card}>
+            {mode === "signup" && (
+              <>
+                <Text style={styles.label}>Full name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. Amina Bello"
+                  autoCapitalize="words"
+                  value={name}
+                  onChangeText={setName}
+                />
+                <Text style={styles.label}>Phone number</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="08012345678"
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={setPhone}
+                />
+              </>
+            )}
+
+            <Text style={styles.label}>Email</Text>
             <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Your full name"
               style={styles.input}
-              autoCapitalize="words"
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
             />
 
-            <Text style={styles.label}>Account Role</Text>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="At least 6 characters"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
 
-            <View style={styles.roleRow}>
-              {roles.map((item) => {
-                const selected = role === item.value;
+            {message ? (
+              <Text style={[styles.message, !isError && styles.messageOk]}>{message}</Text>
+            ) : null}
 
-                return (
-                  <Pressable
-                    key={item.value}
-                    onPress={() => setRole(item.value)}
-                    style={[
-                      styles.roleButton,
-                      selected && styles.roleButtonSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.roleButtonText,
-                        selected && styles.roleButtonTextSelected,
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </>
-        )}
+            <Pressable
+              style={[styles.primaryButton, busy && { opacity: 0.6 }]}
+              disabled={busy}
+              onPress={handleSubmit}
+            >
+              <Text style={styles.primaryButtonText}>
+                {busy ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
+              </Text>
+            </Pressable>
 
-        <Text style={styles.label}>Phone Number</Text>
-        <TextInput
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="08000000000"
-          style={styles.input}
-          keyboardType="phone-pad"
-          autoCapitalize="none"
-        />
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Pressable
-          onPress={handleSubmit}
-          disabled={submitting}
-          style={[
-            styles.primaryButton,
-            submitting && styles.primaryButtonDisabled,
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.primaryButtonText}>
-              {mode === "signin" ? "Sign In" : "Create Account"}
-            </Text>
-          )}
-        </Pressable>
-
-        <Pressable
-          onPress={() => {
-            setError("");
-            setMode((current) =>
-              current === "signin" ? "signup" : "signin",
-            );
-          }}
-          style={styles.switchButton}
-        >
-          <Text style={styles.switchText}>
-            {mode === "signin"
-              ? "Need an account? Sign up"
-              : "Already have an account? Sign in"}
-          </Text>
-        </Pressable>
-
-        <View style={styles.notice}>
-          <Text style={styles.noticeTitle}>Prototype authentication</Text>
-          <Text style={styles.noticeText}>
-            This local prototype uses phone-based authentication and
-            AsyncStorage. Production authentication should later use a secure
-            backend and proper credentials.
-          </Text>
-        </View>
-      </View>
-      <PoweredByGreenFusion />
+            {mode === "signin" ? (
+              <Pressable disabled={busy} onPress={handleReset}>
+                <Text style={styles.link}>Forgot password?</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.note}>
+                Want to sell or ride with us? Create your account first, then apply from the
+                Account page.
+              </Text>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#fff",
+  safe: { flex: 1, backgroundColor: "#f5f6f8" },
+  container: { padding: 24, paddingTop: 60, paddingBottom: 40 },
+  brand: { fontSize: 30, fontWeight: "900", textAlign: "center" },
+  tagline: { color: "#666", textAlign: "center", marginTop: 6, marginBottom: 28 },
+  tabs: {
+    flexDirection: "row",
+    backgroundColor: "#e7e9ee",
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
   },
-  container: {
-    flex: 1,
-    padding: 24,
-    justifyContent: "center",
-  },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
-    padding: 24,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "800",
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 28,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
+  tab: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: "center" },
+  tabActive: { backgroundColor: "#fff" },
+  tabText: { fontWeight: "700", color: "#666" },
+  tabTextActive: { color: "#111" },
+  card: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
+  label: { fontSize: 13, fontWeight: "700", color: "#444", marginTop: 12, marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: "#d0d0d0",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 16,
-    marginBottom: 18,
-    backgroundColor: "#fff",
-  },
-  roleRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 20,
-  },
-  roleButton: {
-    borderWidth: 1,
-    borderColor: "#d0d0d0",
+    borderColor: "#d0d4db",
     borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    padding: 12,
+    backgroundColor: "#fff",
+    fontSize: 15,
   },
-  roleButtonSelected: {
-    backgroundColor: "#111",
-    borderColor: "#111",
-  },
-  roleButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  roleButtonTextSelected: {
-    color: "#fff",
-  },
-  error: {
-    color: "#c62828",
-    marginBottom: 14,
-    lineHeight: 20,
-  },
+  message: { color: "#b00020", marginTop: 14 },
+  messageOk: { color: "#1e7d32" },
   primaryButton: {
-    backgroundColor: "#111",
-    borderRadius: 12,
-    minHeight: 50,
+    marginTop: 20,
+    backgroundColor: "#222",
+    paddingVertical: 15,
+    borderRadius: 10,
     alignItems: "center",
-    justifyContent: "center",
   },
-  primaryButtonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  switchButton: {
-    alignItems: "center",
-    paddingVertical: 18,
-  },
-  switchText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  notice: {
-    marginTop: 8,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: "#f4f4f4",
-  },
-  noticeTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    marginBottom: 5,
-  },
-  noticeText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: "#666",
-  },
+  primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  link: { marginTop: 16, textAlign: "center", color: "#1565c0", fontWeight: "600" },
+  note: { marginTop: 16, color: "#666", textAlign: "center", lineHeight: 20, fontSize: 13 },
 });

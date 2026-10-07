@@ -2,11 +2,18 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-        // ---------- role applications ----------
+    // ---------- role applications ----------
+    // A signed-in user may apply to become a rider or seller. Only the admin
+    // (server script) can approve or reject.
     match /roleApplications/{applicationId} {
       allow create: if isSignedIn() &&
                        request.resource.data.uid == request.auth.uid &&
-                       request.resource.data.status == "pending";
+                       request.resource.data.status == "pending" &&
+                       request.resource.data.requestedRole in ["rider", "seller"] &&
+                       request.resource.data.keys().hasOnly([
+                         "uid", "name", "email", "phone", "requestedRole", "vehicle",
+                         "businessName", "businessAddress", "note", "status", "createdAt"
+                       ]);
       allow read: if isSignedIn() &&
                      (resource.data.uid == request.auth.uid || isAdmin());
       allow update, delete: if false; // server only
@@ -18,9 +25,9 @@ service cloud.firestore {
     }
 
     function role() {
-      // Custom claim set by a Cloud Function on user create/role change.
+      // Custom claim set by the admin script (manage-roles.js).
       // Never trust a Firestore field for this.
-      return request.auth.token.role;
+      return request.auth.token.get("role", "");
     }
 
     function isAdmin() {
@@ -32,12 +39,19 @@ service cloud.firestore {
     }
 
     // ---------- users ----------
+    // Everyone signs up as a customer. Role and status can only be changed
+    // by the admin (server script), never from the app.
     match /users/{uid} {
-      allow read: if isSignedIn();
-      // Users may edit their own profile, but never their own "role" field.
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) &&
+                       request.resource.data.role == "customer" &&
+                       request.resource.data.status == "active" &&
+                       request.resource.data.keys().hasOnly([
+                         "name", "phone", "email", "role", "status", "createdAt", "updatedAt"
+                       ]);
       allow update: if isOwner(uid) &&
-                       !("role" in request.resource.data.diff(resource.data).affectedKeys());
-      allow create: if isOwner(uid);
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(["name", "phone", "updatedAt"]);
       allow delete: if isAdmin();
     }
 

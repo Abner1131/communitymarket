@@ -422,7 +422,7 @@ export default function RiderScreen() {
             )}
 
             <Pressable style={[styles.secondaryButton, { marginTop: 24 }]} onPress={() => void signOut(auth)}>
-              <Text style={styles.secondaryButtonText}>Sign out of rider account</Text>
+              <Text style={styles.secondaryButtonText}>Sign out</Text>
             </Pressable>
           </>
         ) : errorMessage ? (
