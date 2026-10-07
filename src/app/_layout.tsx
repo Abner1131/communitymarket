@@ -1,11 +1,13 @@
 import { Stack, usePathname, useRouter } from "expo-router";
 import { useEffect } from "react";
+import { Platform } from "react-native";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { CheckoutProvider } from "../context/CheckoutContext";
 import { OrderProvider } from "../context/OrderContext";
 import { RiderProvider } from "../context/RiderContext";
+import { onNotificationTap, registerForPush } from "../lib/push";
 
 // Which screens each role may open. Anything not listed is open to every
 // signed-in user. The server enforces the same rules on its side.
@@ -46,10 +48,29 @@ function AuthGate() {
   return null;
 }
 
+// Registers this phone for push after sign-in, and opens the right screen
+// when a notification is tapped.
+function PushManager() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) void registerForPush();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
+    return onNotificationTap((screen) => router.push(screen as any));
+  }, [user?.id]);
+
+  return null;
+}
+
 function AppNavigator() {
   return (
     <>
       <AuthGate />
+      {Platform.OS !== "web" && <PushManager />}
 
       <Stack
         screenOptions={{

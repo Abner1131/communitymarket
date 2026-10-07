@@ -18,6 +18,7 @@ import {
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { auth, db } from "../lib/firebase";
+import { unregisterPush } from "../lib/push";
 import type { User, UserRole } from "../types/community";
 
 // One login for the whole app: Firebase email + password.
@@ -199,6 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    await unregisterPush(); // stop this phone getting this account's alerts
     await firebaseSignOut(auth);
   }
 
