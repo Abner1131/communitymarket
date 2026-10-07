@@ -1,0 +1,135 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+        // ---------- role applications ----------
+    match /roleApplications/{applicationId} {
+      allow create: if isSignedIn() &&
+                       request.resource.data.uid == request.auth.uid &&
+                       request.resource.data.status == "pending";
+      allow read: if isSignedIn() &&
+                     (resource.data.uid == request.auth.uid || isAdmin());
+      allow update, delete: if false; // server only
+    }
+
+    // ---------- helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      // Custom claim set by a Cloud Function on user create/role change.
+      // Never trust a Firestore field for this.
+      return request.auth.token.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && role() == "admin";
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ---------- users ----------
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      // Users may edit their own profile, but never their own "role" field.
+      allow update: if isOwner(uid) &&
+                       !("role" in request.resource.data.diff(resource.data).affectedKeys());
+      allow create: if isOwner(uid);
+      allow delete: if isAdmin();
+    }
+
+    // ---------- products ----------
+    match /products/{productId} {
+      allow read: if true; // public catalogue
+      allow create: if isSignedIn() && role() == "seller" &&
+                       request.resource.data.sellerId == request.auth.uid;
+      allow update: if isSignedIn() && role() == "seller" &&
+                       resource.data.sellerId == request.auth.uid;
+      allow delete: if isAdmin() ||
+                       (isSignedIn() && resource.data.sellerId == request.auth.uid);
+    }
+
+    // ---------- carts (disposable, fully client-owned) ----------
+    match /carts/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ---------- checkout requests ----------
+    match /checkoutRequests/{requestId} {
+      // Client may CREATE a request (its own), never mutate it afterward.
+      // A Cloud Function (Admin SDK) processes it and flips status.
+      allow create: if isSignedIn() &&
+                       request.resource.data.customerId == request.auth.uid &&
+                       request.resource.data.status == "pending";
+      allow read: if isSignedIn() &&
+                     (resource.data.customerId == request.auth.uid || isAdmin());
+      allow update, delete: if false; // functions only, via Admin SDK
+    }
+
+    // ---------- orders (function-owned) ----------
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid ||
+        isAdmin() ||
+        // any sellerId listed in the order's sellerBreakdown
+        request.auth.uid in resource.data.get("sellerIds", []) ||
+        resource.data.get("riderId", "") == request.auth.uid
+      );
+      allow write: if false; // Cloud Functions only (Admin SDK bypasses rules)
+    }
+
+    // ---------- payments (function-owned) ----------
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid || isAdmin()
+      );
+      allow write: if false; // Cloud Functions only — webhook-verified
+    }
+
+    // ---------- deliveries ----------
+    match /deliveries/{deliveryId} {
+      allow read: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.get("riderId", "") == request.auth.uid ||
+        isAdmin()
+      );
+
+      // Assigned rider may update ONLY location + a controlled status
+      // progression. Everything else stays function-owned.
+      allow update: if isSignedIn() &&
+                       resource.data.riderId == request.auth.uid &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(["riderLocation", "status", "updatedAt"]) &&
+                       isValidStatusTransition(resource.data.status,
+                                                request.resource.data.status);
+
+      allow create, delete: if false; // Cloud Functions only
+    }
+
+    function isValidStatusTransition(from, to) {
+      return (from == "assigned" && to == "in_transit") ||
+             (from == "in_transit" && to == "arrived") ||
+             (from == "arrived" && to == "completed") ||
+             (from == to); // location-only pings don't have to change status
+    }
+
+    // ---------- wallets (read-only mirror; Postgres is authoritative later) ----------
+    match /wallets/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if false;
+    }
+    match /walletTransactions/{txId} {
+      allow read: if isSignedIn() &&
+                     (resource.data.uid == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    // ---------- default deny ----------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

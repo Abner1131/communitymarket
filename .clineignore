@@ -1,0 +1,9 @@
+﻿node_modules/
+.git/
+build/
+dist/
+*.log
+venv/
+.env
+android/
+ios/

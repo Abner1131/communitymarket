@@ -1,0 +1,7 @@
+﻿{
+  "cline.planMode.apiProvider": "deepseek",
+  "cline.planMode.modelId": "deepseek-flash",
+
+  "cline.actMode.apiProvider": "deepseek",
+  "cline.actMode.modelId": "deepseek-flash"
+}
