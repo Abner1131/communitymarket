@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { friendlyAuthError, useAuth } from "../context/AuthContext";
+import { applyInviteCode } from "../lib/walletApi";
 
 // The one sign-in screen for everybody: customers, sellers, riders, admin.
 // Navigation after sign-in is handled by the AuthGate in _layout.tsx.
@@ -23,6 +24,7 @@ export default function AuthScreen() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(true);
@@ -47,6 +49,11 @@ export default function AuthScreen() {
         await signIn(email, password);
       } else {
         await signUp({ name, phone, email, password });
+        // Optional invite code: saved in the background. If it's wrong, it can
+        // be entered again later in Wallet.
+        if (inviteCode.trim()) {
+          applyInviteCode(inviteCode.trim()).catch(() => undefined);
+        }
       }
     } catch (e) {
       show(friendlyAuthError(e));
@@ -119,6 +126,15 @@ export default function AuthScreen() {
                   keyboardType="phone-pad"
                   value={phone}
                   onChangeText={setPhone}
+                />
+                <Text style={styles.label}>Invite code (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="From a friend, e.g. AMINA4K2"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  value={inviteCode}
+                  onChangeText={setInviteCode}
                 />
               </>
             )}

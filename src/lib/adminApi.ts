@@ -76,7 +76,7 @@ export type AdminWithdrawalRequest = {
 };
 
 export type AdminWallet = {
-  partyType: "seller" | "rider";
+  partyType: "seller" | "rider" | "customer";
   partyId: string;
   name: string;
   balance: number;
@@ -86,6 +86,40 @@ export type AdminWallet = {
   totalEarned: number;
   totalWithdrawn: number;
 };
+
+export type AdminRewardsSettings = {
+  pointsEnabled: boolean;
+  nairaPerPoint: number;
+  nairaPer100Points: number;
+  minRedeemPoints: number;
+  creditExpiryDays: number;
+  customerReferralEnabled: boolean;
+  newUserCredit: number;
+  inviterCredit: number;
+  referralMinOrder: number;
+  referralMonthlyCap: number;
+  partnerReferralEnabled: boolean;
+  partnerBonus: number;
+  partnerTarget: number;
+};
+
+export type AdminRewards = {
+  settings: AdminRewardsSettings;
+  creditOutstanding: number;
+  pointsOutstanding: number;
+  pointsValue: number;
+  referralCostThisMonth: number;
+  recentReferrals: { id: string; newUser: string; inviter: string; status: string; paid: number; note: string | null; atMs: number | null }[];
+};
+
+export type AdminFundingSettings = {
+  enabled: boolean;
+  minTopup: number;
+  maxTopup: number;
+  maxBalance: number;
+};
+
+export type AdminTopup = { id: string; name: string; amount: number; status: string; atMs: number | null };
 
 export type AdminPayoutSettings = {
   clearanceWorkingDays: number;
@@ -110,6 +144,7 @@ export type AdminPaidWithdrawal = {
 
 export type AdminState = {
   generatedAtMs: number;
+  rewards: AdminRewards;
   today: {
     orders: number;
     delivered: number;
@@ -120,6 +155,7 @@ export type AdminState = {
     deliveryProfit: number;
     commission: number;
     withdrawalFees: number;
+    topups: number;
     totalProfit: number;
     trips: number;
     batchedOrders: number;
@@ -134,6 +170,9 @@ export type AdminState = {
   wallets: {
     totalBalance: number;
     totalClearing: number;
+    customerFunds: number;
+    funding: AdminFundingSettings;
+    recentTopups: AdminTopup[];
     totalRequested: number;
     settings: AdminPayoutSettings;
     list: AdminWallet[];
@@ -156,7 +195,9 @@ export type AdminAction =
   | "payWithdrawal"
   | "rejectWithdrawal"
   | "setCommissionRates"
-  | "setPayoutSettings";
+  | "setPayoutSettings"
+  | "setFundingSettings"
+  | "setRewardsSettings";
 
 export class AdminApiError extends Error {
   forbidden: boolean;

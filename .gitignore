@@ -44,3 +44,9 @@ example
 
 .vercel
 .env*
+
+.env
+key-b64.txt
+serviceAccountKey.json
+*.zip
+.vercel/

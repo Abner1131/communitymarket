@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+import { HomeWalletCard } from "../components/HomeWalletCard";
 import PoweredByGreenFusion from "../components/PoweredByGreenFusion";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -501,62 +502,7 @@ export default function HomeScreen() {
         )}
 
         {/* WALLET */}
-        <Pressable
-          style={styles.wallet}
-          onPress={() =>
-            router.push(
-              "/wallet"
-            )
-          }
-        >
-          <Text
-            style={styles.walletLabel}
-          >
-            Wallet Balance
-          </Text>
-
-          <Text
-            style={styles.walletAmount}
-          >
-            {UI.naira}0.00
-          </Text>
-
-          <View
-            style={
-              styles.walletButtons
-            }
-          >
-            <View
-              style={
-                styles.walletButton
-              }
-            >
-              <Text>
-                {UI.card} Pay
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.walletButton
-              }
-            >
-              <Text>
-                {UI.wallet} Receive
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.walletButton
-              }
-            >
-              <Text>
-                {UI.withdraw} Withdraw
-              </Text>
-            </View>
-          </View>
-        </Pressable>
+        <HomeWalletCard />
 
         {/* CATEGORIES */}
         <Text

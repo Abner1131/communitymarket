@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
-import type { AdminPayoutSettings, AdminState, AdminWithdrawalRequest } from "../lib/adminApi";
+import type {
+  AdminRewards,
+  AdminRewardsSettings,
+  AdminFundingSettings,
+  AdminPayoutSettings,
+  AdminState,
+  AdminWithdrawalRequest,
+} from "../lib/adminApi";
 
 // Admin "Money" tab: withdrawal requests to pay, money held in wallets,
 // payment history and commission rates.
@@ -267,6 +274,232 @@ function PayoutSettingsEditor({
   );
 }
 
+const REWARD_SWITCHES: { key: keyof AdminRewardsSettings; label: string }[] = [
+  { key: "pointsEnabled", label: "Points on purchases" },
+  { key: "customerReferralEnabled", label: "Customer referrals" },
+  { key: "partnerReferralEnabled", label: "Rider/seller referrals" },
+];
+const REWARD_NUMBERS: { key: keyof AdminRewardsSettings; label: string; unit: string }[] = [
+  { key: "nairaPerPoint", label: "1 point for every", unit: "₦" },
+  { key: "nairaPer100Points", label: "100 points are worth", unit: "₦" },
+  { key: "minRedeemPoints", label: "Smallest redeem (points, in 100s)", unit: "pts" },
+  { key: "creditExpiryDays", label: "Rewards credit lasts", unit: "days" },
+  { key: "newUserCredit", label: "New customer gets", unit: "₦" },
+  { key: "inviterCredit", label: "Inviter gets", unit: "₦" },
+  { key: "referralMinOrder", label: "Inviter paid if first order is at least", unit: "₦" },
+  { key: "referralMonthlyCap", label: "Max paid referrals per inviter per month", unit: "" },
+  { key: "partnerBonus", label: "Rider/seller referral bonus", unit: "₦" },
+  { key: "partnerTarget", label: "…after this many deliveries", unit: "" },
+];
+
+function RewardsEditor({
+  rewards,
+  saving,
+  onSave,
+}: {
+  rewards: AdminRewards;
+  saving: boolean;
+  onSave: (s: AdminRewardsSettings) => void;
+}) {
+  const [flags, setFlags] = useState(() =>
+    Object.fromEntries(REWARD_SWITCHES.map((f) => [f.key, rewards.settings[f.key] as boolean])),
+  );
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(REWARD_NUMBERS.map((f) => [f.key, String(rewards.settings[f.key])])),
+  );
+  const [error, setError] = useState("");
+
+  function save() {
+    const out = { ...rewards.settings } as any;
+    for (const f of REWARD_SWITCHES) out[f.key] = flags[f.key];
+    for (const f of REWARD_NUMBERS) {
+      const n = parseInt(values[f.key], 10);
+      if (!Number.isInteger(n) || n < 0) return setError(`${f.label}: enter a whole number.`);
+      out[f.key] = n;
+    }
+    if (out.minRedeemPoints % 100 !== 0) return setError("Smallest redeem must be in hundreds of points.");
+    setError("");
+    onSave(out);
+  }
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Rewards & referrals</Text>
+      <View style={styles.statsRow}>
+        <View style={styles.stat}>
+          <Text style={styles.statNumber}>{money(rewards.creditOutstanding)}</Text>
+          <Text style={styles.statLabel}>Credit not yet used</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statNumber}>{rewards.pointsOutstanding.toLocaleString()}</Text>
+          <Text style={styles.statLabel}>Points (≈ {money(rewards.pointsValue)})</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statNumber}>{money(rewards.referralCostThisMonth)}</Text>
+          <Text style={styles.statLabel}>Referrals this month</Text>
+        </View>
+      </View>
+      <View style={styles.divider} />
+      {REWARD_SWITCHES.map((f) => (
+        <View key={f.key} style={[styles.rowBetween, { marginTop: 4 }]}>
+          <Text style={styles.item}>{f.label}</Text>
+          <Switch value={!!flags[f.key]} onValueChange={(v) => setFlags({ ...flags, [f.key]: v })} />
+        </View>
+      ))}
+      {REWARD_NUMBERS.map((f) => (
+        <View key={f.key} style={[styles.rowBetween, { marginTop: 6 }]}>
+          <Text style={[styles.item, { flex: 1, paddingRight: 8, fontSize: 14 }]}>{f.label}</Text>
+          <View style={styles.rateBox}>
+            {f.unit === "₦" ? <Text style={styles.value}>₦</Text> : null}
+            <TextInput
+              style={[styles.rateInput, { width: 80 }]}
+              value={values[f.key]}
+              onChangeText={(t) => setValues({ ...values, [f.key]: t.replace(/[^0-9]/g, "").slice(0, 7) })}
+              keyboardType="number-pad"
+            />
+            {f.unit && f.unit !== "₦" ? <Text style={styles.value}>{f.unit}</Text> : null}
+          </View>
+        </View>
+      ))}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <Pressable style={[styles.darkButton, saving && { opacity: 0.5 }]} disabled={saving} onPress={save}>
+        <Text style={styles.whiteText}>{saving ? "Saving..." : "Save rewards settings"}</Text>
+      </Pressable>
+
+      {rewards.recentReferrals.length > 0 ? (
+        <>
+          <View style={styles.divider} />
+          <Text style={styles.value}>Recent referrals</Text>
+          {rewards.recentReferrals.slice(0, 10).map((r) => (
+            <View key={r.id} style={[styles.rowBetween, { marginTop: 6 }]}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.item}>
+                  {r.inviter} → {r.newUser}
+                </Text>
+                <Text style={styles.muted}>
+                  {r.status === "rewarded" ? "rewarded" : r.status === "pending" ? "waiting for first delivery" : r.status}
+                  {r.note ? ` · ${r.note}` : ""}
+                </Text>
+              </View>
+              <Text style={styles.value}>{r.paid ? money(r.paid) : "—"}</Text>
+            </View>
+          ))}
+        </>
+      ) : null}
+    </View>
+  );
+}
+
+function FundingEditor({
+  funding,
+  customerFunds,
+  recentTopups,
+  saving,
+  onSave,
+}: {
+  funding: AdminFundingSettings;
+  customerFunds: number;
+  recentTopups: AdminState["wallets"]["recentTopups"];
+  saving: boolean;
+  onSave: (s: AdminFundingSettings) => void;
+}) {
+  const [enabled, setEnabled] = useState(funding.enabled);
+  const [values, setValues] = useState({
+    minTopup: String(funding.minTopup),
+    maxTopup: String(funding.maxTopup),
+    maxBalance: String(funding.maxBalance),
+  });
+  const [error, setError] = useState("");
+
+  function save(nextEnabled = enabled) {
+    const n = {
+      minTopup: parseInt(values.minTopup, 10),
+      maxTopup: parseInt(values.maxTopup, 10),
+      maxBalance: parseInt(values.maxBalance, 10),
+    };
+    if (![n.minTopup, n.maxTopup, n.maxBalance].every((x) => Number.isInteger(x) && x >= 100)) {
+      return setError("Enter whole naira amounts (100 or more).");
+    }
+    if (n.minTopup > n.maxTopup || n.maxTopup > n.maxBalance) {
+      return setError("Need: minimum ≤ maximum top-up ≤ maximum balance.");
+    }
+    setError("");
+    onSave({ enabled: nextEnabled, ...n });
+  }
+
+  const fields: { key: keyof typeof values; label: string }[] = [
+    { key: "minTopup", label: "Smallest top-up" },
+    { key: "maxTopup", label: "Largest top-up" },
+    { key: "maxBalance", label: "Most a customer wallet can hold" },
+  ];
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.rowBetween}>
+        <View style={{ flex: 1, paddingRight: 8 }}>
+          <Text style={styles.cardTitle}>Customer wallet funding</Text>
+          <Text style={styles.muted}>
+            {enabled ? "ON: customers can add money with Paystack." : "OFF: no new top-ups (balances can still be spent)."}
+          </Text>
+        </View>
+        <Switch
+          value={enabled}
+          disabled={saving}
+          onValueChange={(v) => {
+            setEnabled(v);
+            save(v);
+          }}
+        />
+      </View>
+      <Text style={styles.hint}>
+        Funds are spend-only (no bank withdrawal). Get legal advice before launch; switch OFF here if needed.
+      </Text>
+      <View style={styles.divider} />
+      <View style={styles.rowBetween}>
+        <Text style={styles.item}>Customer funds held (you owe)</Text>
+        <Text style={styles.value}>{money(customerFunds)}</Text>
+      </View>
+      {fields.map((f) => (
+        <View key={f.key} style={[styles.rowBetween, { marginTop: 6 }]}>
+          <Text style={[styles.item, { flex: 1, paddingRight: 8, fontSize: 14 }]}>{f.label}</Text>
+          <View style={styles.rateBox}>
+            <Text style={styles.value}>₦</Text>
+            <TextInput
+              style={[styles.rateInput, { width: 90 }]}
+              value={values[f.key]}
+              onChangeText={(t) => setValues({ ...values, [f.key]: t.replace(/[^0-9]/g, "").slice(0, 8) })}
+              keyboardType="number-pad"
+            />
+          </View>
+        </View>
+      ))}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <Pressable style={[styles.darkButton, saving && { opacity: 0.5 }]} disabled={saving} onPress={() => save()}>
+        <Text style={styles.whiteText}>{saving ? "Saving..." : "Save funding limits"}</Text>
+      </Pressable>
+
+      {recentTopups.length > 0 ? (
+        <>
+          <View style={styles.divider} />
+          <Text style={styles.value}>Recent top-ups</Text>
+          {recentTopups.slice(0, 10).map((t) => (
+            <View key={t.id} style={[styles.rowBetween, { marginTop: 6 }]}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.item}>{t.name}</Text>
+                <Text style={styles.muted}>
+                  {t.atMs ? new Date(t.atMs).toLocaleString() : ""} {"·"}{" "}
+                  {t.status === "credited" ? "added" : t.status === "flagged" ? "⚠ flagged — check Paystack" : "waiting for payment"}
+                </Text>
+              </View>
+              <Text style={[styles.value, t.status === "flagged" && { color: "#b00020" }]}>{money(t.amount)}</Text>
+            </View>
+          ))}
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 export function AdminMoney({
   state,
   working,
@@ -274,6 +507,8 @@ export function AdminMoney({
   onReject,
   onSaveRates,
   onSaveSettings,
+  onSaveFunding,
+  onSaveRewards,
 }: {
   state: AdminState;
   working: string | null;
@@ -281,6 +516,8 @@ export function AdminMoney({
   onReject: (req: AdminWithdrawalRequest, reason: string) => void;
   onSaveRates: (rates: Record<string, number>) => void;
   onSaveSettings: (settings: AdminPayoutSettings) => void;
+  onSaveFunding: (settings: AdminFundingSettings) => void;
+  onSaveRewards: (settings: AdminRewardsSettings) => void;
 }) {
   const { wallets, commission } = state;
   const [showWallets, setShowWallets] = useState(false);
@@ -331,7 +568,9 @@ export function AdminMoney({
                 <View style={{ flex: 1, paddingRight: 8 }}>
                   <Text style={styles.value}>{w.name}</Text>
                   <Text style={styles.muted}>
-                    {w.partyType} {"·"} {money(w.available)} ready {"·"} {money(w.clearing)} clearing
+                    {w.partyType === "customer"
+                      ? "customer funds (spend-only)"
+                      : `${w.partyType} · ${money(w.available)} ready · ${money(w.clearing)} clearing`}
                   </Text>
                 </View>
                 <Text style={styles.value}>{money(w.balance)}</Text>
@@ -360,6 +599,28 @@ export function AdminMoney({
           ))}
         </View>
       )}
+
+      <Text style={styles.sectionTitle}>Rewards</Text>
+      {state.rewards ? (
+        <RewardsEditor
+          key={JSON.stringify(state.rewards.settings)}
+          rewards={state.rewards}
+          saving={working === "rewards"}
+          onSave={onSaveRewards}
+        />
+      ) : null}
+
+      <Text style={styles.sectionTitle}>Customer funds</Text>
+      {wallets.funding ? (
+        <FundingEditor
+          key={JSON.stringify(wallets.funding)}
+          funding={wallets.funding}
+          customerFunds={wallets.customerFunds || 0}
+          recentTopups={wallets.recentTopups || []}
+          saving={working === "funding"}
+          onSave={onSaveFunding}
+        />
+      ) : null}
 
       <Text style={styles.sectionTitle}>Settings</Text>
       <PayoutSettingsEditor

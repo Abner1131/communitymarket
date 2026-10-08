@@ -455,6 +455,11 @@ export default function AdminScreen() {
                   {money(today.totalProfit ?? today.deliveryProfit)}
                 </Text>
               </View>
+              {today.topups ? (
+                <Text style={styles.hint}>
+                  Customers added {money(today.topups)} to their wallets today (not income; spent later on orders).
+                </Text>
+              ) : null}
               <Text style={styles.hint}>
                 {today.trips} trip(s) · {today.batchedOrders} order(s) rode along on a shared trip. Rider pay
                 includes trips still in progress.
@@ -679,6 +684,8 @@ export default function AdminScreen() {
             onReject={(req, reason) => void run(`wd-${req.id}`, "rejectWithdrawal", { withdrawalId: req.id, reason })}
             onSaveRates={(rates) => void run("rates", "setCommissionRates", { rates })}
             onSaveSettings={(settings) => void run("payoutSettings", "setPayoutSettings", { settings })}
+            onSaveFunding={(settings) => void run("funding", "setFundingSettings", { settings })}
+            onSaveRewards={(settings) => void run("rewards", "setRewardsSettings", { settings })}
           />
         ) : null}
 
