@@ -1,3 +1,4 @@
+import type { WalletSummary } from "../components/WalletCard";
 import { API_URL, auth } from "./firebase";
 
 export type RiderPoint = { latitude: number; longitude: number };
@@ -38,7 +39,7 @@ export type RiderTrip = {
   riderPay: number;
 };
 
-export type RiderState = { rider: RiderProfile; trip: RiderTrip | null };
+export type RiderState = { rider: RiderProfile; trip: RiderTrip | null; wallet: WalletSummary };
 
 export class RiderApiError extends Error {
   notLinked: boolean;
@@ -51,7 +52,7 @@ export class RiderApiError extends Error {
 }
 
 export async function riderAction(
-  action: "me" | "setOnline" | "pickedUp" | "delivered",
+  action: "me" | "setOnline" | "pickedUp" | "delivered" | "setBank" | "withdraw",
   extra: Record<string, unknown> = {},
 ): Promise<RiderState> {
   const user = auth.currentUser;

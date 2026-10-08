@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 
+import { WalletCard } from "../components/WalletCard";
 import {
   sellerAction,
   SellerApiError,
@@ -94,8 +95,18 @@ function OrderCard({
         </View>
       ))}
       <View style={[styles.rowBetween, { marginTop: 8 }]}>
-        <Text style={styles.value}>Your sale</Text>
-        <Text style={styles.value}>{money(order.subtotal)}</Text>
+        <Text style={styles.item}>Sale</Text>
+        <Text style={styles.item}>{money(order.subtotal)}</Text>
+      </View>
+      {order.commission > 0 ? (
+        <View style={styles.rowBetween}>
+          <Text style={styles.muted}>CommunityMarket commission</Text>
+          <Text style={styles.muted}>− {money(order.commission)}</Text>
+        </View>
+      ) : null}
+      <View style={[styles.rowBetween, { marginTop: 4 }]}>
+        <Text style={styles.value}>You get</Text>
+        <Text style={styles.value}>{money(order.earning ?? order.subtotal)}</Text>
       </View>
       {order.riderName ? <Text style={styles.muted}>Rider: {order.riderName}</Text> : null}
 
@@ -114,6 +125,7 @@ function OrderCard({
 function ProductForm({
   draft,
   categories,
+  rates,
   saving,
   error,
   onChange,
@@ -122,6 +134,7 @@ function ProductForm({
 }: {
   draft: Draft;
   categories: string[];
+  rates: Record<string, number>;
   saving: boolean;
   error: string;
   onChange: (d: Draft) => void;
@@ -152,6 +165,18 @@ function ProductForm({
           </Pressable>
         ))}
       </View>
+
+      {rates[draft.category] !== undefined ? (
+        <Text style={styles.hint}>
+          CommunityMarket commission on {draft.category}: {rates[draft.category]}%
+          {(() => {
+            const p = parseInt(draft.price, 10);
+            return Number.isInteger(p) && p > 0
+              ? ` · you get ${money(p - Math.round((p * rates[draft.category]) / 100))} per item`
+              : "";
+          })()}
+        </Text>
+      ) : null}
 
       <View style={styles.twoCol}>
         <View style={{ flex: 1 }}>
@@ -215,7 +240,7 @@ export default function SellerScreen() {
   const [loading, setLoading] = useState(true);
   const [notLinked, setNotLinked] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [tab, setTab] = useState<"orders" | "products">("orders");
+  const [tab, setTab] = useState<"orders" | "products" | "money">("orders");
   const [working, setWorking] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState("");
@@ -254,6 +279,17 @@ export default function SellerScreen() {
       clearInterval(timer);
     };
   }, [run]);
+
+  // Wallet actions report their own errors inside the wallet card.
+  async function walletAction(action: "setBank" | "withdraw", extra: Record<string, unknown>) {
+    try {
+      const next = await sellerAction(action, extra);
+      if (mounted.current) setState(next);
+      return null;
+    } catch (e: any) {
+      return (e?.message as string) || "Something went wrong.";
+    }
+  }
 
   function editProduct(p: SellerProduct) {
     setFormError("");
@@ -396,16 +432,24 @@ export default function SellerScreen() {
         </View>
 
         <View style={styles.tabs}>
-          {(["orders", "products"] as const).map((t) => (
+          {(["orders", "products", "money"] as const).map((t) => (
             <Pressable key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
               <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                {t === "orders" ? `Orders (${orders.length})` : `Products (${products.length})`}
+                {t === "orders" ? `Orders (${orders.length})` : t === "products" ? `Products (${products.length})` : "Wallet"}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        {tab === "orders" ? (
+        {tab === "money" ? (
+          state.wallet ? (
+            <WalletCard
+              wallet={state.wallet}
+              onSaveBank={async (bank) => walletAction("setBank", { bank })}
+              onWithdraw={async (amount) => walletAction("withdraw", { amount })}
+            />
+          ) : null
+        ) : tab === "orders" ? (
           orders.length === 0 ? (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>No orders yet</Text>
@@ -434,6 +478,7 @@ export default function SellerScreen() {
               <ProductForm
                 draft={draft}
                 categories={state.categories}
+                rates={state.commissionRates || {}}
                 saving={working === "save"}
                 error={formError}
                 onChange={setDraft}

@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 
+import { AdminMoney } from "../components/AdminMoney";
 import {
   adminAction,
   AdminApiError,
@@ -24,7 +25,7 @@ import {
 const NAIRA = "₦";
 const REFRESH_EVERY_MS = 20000;
 
-type Tab = "today" | "applications" | "live";
+type Tab = "today" | "applications" | "live" | "money";
 
 function money(n: number) {
   return `${NAIRA}${Math.round(n).toLocaleString()}`;
@@ -395,8 +396,9 @@ export default function AdminScreen() {
           {(
             [
               ["today", "Today"],
-              ["applications", `Applications${applications.length ? ` (${applications.length})` : ""}`],
-              ["live", `Live${counts.needsAttention - applications.length > 0 ? " ⚠" : ""}`],
+              ["applications", `Apps${applications.length ? ` (${applications.length})` : ""}`],
+              ["live", `Live${counts.needsAttention - applications.length - (state.wallets ? state.wallets.requests.length : 0) > 0 ? " ⚠" : ""}`],
+              ["money", `Money${state.wallets && state.wallets.requests.length > 0 ? ` (${state.wallets.requests.length})` : ""}`],
             ] as [Tab, string][]
           ).map(([t, text]) => (
             <Pressable key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
@@ -429,11 +431,28 @@ export default function AdminScreen() {
                 <Text style={styles.item}>Rider pay</Text>
                 <Text style={styles.value}>− {money(today.riderPay)}</Text>
               </View>
+              <View style={styles.rowBetween}>
+                <Text style={styles.item}>= Delivery profit</Text>
+                <Text style={styles.value}>{money(today.deliveryProfit)}</Text>
+              </View>
+              <View style={styles.rowBetween}>
+                <Text style={styles.item}>+ Commission on goods</Text>
+                <Text style={styles.value}>{money(today.commission ?? 0)}</Text>
+              </View>
+              <View style={styles.rowBetween}>
+                <Text style={styles.item}>+ Withdrawal fees</Text>
+                <Text style={styles.value}>{money(today.withdrawalFees ?? 0)}</Text>
+              </View>
               <View style={styles.divider} />
               <View style={styles.rowBetween}>
-                <Text style={styles.cardTitle}>Delivery profit</Text>
-                <Text style={[styles.cardTitle, { color: today.deliveryProfit >= 0 ? "#1e7d32" : "#b00020" }]}>
-                  {money(today.deliveryProfit)}
+                <Text style={styles.cardTitle}>Your profit today</Text>
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    { color: (today.totalProfit ?? today.deliveryProfit) >= 0 ? "#1e7d32" : "#b00020" },
+                  ]}
+                >
+                  {money(today.totalProfit ?? today.deliveryProfit)}
                 </Text>
               </View>
               <Text style={styles.hint}>
@@ -467,12 +486,25 @@ export default function AdminScreen() {
                 {orphanRiders.length ? (
                   <Text style={styles.item}>• {orphanRiders.length} rider(s) stuck on a finished trip</Text>
                 ) : null}
+                {state.wallets && state.wallets.requests.length ? (
+                  <Text style={styles.item}>
+                    • {state.wallets.requests.length} withdrawal request(s) to pay (Money tab)
+                  </Text>
+                ) : null}
                 {flaggedPayments.length ? (
                   <Text style={styles.item}>• {flaggedPayments.length} flagged payment(s) to check in Paystack</Text>
                 ) : null}
                 <Pressable
                   style={styles.primaryButton}
-                  onPress={() => setTab(applications.length ? "applications" : "live")}
+                  onPress={() =>
+                    setTab(
+                      applications.length
+                        ? "applications"
+                        : state.wallets && state.wallets.requests.length
+                          ? "money"
+                          : "live",
+                    )
+                  }
                 >
                   <Text style={styles.primaryButtonText}>Review</Text>
                 </Pressable>
@@ -635,6 +667,20 @@ export default function AdminScreen() {
             ) : null}
           </>
         )}
+
+        {/* ---------- MONEY ---------- */}
+        {tab === "money" && state.wallets && state.commission ? (
+          <AdminMoney
+            state={state}
+            working={working}
+            onPay={(req, method, reference) =>
+              void run(`wd-${req.id}`, "payWithdrawal", { withdrawalId: req.id, method, reference })
+            }
+            onReject={(req, reason) => void run(`wd-${req.id}`, "rejectWithdrawal", { withdrawalId: req.id, reason })}
+            onSaveRates={(rates) => void run("rates", "setCommissionRates", { rates })}
+            onSaveSettings={(settings) => void run("payoutSettings", "setPayoutSettings", { settings })}
+          />
+        ) : null}
 
         <Text style={[styles.hint, { textAlign: "center", marginTop: 10 }]}>
           Updated {new Date(state.generatedAtMs).toLocaleTimeString()} · pull down to refresh

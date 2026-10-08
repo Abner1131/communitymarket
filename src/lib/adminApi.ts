@@ -62,6 +62,52 @@ export type AdminFlaggedPayment = {
   flaggedAtMs: number | null;
 };
 
+export type AdminWithdrawalRequest = {
+  id: string;
+  partyType: "seller" | "rider";
+  partyId: string;
+  name: string;
+  amount: number; // taken from their wallet
+  fee: number; // our withdrawal fee
+  netAmount: number; // what you send
+  bank: { bankName: string; accountNumber: string; accountName: string } | null;
+  requestedAtMs: number | null;
+  balanceLeft: number;
+};
+
+export type AdminWallet = {
+  partyType: "seller" | "rider";
+  partyId: string;
+  name: string;
+  balance: number;
+  available: number;
+  clearing: number;
+  pendingWithdrawal: number;
+  totalEarned: number;
+  totalWithdrawn: number;
+};
+
+export type AdminPayoutSettings = {
+  clearanceWorkingDays: number;
+  clearanceHour: number;
+  feeUpTo5k: number;
+  feeUpTo50k: number;
+  feeAbove50k: number;
+};
+
+export type AdminPaidWithdrawal = {
+  id: string;
+  partyType: "seller" | "rider";
+  partyId: string;
+  name: string;
+  amount: number;
+  fee: number;
+  netAmount: number;
+  method: string;
+  reference: string | null;
+  paidAtMs: number;
+};
+
 export type AdminState = {
   generatedAtMs: number;
   today: {
@@ -72,6 +118,9 @@ export type AdminState = {
     deliveryFees: number;
     riderPay: number;
     deliveryProfit: number;
+    commission: number;
+    withdrawalFees: number;
+    totalProfit: number;
     trips: number;
     batchedOrders: number;
   };
@@ -82,6 +131,16 @@ export type AdminState = {
   waitingOrders: AdminWaitingOrder[];
   flaggedPayments: AdminFlaggedPayment[];
   counts: { ridersOnline: number; ridersBusy: number; needsAttention: number };
+  wallets: {
+    totalBalance: number;
+    totalClearing: number;
+    totalRequested: number;
+    settings: AdminPayoutSettings;
+    list: AdminWallet[];
+    requests: AdminWithdrawalRequest[];
+    recentPaid: AdminPaidWithdrawal[];
+  };
+  commission: { categories: string[]; maxRate: number; rates: Record<string, number> };
   message: string | null;
 };
 
@@ -93,7 +152,11 @@ export type AdminAction =
   | "retryDispatch"
   | "completeTrip"
   | "releaseTrip"
-  | "freeRider";
+  | "freeRider"
+  | "payWithdrawal"
+  | "rejectWithdrawal"
+  | "setCommissionRates"
+  | "setPayoutSettings";
 
 export class AdminApiError extends Error {
   forbidden: boolean;

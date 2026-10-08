@@ -22,6 +22,7 @@ import {
   View,
 } from "react-native";
 
+import { WalletCard } from "../components/WalletCard";
 import { auth } from "../lib/firebase";
 import {
   riderAction,
@@ -200,6 +201,17 @@ export default function RiderScreen() {
   const trip = state?.trip;
   const allCollected = trip?.status === "en_route";
 
+  // Wallet actions report their own errors inside the wallet card.
+  async function walletAction(action: "setBank" | "withdraw", extra: Record<string, unknown>) {
+    try {
+      const next = await riderAction(action, extra);
+      if (mounted.current) setState(next);
+      return null;
+    } catch (e: any) {
+      return (e?.message as string) || "Something went wrong.";
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -250,7 +262,7 @@ export default function RiderScreen() {
                 <View>
                   <Text style={styles.cardTitle}>{rider.name}</Text>
                   <Text style={styles.muted}>
-                    {rider.vehicle.toUpperCase()}
+                    {rider.id} · {rider.vehicle.toUpperCase()}
                     {rider.rating ? ` · ★ ${rider.rating}` : ""}
                   </Text>
                 </View>
@@ -277,7 +289,7 @@ export default function RiderScreen() {
                 <Text style={styles.value}>{rider.completedTrips}</Text>
               </View>
               <View style={styles.rowBetween}>
-                <Text style={styles.muted}>Total earned</Text>
+                <Text style={styles.muted}>Total earned (all time)</Text>
                 <Text style={styles.value}>
                   {NAIRA}
                   {rider.earningsTotal.toLocaleString()}
@@ -427,6 +439,17 @@ export default function RiderScreen() {
                 })}
               </>
             )}
+
+            {state?.wallet ? (
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.sectionTitle}>My wallet</Text>
+                <WalletCard
+                  wallet={state.wallet}
+                  onSaveBank={async (bank) => walletAction("setBank", { bank })}
+                  onWithdraw={async (amount) => walletAction("withdraw", { amount })}
+                />
+              </View>
+            ) : null}
 
             <Pressable style={[styles.secondaryButton, { marginTop: 24 }]} onPress={() => void signOut(auth)}>
               <Text style={styles.secondaryButtonText}>Sign out</Text>

@@ -6,12 +6,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { payForOrder } from "../lib/pay";
+import { payForOrder, previewWallet, type WalletPreview } from "../lib/pay";
 
 type OrderData = {
   subtotal: number;
@@ -32,6 +33,8 @@ export default function PaymentScreen() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [wallet, setWallet] = useState<WalletPreview | null>(null);
+  const [useWallet, setUseWallet] = useState(true);
 
   useEffect(() => {
     if (!orderId) return;
@@ -54,13 +57,33 @@ export default function PaymentScreen() {
     return unsubscribe;
   }, [orderId]);
 
+  // Sellers and riders can pay from their wallet: see what it can cover.
+  const orderStatus = order?.status;
+  useEffect(() => {
+    if (!orderId || orderStatus !== "created") return;
+    previewWallet(orderId)
+      .then(setWallet)
+      .catch(() => setWallet(null));
+  }, [orderId, orderStatus]);
+
+  // Paid and beyond (finding rider, on the way, delivered...).
+  const isPaid = !!order && !["created", "expired", "cancelled"].includes(order.status);
+  const walletApplied = wallet?.walletApplied ?? 0;
+  const walletWillTake = walletApplied > 0 ? 0 : useWallet ? (wallet?.walletCanCover ?? 0) : 0;
+  const toPayOnPaystack = order ? Math.max(0, order.total - walletApplied - walletWillTake) : 0;
+
   async function handlePay() {
     if (!orderId || starting) return;
     setErrorMessage("");
     setStarting(true);
     try {
-      const { authorizationUrl } = await payForOrder(orderId);
-      await Linking.openURL(authorizationUrl);
+      const result = await payForOrder(orderId, walletWillTake > 0);
+      if (result.paidWithWallet) {
+        setWallet(null); // the order screen updates to "paid" by itself
+      } else if (result.authorizationUrl) {
+        await Linking.openURL(result.authorizationUrl);
+        previewWallet(orderId).then(setWallet).catch(() => undefined);
+      }
     } catch (error: any) {
       setErrorMessage(error.message || "Could not start payment.");
     } finally {
@@ -102,7 +125,14 @@ export default function PaymentScreen() {
         <Text style={styles.title}>Payment</Text>
         <Text style={styles.subtitle}>Order #{orderId}</Text>
 
-        {order.status === "paid" && (
+        {(order.status === "expired" || order.status === "cancelled") && (
+          <Text style={styles.errorText}>
+            This order was {order.status}. Any wallet money used has gone back to your wallet. Please check out
+            again.
+          </Text>
+        )}
+
+        {isPaid && (
           <View style={styles.paidBanner}>
             <Text style={styles.paidBannerText}>Payment confirmed</Text>
           </View>
@@ -144,16 +174,58 @@ export default function PaymentScreen() {
           </View>
         </View>
 
+        {order.status === "created" && wallet?.hasWallet ? (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Your wallet</Text>
+            {walletApplied > 0 ? (
+              <Text style={styles.label}>
+                NGN {walletApplied.toLocaleString()} from your wallet is already applied to this order. Pay the
+                remaining NGN {toPayOnPaystack.toLocaleString()} below. (If the order expires, it goes back to
+                your wallet.)
+              </Text>
+            ) : wallet.walletCanCover > 0 ? (
+              <>
+                <View style={styles.row}>
+                  <Text style={styles.label}>
+                    Use my wallet (NGN {wallet.walletAvailable.toLocaleString()} available)
+                  </Text>
+                  <Switch value={useWallet} onValueChange={setUseWallet} />
+                </View>
+                {useWallet ? (
+                  <>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>From wallet</Text>
+                      <Text style={styles.value}>− NGN {walletWillTake.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Left to pay</Text>
+                      <Text style={styles.value}>NGN {toPayOnPaystack.toLocaleString()}</Text>
+                    </View>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <Text style={styles.label}>
+                Your wallet has no cleared money to spend yet. New earnings can be spent once they clear.
+              </Text>
+            )}
+          </View>
+        ) : null}
+
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
-        {order.status !== "paid" && (
+        {order.status === "created" && (
           <Pressable
             style={[styles.payButton, starting && styles.payButtonDisabled]}
             onPress={handlePay}
             disabled={starting}
           >
             <Text style={styles.payButtonText}>
-              {starting ? "Opening payment page..." : "Pay Now"}
+              {starting
+                ? "Please wait..."
+                : toPayOnPaystack === 0 && walletWillTake > 0
+                  ? `Pay NGN ${walletWillTake.toLocaleString()} from wallet`
+                  : `Pay NGN ${toPayOnPaystack.toLocaleString()}`}
             </Text>
           </Pressable>
         )}

@@ -1,3 +1,4 @@
+import type { WalletSummary } from "../components/WalletCard";
 import { API_URL, auth } from "./firebase";
 
 export type SellerOrder = {
@@ -7,6 +8,8 @@ export type SellerOrder = {
   customerFirstName: string;
   items: { productId: string; name: string; quantity: number; unitPrice: number }[];
   subtotal: number;
+  commission: number; // CommunityMarket's commission on this shop's items
+  earning: number; // what the shop receives (subtotal - commission)
   ready: boolean;
   riderName: string | null;
 };
@@ -32,6 +35,8 @@ export type SellerState = {
   orders: SellerOrder[];
   products: SellerProduct[];
   categories: string[];
+  wallet: WalletSummary;
+  commissionRates: Record<string, number>; // percent per category
   savedProductId: string | null;
 };
 
@@ -44,7 +49,7 @@ export class SellerApiError extends Error {
 }
 
 export async function sellerAction(
-  action: "me" | "markReady" | "saveProduct" | "setLocation",
+  action: "me" | "markReady" | "saveProduct" | "setLocation" | "setBank" | "withdraw",
   extra: Record<string, unknown> = {},
 ): Promise<SellerState> {
   const user = auth.currentUser;
