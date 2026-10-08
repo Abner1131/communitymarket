@@ -1,5 +1,5 @@
 ﻿import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -12,21 +12,14 @@ import DeliveryMap from "../components/DeliveryMap";
 import { useCart } from "../context/CartContext";
 import { useCheckout } from "../context/CheckoutContext";
 import { sellers } from "../data/sellers";
-import { submitCheckout } from "../lib/checkout";
+import { quoteCheckout, submitCheckout, type CheckoutQuote } from "../lib/checkout";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import FirebaseSignInCard from "../components/FirebaseSignInCard";
 import { auth } from "../lib/firebase";
 
-import {
-  calculateDeliveryFee,
-  type DeliveryVehicle,
-} from "../services/deliveryPricing";
+import { type DeliveryVehicle } from "../services/deliveryPricing";
 
-import {
-  calculateDistanceKm,
-  getCurrentUserLocation,
-  type UserLocation,
-} from "../services/location";
+import { getCurrentUserLocation, type UserLocation } from "../services/location";
 
 export default function CheckoutScreen() {
   const {
@@ -65,30 +58,59 @@ export default function CheckoutScreen() {
   const [errorMessage, setErrorMessage] =
     useState("");
 
+  // Main market: shown on the map until we know the shop's location.
   const marketplaceLocation: UserLocation = {
     latitude: 10.3158,
     longitude: 9.8442,
   };
 
-  const distanceKm = useMemo(() => {
-    if (!customerLocation) {
-      return 0;
-    }
-    return calculateDistanceKm(marketplaceLocation, customerLocation);
-  }, [customerLocation]);
+  // The delivery fee comes from the server (measured from the seller's shop
+  // to you), so what you see here is exactly what you will pay.
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState("");
+  const cartKey = items.map((i) => `${i.product.id}:${i.quantity}`).join(",");
 
-  const deliveryFee = useMemo(() => {
-    if (!customerLocation) {
-      return 0;
+  useEffect(() => {
+    if (!customerLocation || items.length === 0 || !firebaseUser) {
+      setQuote(null);
+      return;
     }
-    return calculateDeliveryFee({
-      distanceKm,
-      vehicle: selectedVehicle,
-      cartTotal,
-    });
-  }, [customerLocation, distanceKm, selectedVehicle, cartTotal]);
+    let cancelled = false;
+    setQuoteLoading(true);
+    setQuoteError("");
+    const timer = setTimeout(() => {
+      quoteCheckout({
+        items: items.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
+        deliveryAddress: { latitude: customerLocation.latitude, longitude: customerLocation.longitude },
+        vehiclePreference: selectedVehicle,
+      })
+        .then((q) => {
+          if (!cancelled) setQuote(q);
+        })
+        .catch((e: any) => {
+          if (!cancelled) {
+            setQuote(null);
+            setQuoteError(e?.message || "Could not work out the delivery fee.");
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setQuoteLoading(false);
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerLocation, selectedVehicle, cartKey, firebaseUser?.uid]);
 
-  const grandTotal = cartTotal + deliveryFee;
+  const distanceKm = quote?.distanceKm ?? 0;
+  const deliveryFee = quote?.deliveryFee ?? 0;
+  const shopLocation = quote?.shops[0]?.location ?? marketplaceLocation;
+  const feeText = quoteLoading ? "Calculating..." : quote ? `₦${deliveryFee.toLocaleString()}` : "—";
+
+  const grandTotal = quote ? quote.total : cartTotal + deliveryFee;
 
   async function handleGetLocation() {
     setErrorMessage("");
@@ -250,13 +272,18 @@ export default function CheckoutScreen() {
               <View style={styles.mapContainer}>
                 <DeliveryMap
                   customerLocation={customerLocation}
-                  marketplaceLocation={marketplaceLocation}
+                  marketplaceLocation={shopLocation}
                 />
               </View>
               <View style={styles.distanceCard}>
-                <Text style={styles.distanceLabel}>Distance</Text>
-                <Text style={styles.distanceValue}>{distanceKm.toFixed(1)} km</Text>
+                <Text style={styles.distanceLabel}>
+                  Distance{quote && quote.shops.length > 1 ? ` (${quote.shops.length} shops)` : " from the shop"}
+                </Text>
+                <Text style={styles.distanceValue}>
+                  {quoteLoading ? "..." : quote ? `${distanceKm.toFixed(1)} km` : "—"}
+                </Text>
               </View>
+              {quoteError ? <Text style={styles.errorText}>{quoteError}</Text> : null}
             </>
           )}
         </View>
@@ -286,7 +313,7 @@ export default function CheckoutScreen() {
           {customerLocation && (
             <View style={styles.deliveryEstimate}>
               <Text style={styles.estimateLabel}>Estimated Delivery</Text>
-              <Text style={styles.estimateValue}>₦{deliveryFee.toLocaleString()}</Text>
+              <Text style={styles.estimateValue}>{feeText}</Text>
             </View>
           )}
         </View>
@@ -348,7 +375,7 @@ export default function CheckoutScreen() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery</Text>
             <Text style={styles.summaryValue}>
-              {customerLocation ? `₦${deliveryFee.toLocaleString()}` : "Set location"}
+              {customerLocation ? feeText : "Set location"}
             </Text>
           </View>
           <View style={styles.divider} />
