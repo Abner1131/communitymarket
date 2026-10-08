@@ -122,6 +122,22 @@ export default function AccountScreen() {
           )}
         </View>
 
+        {/* ADMIN */}
+        {user.role === "admin" && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Admin</Text>
+            <Text style={styles.description}>
+              Approve riders and sellers, see today's numbers and fix stuck orders.
+            </Text>
+            <Pressable
+              style={[styles.primaryButton, { backgroundColor: "#b00020" }]}
+              onPress={() => router.push("/admin" as any)}
+            >
+              <Text style={styles.primaryButtonText}>Open Admin Dashboard</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* ORDERS (everyone can shop) */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>My shopping</Text>

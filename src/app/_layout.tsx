@@ -14,6 +14,7 @@ import { onNotificationTap, registerForPush } from "../lib/push";
 const ROLE_ROUTES: { prefix: string; roles: string[] }[] = [
   { prefix: "/rider", roles: ["rider", "admin"] },
   { prefix: "/seller", roles: ["seller", "admin"] },
+  { prefix: "/admin", roles: ["admin"] },
 ];
 
 function AuthGate() {

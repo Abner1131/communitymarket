@@ -59,6 +59,7 @@ const UI = {
   home: "\u2302",
   back: "\u2190",
   forward: "\u203A",
+  admin: "\u{1F6E1}\uFE0F",
   withdraw: "\u2197",
 } as const;
 
@@ -332,6 +333,21 @@ export default function HomeScreen() {
             setSearch
           }
         />
+
+        {/* ADMIN */}
+        {user?.role === "admin" && (
+          <Pressable
+            style={[styles.riderButton, { borderLeftWidth: 5, borderLeftColor: "#b00020" }]}
+            onPress={() => router.push("/admin" as any)}
+          >
+            <Text style={styles.riderIcon}>{UI.admin}</Text>
+            <View style={styles.riderInfo}>
+              <Text style={styles.riderTitle}>Admin Dashboard</Text>
+              <Text style={styles.riderSubtitle}>Applications, today's numbers, live trips</Text>
+            </View>
+            <Text style={styles.riderArrow}>{UI.forward}</Text>
+          </Pressable>
+        )}
 
         {/* RIDER / DELIVERY */}
         {canAccessDelivery && (
