@@ -34,6 +34,9 @@ export type RiderTrip = {
     customerAddress: string | null;
     location: RiderPoint | null;
     status: "pending" | "delivered";
+    needsCode: boolean; // customer's delivery code required
+    codeLocked: boolean; // too many wrong codes: admin must unlock
+    codeTriesLeft: number;
   }[];
   routeKm: number;
   riderPay: number;

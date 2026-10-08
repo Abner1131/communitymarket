@@ -22,6 +22,7 @@ import {
   View,
 } from "react-native";
 
+import DeliveryCodeEntry from "../components/DeliveryCodeEntry";
 import { WalletCard } from "../components/WalletCard";
 import { auth } from "../lib/firebase";
 import {
@@ -200,6 +201,24 @@ export default function RiderScreen() {
   const rider = state?.rider;
   const trip = state?.trip;
   const allCollected = trip?.status === "en_route";
+
+  // Delivery with the customer's code. Errors show inside the code box.
+  async function deliverWithCode(orderId: string, code: string): Promise<string | null> {
+    setWorking(`drop-${orderId}`);
+    setErrorMessage("");
+    try {
+      const location = await tryLocation();
+      const next = await riderAction("delivered", location ? { orderId, code, location } : { orderId, code });
+      if (mounted.current) setState(next);
+      return null;
+    } catch (e: any) {
+      // Refresh so the tries-left / locked state is up to date.
+      void run(null, "me");
+      return (e?.message as string) || "Could not confirm delivery.";
+    } finally {
+      if (mounted.current) setWorking(null);
+    }
+  }
 
   // Wallet actions report their own errors inside the wallet card.
   async function walletAction(action: "setBank" | "withdraw", extra: Record<string, unknown>) {
@@ -404,6 +423,16 @@ export default function RiderScreen() {
                       </View>
                       <Text style={styles.item}>{drop.customerAddress}</Text>
                       <Text style={styles.muted}>Order #{drop.orderId.slice(0, 8).toUpperCase()}</Text>
+                      {!done && allCollected && drop.needsCode && (
+                        <DeliveryCodeEntry
+                          customerName={drop.customerName || "the customer"}
+                          triesLeft={drop.codeTriesLeft}
+                          locked={drop.codeLocked}
+                          disabled={working !== null && working !== `drop-${drop.orderId}`}
+                          saving={working === `drop-${drop.orderId}`}
+                          onSubmit={(code) => deliverWithCode(drop.orderId, code)}
+                        />
+                      )}
                       {!done && (
                         <View style={styles.buttonRow}>
                           {drop.customerPhone ? (
@@ -417,6 +446,7 @@ export default function RiderScreen() {
                           <Pressable style={styles.smallButton} onPress={() => openMaps(drop.location)}>
                             <Text style={styles.smallButtonText}>Directions</Text>
                           </Pressable>
+                          {!(allCollected && drop.needsCode) && (
                           <Pressable
                             style={[styles.smallButton, styles.smallPrimary, !allCollected && { opacity: 0.4 }]}
                             disabled={!allCollected || working !== null}
@@ -432,6 +462,7 @@ export default function RiderScreen() {
                               {working === `drop-${drop.orderId}` ? "Saving..." : "Delivered"}
                             </Text>
                           </Pressable>
+                          )}
                         </View>
                       )}
                     </View>

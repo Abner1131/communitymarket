@@ -2,11 +2,13 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -239,6 +241,11 @@ function TripCard({
       <Text style={styles.item}>
         Collected {trip.pickupsDone}/{trip.pickups} shops · Delivered {trip.delivered}/{trip.dropoffs}
       </Text>
+      {trip.lockedOrderIds && trip.lockedOrderIds.length ? (
+        <Text style={styles.warnText}>
+          🔒 Locked by wrong codes: {trip.lockedOrderIds.map(short).join(", ")} (see top of Live)
+        </Text>
+      ) : null}
       <Text style={styles.item}>
         Fees {money(trip.deliveryFeesTotal)} · Rider pay {money(trip.riderPay)} · Profit{" "}
         {money(trip.deliveryFeesTotal - trip.riderPay)}
@@ -372,6 +379,7 @@ export default function AdminScreen() {
   const stuckTrips = trips.filter((t) => t.stuck);
   const lateOrders = waitingOrders.filter((o) => o.late);
   const orphanRiders = riders.filter((r) => r.tripMissing);
+  const lockedDeliveries = state.delivery ? state.delivery.locked : [];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -491,6 +499,11 @@ export default function AdminScreen() {
                 {orphanRiders.length ? (
                   <Text style={styles.item}>• {orphanRiders.length} rider(s) stuck on a finished trip</Text>
                 ) : null}
+                {lockedDeliveries.length ? (
+                  <Text style={styles.item}>
+                    • {lockedDeliveries.length} delivery(ies) locked by wrong codes
+                  </Text>
+                ) : null}
                 {state.wallets && state.wallets.requests.length ? (
                   <Text style={styles.item}>
                     • {state.wallets.requests.length} withdrawal request(s) to pay (Money tab)
@@ -547,6 +560,42 @@ export default function AdminScreen() {
         {/* ---------- LIVE ---------- */}
         {tab === "live" && (
           <>
+            {lockedDeliveries.length > 0 ? (
+              <>
+                <Text style={styles.sectionTitle}>Locked deliveries ({lockedDeliveries.length})</Text>
+                {lockedDeliveries.map((l) => (
+                  <View key={l.orderId} style={[styles.card, styles.warnCard]}>
+                    <Text style={styles.cardTitle}>
+                      {short(l.orderId)} · {l.customerName}
+                    </Text>
+                    <Text style={styles.muted}>Rider: {l.riderName || "-"}</Text>
+                    <Text style={styles.warnText}>
+                      The rider entered a wrong code {state.delivery ? state.delivery.maxTries : 5} times.
+                    </Text>
+                    <Text style={styles.hint}>
+                      Call the customer. If they have the goods or the rider is with them, unlock so they can read
+                      the code from My Orders. Use "Mark trip delivered" only when you are sure.
+                    </Text>
+                    <View style={styles.actionsRow}>
+                      {l.phone ? (
+                        <Pressable style={styles.smallButton} onPress={() => void Linking.openURL(`tel:${l.phone}`)}>
+                          <Text style={styles.smallButtonText}>Call customer</Text>
+                        </Pressable>
+                      ) : null}
+                      <ConfirmButton
+                        label="Unlock (5 new tries)"
+                        confirmKey={`unlock-${l.orderId}`}
+                        armed={armed}
+                        busy={working === `unlock-${l.orderId}`}
+                        onArm={arm}
+                        onConfirm={() => void run(`unlock-${l.orderId}`, "resetDeliveryCode", { orderId: l.orderId })}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : null}
+
             <View style={styles.rowBetween}>
               <Text style={styles.sectionTitle}>Waiting for a rider ({waitingOrders.length})</Text>
               {waitingOrders.length ? (
@@ -650,6 +699,29 @@ export default function AdminScreen() {
                 ) : null}
               </View>
             ))}
+
+            {state.delivery ? (
+              <View style={styles.card}>
+                <View style={styles.rowBetween}>
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text style={styles.cardTitle}>Require delivery code</Text>
+                    <Text style={styles.muted}>
+                      Riders must enter the customer's 4-digit code to confirm delivery.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={state.delivery.settings.requireCode}
+                    disabled={working !== null}
+                    onValueChange={(v) => void run("delivery", "setDeliverySettings", { settings: { requireCode: v } })}
+                  />
+                </View>
+                {!state.delivery.settings.requireCode ? (
+                  <Text style={styles.warnText}>
+                    OFF: riders can mark orders delivered without the customer. Use only for testing.
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
 
             {flaggedPayments.length > 0 ? (
               <>

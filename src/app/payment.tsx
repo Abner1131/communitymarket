@@ -13,6 +13,7 @@ import {
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { payForOrder, previewWallet, type WalletPreview } from "../lib/pay";
+import DeliveryCodeCard, { shouldShowDeliveryCode } from "../components/DeliveryCodeCard";
 
 type OrderData = {
   subtotal: number;
@@ -21,6 +22,7 @@ type OrderData = {
   status: string;
   vehicle: string;
   distanceKm: number;
+  deliveryCode?: string;
   sellerBreakdown: {
     sellerId: string;
     items: { name: string; unitPrice: number; quantity: number }[];
@@ -136,6 +138,10 @@ export default function PaymentScreen() {
           <View style={styles.paidBanner}>
             <Text style={styles.paidBannerText}>Payment confirmed</Text>
           </View>
+        )}
+
+        {shouldShowDeliveryCode(order.status, order.deliveryCode) && (
+          <DeliveryCodeCard code={order.deliveryCode} status={order.status} />
         )}
 
         <View style={styles.card}>

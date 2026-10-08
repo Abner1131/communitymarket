@@ -41,6 +41,21 @@ export type AdminTrip = {
   createdAtMs: number | null;
   stuck: boolean;
   canRelease: boolean;
+  lockedOrderIds?: string[]; // deliveries locked by wrong codes
+};
+
+export type AdminLockedDelivery = {
+  orderId: string;
+  tripId: string | null;
+  customerName: string;
+  phone: string;
+  riderName: string;
+};
+
+export type AdminDelivery = {
+  settings: { requireCode: boolean };
+  maxTries: number;
+  locked: AdminLockedDelivery[];
 };
 
 export type AdminWaitingOrder = {
@@ -180,6 +195,7 @@ export type AdminState = {
     recentPaid: AdminPaidWithdrawal[];
   };
   commission: { categories: string[]; maxRate: number; rates: Record<string, number> };
+  delivery?: AdminDelivery;
   message: string | null;
 };
 
@@ -197,7 +213,9 @@ export type AdminAction =
   | "setCommissionRates"
   | "setPayoutSettings"
   | "setFundingSettings"
-  | "setRewardsSettings";
+  | "setRewardsSettings"
+  | "setDeliverySettings"
+  | "resetDeliveryCode";
 
 export class AdminApiError extends Error {
   forbidden: boolean;

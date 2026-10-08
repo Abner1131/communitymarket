@@ -19,6 +19,7 @@ import {
 } from "react-native";
 
 import { auth, db } from "../lib/firebase";
+import DeliveryCodeCard, { shouldShowDeliveryCode } from "./DeliveryCodeCard";
 import FirebaseSignInCard from "./FirebaseSignInCard";
 
 // Shape of an order document written by the server (/api/checkout).
@@ -34,6 +35,7 @@ type ServerOrder = {
   sellerCount: number;
   riderName: string | null;
   riderVehicle: string | null;
+  deliveryCode: string | null;
 };
 
 const NAIRA = "₦";
@@ -90,6 +92,7 @@ function toServerOrder(id: string, data: any): ServerOrder {
       data.rider && typeof data.rider.name === "string" ? data.rider.name : null,
     riderVehicle:
       data.rider && typeof data.rider.vehicle === "string" ? data.rider.vehicle : null,
+    deliveryCode: typeof data.deliveryCode === "string" ? data.deliveryCode : null,
   };
 }
 
@@ -269,6 +272,10 @@ export default function CustomerOrdersList() {
                       </Text>
                     </View>
                   )}
+
+                {shouldShowDeliveryCode(order.status, order.deliveryCode) && (
+                  <DeliveryCodeCard code={order.deliveryCode} status={order.status} compact />
+                )}
 
                 {order.status === "created" && (
                   <Text style={styles.hint}>
