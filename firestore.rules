@@ -1,147 +1,97 @@
 rules_version = '2';
 
+// CommunityMarket database rules.
+//
+// The app only touches four collections directly: products (read), orders
+// (read own), users (own profile) and roleApplications (apply + read own).
+// Everything else - wallets, ledger, withdrawals, top-ups, rewards, payments,
+// sellers, riders, trips, settings - is read and written ONLY by the server
+// (Vercel, admin key), which is not affected by these rules.
+// Anything not listed below is denied.
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ---------- role applications ----------
-    // A signed-in user may apply to become a rider or seller. Only the admin
-    // (server script) can approve or reject.
-    match /roleApplications/{applicationId} {
-      allow create: if isSignedIn() &&
-                       request.resource.data.uid == request.auth.uid &&
-                       request.resource.data.status == "pending" &&
-                       request.resource.data.requestedRole in ["rider", "seller"] &&
-                       request.resource.data.keys().hasOnly([
-                         "uid", "name", "email", "phone", "requestedRole", "vehicle",
-                         "businessName", "businessAddress", "note", "status", "createdAt"
-                       ]);
-      allow read: if isSignedIn() &&
-                     (resource.data.uid == request.auth.uid || isAdmin());
-      allow update, delete: if false; // server only
-    }
 
     // ---------- helpers ----------
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function role() {
-      // Custom claim set by the admin script (manage-roles.js).
-      // Never trust a Firestore field for this.
-      return request.auth.token.get("role", "");
-    }
-
+    // Role comes from the login token (set by the server), never from a
+    // database field the user could edit.
     function isAdmin() {
-      return isSignedIn() && role() == "admin";
+      return isSignedIn() && request.auth.token.get("role", "") == "admin";
     }
 
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // ---------- users ----------
-    // Everyone signs up as a customer. Role and status can only be changed
-    // by the admin (server script), never from the app.
+    function isShortText(value, max) {
+      return value is string && value.size() <= max;
+    }
+
+    // ---------- users: your own profile ----------
+    // Everyone signs up as a customer. Role and status are changed only by
+    // the server when the admin approves an application.
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
       allow create: if isOwner(uid) &&
-                       request.resource.data.role == "customer" &&
-                       request.resource.data.status == "active" &&
                        request.resource.data.keys().hasOnly([
                          "name", "phone", "email", "role", "status", "createdAt", "updatedAt"
-                       ]);
+                       ]) &&
+                       request.resource.data.role == "customer" &&
+                       request.resource.data.status == "active" &&
+                       isShortText(request.resource.data.name, 100) &&
+                       isShortText(request.resource.data.phone, 20);
       allow update: if isOwner(uid) &&
                        request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(["name", "phone", "updatedAt"]);
-      allow delete: if isAdmin();
+                         .hasOnly(["name", "phone", "updatedAt"]) &&
+                       isShortText(request.resource.data.get("name", ""), 100) &&
+                       isShortText(request.resource.data.get("phone", ""), 20);
+      allow delete: if false;
     }
 
-    // ---------- products ----------
-    match /products/{productId} {
-      allow read: if true; // public catalogue
-      allow create: if isSignedIn() && role() == "seller" &&
-                       request.resource.data.sellerId == request.auth.uid;
-      allow update: if isSignedIn() && role() == "seller" &&
-                       resource.data.sellerId == request.auth.uid;
-      allow delete: if isAdmin() ||
-                       (isSignedIn() && resource.data.sellerId == request.auth.uid);
-    }
-
-    // ---------- carts (disposable, fully client-owned) ----------
-    match /carts/{uid} {
-      allow read, write: if isOwner(uid);
-    }
-
-    // ---------- checkout requests ----------
-    match /checkoutRequests/{requestId} {
-      // Client may CREATE a request (its own), never mutate it afterward.
-      // A Cloud Function (Admin SDK) processes it and flips status.
+    // ---------- applications to become a rider or seller ----------
+    match /roleApplications/{applicationId} {
       allow create: if isSignedIn() &&
-                       request.resource.data.customerId == request.auth.uid &&
-                       request.resource.data.status == "pending";
-      allow read: if isSignedIn() &&
-                     (resource.data.customerId == request.auth.uid || isAdmin());
-      allow update, delete: if false; // functions only, via Admin SDK
-    }
-
-    // ---------- orders (function-owned) ----------
-    match /orders/{orderId} {
-      allow read: if isSignedIn() && (
-        resource.data.customerId == request.auth.uid ||
-        isAdmin() ||
-        // any sellerId listed in the order's sellerBreakdown
-        request.auth.uid in resource.data.get("sellerIds", []) ||
-        resource.data.get("riderId", "") == request.auth.uid
-      );
-      allow write: if false; // Cloud Functions only (Admin SDK bypasses rules)
-    }
-
-    // ---------- payments (function-owned) ----------
-    match /payments/{paymentId} {
-      allow read: if isSignedIn() && (
-        resource.data.customerId == request.auth.uid || isAdmin()
-      );
-      allow write: if false; // Cloud Functions only — webhook-verified
-    }
-
-    // ---------- deliveries ----------
-    match /deliveries/{deliveryId} {
-      allow read: if isSignedIn() && (
-        resource.data.customerId == request.auth.uid ||
-        resource.data.get("riderId", "") == request.auth.uid ||
-        isAdmin()
-      );
-
-      // Assigned rider may update ONLY location + a controlled status
-      // progression. Everything else stays function-owned.
-      allow update: if isSignedIn() &&
-                       resource.data.riderId == request.auth.uid &&
-                       request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(["riderLocation", "status", "updatedAt"]) &&
-                       isValidStatusTransition(resource.data.status,
-                                                request.resource.data.status);
-
-      allow create, delete: if false; // Cloud Functions only
-    }
-
-    function isValidStatusTransition(from, to) {
-      return (from == "assigned" && to == "in_transit") ||
-             (from == "in_transit" && to == "arrived") ||
-             (from == "arrived" && to == "completed") ||
-             (from == to); // location-only pings don't have to change status
-    }
-
-    // ---------- wallets (read-only mirror; Postgres is authoritative later) ----------
-    match /wallets/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
-      allow write: if false;
-    }
-    match /walletTransactions/{txId} {
+                       request.resource.data.keys().hasOnly([
+                         "uid", "name", "email", "phone", "requestedRole", "vehicle",
+                         "businessName", "businessAddress", "businessType", "note",
+                         "status", "createdAt"
+                       ]) &&
+                       request.resource.data.uid == request.auth.uid &&
+                       request.resource.data.status == "pending" &&
+                       request.resource.data.requestedRole in ["rider", "seller"] &&
+                       request.resource.data.get("businessType", "shop")
+                         in ["shop", "restaurant", "service"] &&
+                       isShortText(request.resource.data.name, 100) &&
+                       (request.resource.data.get("note", null) == null ||
+                        isShortText(request.resource.data.note, 500));
       allow read: if isSignedIn() &&
                      (resource.data.uid == request.auth.uid || isAdmin());
+      allow update, delete: if false; // server only (admin approves/rejects)
+    }
+
+    // ---------- products: public catalogue, server writes ----------
+    // Sellers add and edit products through the server (seller dashboard),
+    // which checks they own the shop. Hidden products are not public.
+    match /products/{productId} {
+      allow read: if resource.data.active == true || isAdmin();
       allow write: if false;
     }
 
-    // ---------- default deny ----------
+    // ---------- orders: the customer sees their own ----------
+    // Sellers and riders see their orders through the server.
+    match /orders/{orderId} {
+      allow read: if isSignedIn() &&
+                     (resource.data.customerId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    // ---------- everything else: server only ----------
+    // partnerWallets, ledger, withdrawals, topups, payments, rewardAccounts,
+    // referralCodes, referrals, sellers, riders, trips, deliveries, settings ...
     match /{document=**} {
       allow read, write: if false;
     }
