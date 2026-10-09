@@ -1,5 +1,6 @@
 
 import { router } from "expo-router";
+import { Image } from "expo-image";
 import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
@@ -600,24 +601,44 @@ export default function HomeScreen() {
                   styles.productCard
                 }
               >
-                <Text
-                  style={
-                    styles.productEmoji
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: "/product",
+                      params: { id: String(product.id) },
+                    } as any)
                   }
+                  accessibilityLabel={`Open ${product.name}`}
                 >
-                  {emojiFor(
-                    String(product.id),
-                    product.category
+                  {product.thumbUrl ? (
+                    <Image
+                      source={{ uri: product.thumbUrl }}
+                      style={styles.productPhoto}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={150}
+                    />
+                  ) : (
+                    <Text
+                      style={
+                        styles.productEmoji
+                      }
+                    >
+                      {emojiFor(
+                        String(product.id),
+                        product.category
+                      )}
+                    </Text>
                   )}
-                </Text>
 
-                <Text
-                  style={
-                    styles.productName
-                  }
-                >
-                  {product.name}
-                </Text>
+                  <Text
+                    style={
+                      styles.productName
+                    }
+                  >
+                    {product.name}
+                  </Text>
+                </Pressable>
 
                 <Text
                   style={styles.seller}
@@ -1159,6 +1180,14 @@ const styles = StyleSheet.create({
     padding: 14,
     backgroundColor: "#fff",
     borderRadius: 14,
+  },
+
+  productPhoto: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: "#f2f2f2",
   },
 
   productEmoji: {

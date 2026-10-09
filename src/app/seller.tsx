@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -14,10 +15,12 @@ import {
 } from "react-native";
 
 import { WalletCard } from "../components/WalletCard";
+import { pickProductPhoto, type PickedPhoto } from "../lib/photoPick";
 import {
   sellerAction,
   SellerApiError,
   type SellerOrder,
+  type SellerPhoto,
   type SellerProduct,
   type SellerState,
 } from "../lib/sellerApi";
@@ -42,6 +45,7 @@ type Draft = {
   stock: string;
   description: string;
   active: boolean;
+  pending: PickedPhoto[]; // new photos, uploaded when the seller taps Save
 };
 
 const EMPTY_DRAFT: Draft = {
@@ -52,6 +56,7 @@ const EMPTY_DRAFT: Draft = {
   stock: "",
   description: "",
   active: true,
+  pending: [],
 };
 
 function money(n: number) {
@@ -122,28 +127,115 @@ function OrderCard({
 }
 
 // ---------- product form ----------
+function PhotoTile({
+  uri,
+  cover,
+  onCover,
+  onRemove,
+  disabled,
+}: {
+  uri: string;
+  cover: boolean;
+  onCover?: () => void;
+  onRemove: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <View style={styles.photoTile}>
+      <Image source={{ uri }} style={styles.photoImg} contentFit="cover" cachePolicy="memory-disk" />
+      {cover ? (
+        <View style={styles.coverBadge}>
+          <Text style={styles.coverText}>COVER</Text>
+        </View>
+      ) : onCover ? (
+        <Pressable style={styles.coverButton} onPress={onCover} disabled={disabled} hitSlop={6}>
+          <Text style={styles.coverButtonText}>Make cover</Text>
+        </Pressable>
+      ) : null}
+      <Pressable style={styles.removeButton} onPress={onRemove} disabled={disabled} hitSlop={8}>
+        <Text style={styles.removeText}>{"✕"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function ProductForm({
   draft,
+  existing,
+  maxPhotos,
   categories,
   rates,
   saving,
+  photoBusy,
+  progress,
   error,
   onChange,
+  onPickPhoto,
+  onRemoveExisting,
+  onCoverExisting,
   onSave,
   onCancel,
 }: {
   draft: Draft;
+  existing: SellerPhoto[];
+  maxPhotos: number;
   categories: string[];
   rates: Record<string, number>;
   saving: boolean;
+  photoBusy: boolean;
+  progress: string;
   error: string;
   onChange: (d: Draft) => void;
+  onPickPhoto: (source: "camera" | "library") => void;
+  onRemoveExisting: (photoId: string) => void;
+  onCoverExisting: (photoId: string) => void;
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const room = maxPhotos - existing.length - draft.pending.length;
+  const busy = saving || photoBusy;
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{draft.productId ? "Edit product" : "New product"}</Text>
+
+      <Text style={styles.label}>
+        Photos ({existing.length + draft.pending.length}/{maxPhotos})
+      </Text>
+      <View style={styles.photoRow}>
+        {existing.map((p, i) => (
+          <PhotoTile
+            key={p.id}
+            uri={p.thumbUrl}
+            cover={i === 0}
+            onCover={() => onCoverExisting(p.id)}
+            onRemove={() => onRemoveExisting(p.id)}
+            disabled={busy}
+          />
+        ))}
+        {draft.pending.map((p, i) => (
+          <PhotoTile
+            key={p.uri}
+            uri={p.uri}
+            cover={existing.length === 0 && i === 0}
+            onRemove={() => onChange({ ...draft, pending: draft.pending.filter((_, k) => k !== i) })}
+            disabled={busy}
+          />
+        ))}
+      </View>
+      {room > 0 ? (
+        <View style={styles.twoCol}>
+          <Pressable style={[styles.smallButton, { flex: 1 }]} disabled={busy} onPress={() => onPickPhoto("camera")}>
+            <Text style={[styles.smallButtonText, { textAlign: "center" }]}>📷 Take photo</Text>
+          </Pressable>
+          <Pressable style={[styles.smallButton, { flex: 1 }]} disabled={busy} onPress={() => onPickPhoto("library")}>
+            <Text style={[styles.smallButtonText, { textAlign: "center" }]}>🖼 From gallery</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <Text style={styles.hint}>
+        Good light, plain background, product filling the frame. The first photo shows on Home.
+        {draft.pending.length ? " New photos upload when you tap Save." : ""}
+      </Text>
 
       <Text style={styles.label}>Name</Text>
       <TextInput
@@ -217,15 +309,16 @@ function ProductForm({
       </View>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {progress ? <Text style={styles.progressText}>{progress}</Text> : null}
 
       <View style={styles.twoCol}>
-        <Pressable style={[styles.secondaryButton, { flex: 1 }]} onPress={onCancel} disabled={saving}>
+        <Pressable style={[styles.secondaryButton, { flex: 1 }]} onPress={onCancel} disabled={busy}>
           <Text style={styles.secondaryButtonText}>Cancel</Text>
         </Pressable>
         <Pressable
-          style={[styles.primaryButton, { flex: 1, marginTop: 12 }, saving && { opacity: 0.6 }]}
+          style={[styles.primaryButton, { flex: 1, marginTop: 12 }, busy && { opacity: 0.6 }]}
           onPress={onSave}
-          disabled={saving}
+          disabled={busy}
         >
           <Text style={styles.primaryButtonText}>{saving ? "Saving..." : "Save"}</Text>
         </Pressable>
@@ -244,6 +337,9 @@ export default function SellerScreen() {
   const [working, setWorking] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState("");
+  const [progress, setProgress] = useState("");
+  const [notice, setNotice] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
   const mounted = useRef(true);
 
   const run = useCallback(
@@ -301,7 +397,39 @@ export default function SellerScreen() {
       stock: String(p.stock),
       description: p.description,
       active: p.active,
+      pending: [],
     });
+  }
+
+  async function pickPhoto(source: "camera" | "library") {
+    if (!draft) return;
+    setFormError("");
+    setPhotoBusy(true);
+    try {
+      const photo = await pickProductPhoto(source);
+      if (photo && mounted.current) {
+        setDraft((d) => (d ? { ...d, pending: [...d.pending, photo] } : d));
+      }
+    } catch (e: any) {
+      setFormError(e?.message || "Could not open the camera or gallery.");
+    } finally {
+      if (mounted.current) setPhotoBusy(false);
+    }
+  }
+
+  // Remove / reorder photos already saved on the product.
+  async function changeSavedPhoto(action: "removePhoto" | "setCover", photoId: string) {
+    if (!draft?.productId) return;
+    setFormError("");
+    setPhotoBusy(true);
+    try {
+      const next = await sellerAction(action, { productId: draft.productId, photoId });
+      if (mounted.current) setState(next);
+    } catch (e: any) {
+      setFormError(e?.message || "Could not change the photo.");
+    } finally {
+      if (mounted.current) setPhotoBusy(false);
+    }
   }
 
   async function saveDraft() {
@@ -321,7 +449,46 @@ export default function SellerScreen() {
       description: draft.description.trim(),
       active: draft.active,
     });
-    if (result) setDraft(null);
+    if (!result) return;
+    const productId = result.savedProductId || draft.productId;
+
+    // Then upload new photos one by one (small, so this is quick).
+    const failed: PickedPhoto[] = [];
+    const tips: string[] = [];
+    let lastError = "";
+    if (productId && draft.pending.length) {
+      setWorking("save");
+      for (let i = 0; i < draft.pending.length; i++) {
+        setProgress(`Uploading photo ${i + 1} of ${draft.pending.length}...`);
+        try {
+          const next = await sellerAction("addPhoto", { productId, image: draft.pending[i].base64 });
+          if (mounted.current) setState(next);
+          tips.push(...(next.photoWarnings || []));
+        } catch (e: any) {
+          failed.push(draft.pending[i]);
+          lastError = e?.message || "Upload failed.";
+        }
+      }
+      if (mounted.current) {
+        setWorking(null);
+        setProgress("");
+      }
+    }
+    if (!mounted.current) return;
+    if (failed.length) {
+      // Product is saved; keep the form open so the seller can retry the photos.
+      setDraft({ ...draft, productId, pending: failed });
+      setFormError(`Product saved, but ${failed.length} photo(s) did not upload: ${lastError} Tap Save to try again.`);
+      return;
+    }
+    setDraft(null);
+    setNotice(
+      tips.length
+        ? `Saved. Photo tip: ${[...new Set(tips)].join(" ")}`
+        : draft.pending.length
+          ? "Saved with photos."
+          : "Saved.",
+    );
   }
 
   async function useMyLocation() {
@@ -395,6 +562,11 @@ export default function SellerScreen() {
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
+        ) : null}
+        {notice ? (
+          <Pressable style={styles.noticeBox} onPress={() => setNotice("")}>
+            <Text style={styles.noticeText}>{notice}</Text>
+          </Pressable>
         ) : null}
 
         <View style={styles.statsRow}>
@@ -477,19 +649,30 @@ export default function SellerScreen() {
             {draft ? (
               <ProductForm
                 draft={draft}
+                existing={(draft.productId && products.find((p) => p.id === draft.productId)?.photos) || []}
+                maxPhotos={state.maxPhotos || 3}
                 categories={state.categories}
                 rates={state.commissionRates || {}}
                 saving={working === "save"}
+                photoBusy={photoBusy}
+                progress={progress}
                 error={formError}
                 onChange={setDraft}
+                onPickPhoto={(source) => void pickPhoto(source)}
+                onRemoveExisting={(id) => void changeSavedPhoto("removePhoto", id)}
+                onCoverExisting={(id) => void changeSavedPhoto("setCover", id)}
                 onSave={() => void saveDraft()}
-                onCancel={() => setDraft(null)}
+                onCancel={() => {
+                  setDraft(null);
+                  setProgress("");
+                }}
               />
             ) : (
               <Pressable
                 style={[styles.primaryButton, { marginTop: 0, marginBottom: 12 }]}
                 onPress={() => {
                   setFormError("");
+                  setNotice("");
                   setDraft({ ...EMPTY_DRAFT, category: state.categories[0] || "Groceries" });
                 }}
               >
@@ -500,6 +683,18 @@ export default function SellerScreen() {
             {products.map((p) => (
               <Pressable key={p.id} style={[styles.card, !p.active && { opacity: 0.55 }]} onPress={() => editProduct(p)}>
                 <View style={styles.rowBetween}>
+                  {p.photos && p.photos[0] ? (
+                    <Image
+                      source={{ uri: p.photos[0].thumbUrl }}
+                      style={styles.listThumb}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <View style={[styles.listThumb, styles.noPhoto]}>
+                      <Text style={styles.noPhotoText}>No photo</Text>
+                    </View>
+                  )}
                   <View style={{ flex: 1, paddingRight: 10 }}>
                     <Text style={styles.cardTitle}>{p.name}</Text>
                     <Text style={styles.muted}>
@@ -576,4 +771,45 @@ const styles = StyleSheet.create({
   secondaryButtonText: { fontWeight: "700" },
   errorBox: { backgroundColor: "#fdecea", borderRadius: 12, padding: 12, marginBottom: 12 },
   errorText: { color: "#b00020", marginTop: 8 },
+  noticeBox: { backgroundColor: "#e8f5e9", borderRadius: 12, padding: 12, marginBottom: 12 },
+  noticeText: { color: "#1b5e20", fontWeight: "600" },
+  progressText: { color: "#1565c0", fontWeight: "700", marginTop: 8 },
+  photoRow: { flexDirection: "row", gap: 8, marginBottom: 8, flexWrap: "wrap" },
+  photoTile: { width: 92, height: 92, borderRadius: 10, overflow: "hidden", backgroundColor: "#eee" },
+  photoImg: { width: "100%", height: "100%" },
+  coverBadge: {
+    position: "absolute",
+    left: 0,
+    bottom: 0,
+    right: 0,
+    backgroundColor: "rgba(30,125,50,0.9)",
+    paddingVertical: 3,
+    alignItems: "center",
+  },
+  coverText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  coverButton: {
+    position: "absolute",
+    left: 0,
+    bottom: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingVertical: 3,
+    alignItems: "center",
+  },
+  coverButtonText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  removeButton: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  listThumb: { width: 54, height: 54, borderRadius: 10, marginRight: 12, backgroundColor: "#f0f0f0" },
+  noPhoto: { alignItems: "center", justifyContent: "center" },
+  noPhotoText: { fontSize: 9, color: "#999", fontWeight: "700", textAlign: "center" },
 });

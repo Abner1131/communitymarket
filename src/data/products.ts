@@ -7,7 +7,13 @@ export type Product = {
   description: string;
   seller: string;
   stock: number;
+  // Photos added by the seller (cover first). Older products have none.
+  thumbUrl?: string | null; // small, for lists
+  imageUrl?: string | null; // large, for the product page
+  photos?: ProductPhoto[];
 };
+
+export type ProductPhoto = { id: string; url: string; thumbUrl: string };
 
 export const products: Product[] = [
   {

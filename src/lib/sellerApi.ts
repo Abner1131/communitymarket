@@ -14,6 +14,8 @@ export type SellerOrder = {
   riderName: string | null;
 };
 
+export type SellerPhoto = { id: string; url: string; thumbUrl: string };
+
 export type SellerProduct = {
   id: string;
   name: string;
@@ -22,6 +24,7 @@ export type SellerProduct = {
   stock: number;
   description: string;
   active: boolean;
+  photos: SellerPhoto[]; // first = cover
 };
 
 export type SellerState = {
@@ -38,6 +41,8 @@ export type SellerState = {
   wallet: WalletSummary;
   commissionRates: Record<string, number>; // percent per category
   savedProductId: string | null;
+  photoWarnings?: string[]; // tips after a photo upload (e.g. too dark)
+  maxPhotos?: number;
 };
 
 export class SellerApiError extends Error {
@@ -49,7 +54,16 @@ export class SellerApiError extends Error {
 }
 
 export async function sellerAction(
-  action: "me" | "markReady" | "saveProduct" | "setLocation" | "setBank" | "withdraw",
+  action:
+    | "me"
+    | "markReady"
+    | "saveProduct"
+    | "setLocation"
+    | "setBank"
+    | "withdraw"
+    | "addPhoto"
+    | "removePhoto"
+    | "setCover",
   extra: Record<string, unknown> = {},
 ): Promise<SellerState> {
   const user = auth.currentUser;

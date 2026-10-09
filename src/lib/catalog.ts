@@ -1,6 +1,6 @@
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 
-import type { Product } from "../data/products";
+import type { Product, ProductPhoto } from "../data/products";
 import { sellers } from "../data/sellers";
 import { db } from "./firebase";
 
@@ -39,6 +39,14 @@ export function emojiFor(productId: string, category: string): string {
   return DEMO_EMOJI[productId] ?? CATEGORY_EMOJI[category] ?? "\u{1F4E6}";
 }
 
+export function photosFrom(value: unknown): ProductPhoto[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((p) => p && typeof p.url === "string" && typeof p.thumbUrl === "string")
+    .map((p) => ({ id: String(p.id || p.url), url: p.url, thumbUrl: p.thumbUrl }))
+    .slice(0, 3);
+}
+
 function sellerNameFor(sellerId: string, stored: unknown): string {
   if (typeof stored === "string" && stored.trim()) return stored;
   return sellers.find((s) => s.id === sellerId)?.name ?? "CommunityMarket seller";
@@ -65,6 +73,9 @@ export function subscribeCatalog(
             description: typeof p.description === "string" ? p.description : "",
             seller: sellerNameFor(String(p.sellerId || ""), p.sellerName),
             stock: Number(p.stock) || 0,
+            thumbUrl: typeof p.thumbUrl === "string" ? p.thumbUrl : null,
+            imageUrl: typeof p.imageUrl === "string" ? p.imageUrl : null,
+            photos: photosFrom(p.photos),
             isActive: true,
           };
         })

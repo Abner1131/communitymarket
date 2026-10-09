@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { Image } from "expo-image";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useCart } from "../context/CartContext";
@@ -43,9 +44,18 @@ export default function CartScreen() {
           {/* CART ITEMS */}
           {items.map((item) => (
             <View key={item.product.id} style={styles.cartItem}>
-              <Text style={styles.productEmoji}>
-                {item.product.emoji}
-              </Text>
+              {item.product.thumbUrl ? (
+                <Image
+                  source={{ uri: item.product.thumbUrl }}
+                  style={{ width: 56, height: 56, borderRadius: 10, marginRight: 12 }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              ) : (
+                <Text style={styles.productEmoji}>
+                  {item.product.emoji}
+                </Text>
+              )}
 
               <View style={styles.productInfo}>
                 <Text style={styles.productName}>
