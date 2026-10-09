@@ -52,6 +52,16 @@ export type AdminLockedDelivery = {
   riderName: string;
 };
 
+export type AdminAiSettings = { enabled: boolean; dailyLimitPerSeller: number; checkPhotos: boolean };
+
+export type AdminAi = {
+  settings: AdminAiSettings;
+  configured: boolean; // an AI key is set in Vercel
+  provider: "deepseek" | "anthropic" | null;
+  model: string | null;
+  thisMonth: { suggestCalls: number; photoCheckCalls: number; inputTokens: number; outputTokens: number };
+};
+
 export type AdminDelivery = {
   settings: { requireCode: boolean };
   maxTries: number;
@@ -196,6 +206,7 @@ export type AdminState = {
   };
   commission: { categories: string[]; maxRate: number; rates: Record<string, number> };
   delivery?: AdminDelivery;
+  ai?: AdminAi;
   message: string | null;
 };
 
@@ -215,7 +226,8 @@ export type AdminAction =
   | "setFundingSettings"
   | "setRewardsSettings"
   | "setDeliverySettings"
-  | "resetDeliveryCode";
+  | "resetDeliveryCode"
+  | "setAiSettings";
 
 export class AdminApiError extends Error {
   forbidden: boolean;

@@ -25,6 +25,38 @@ export type SellerProduct = {
   description: string;
   active: boolean;
   photos: SellerPhoto[]; // first = cover
+  specs: Record<string, string>;
+  searchWords: Partial<Record<SearchLang, string[]>>;
+};
+
+export type SearchLang = "en" | "ha" | "pcm" | "yo" | "ig";
+export const SEARCH_LANGS: { code: SearchLang; name: string }[] = [
+  { code: "en", name: "English" },
+  { code: "ha", name: "Hausa" },
+  { code: "pcm", name: "Pidgin" },
+  { code: "yo", name: "Yoruba" },
+  { code: "ig", name: "Igbo" },
+];
+
+// One photo's AI verdict. "saved" = already on the product, "new" = not uploaded yet.
+export type AiPhotoNote = {
+  source: "saved" | "new";
+  photoId?: string;
+  index?: number;
+  problem: string | null;
+  blocking: boolean; // not allowed (contact details, inappropriate)
+  tip: string;
+};
+
+export type AiSuggestion = {
+  name: string;
+  category: string | null;
+  description: string;
+  specs: Record<string, string>;
+  searchWords: Record<SearchLang, string[]>;
+  photos: AiPhotoNote[];
+  bestPhoto: { source: "saved" | "new"; photoId?: string; index?: number } | null;
+  usesLeftToday: number;
 };
 
 export type SellerState = {
@@ -43,6 +75,8 @@ export type SellerState = {
   savedProductId: string | null;
   photoWarnings?: string[]; // tips after a photo upload (e.g. too dark)
   maxPhotos?: number;
+  ai?: { available: boolean; usesLeftToday: number };
+  aiSuggestion?: AiSuggestion | null;
 };
 
 export class SellerApiError extends Error {
@@ -63,7 +97,8 @@ export async function sellerAction(
     | "withdraw"
     | "addPhoto"
     | "removePhoto"
-    | "setCover",
+    | "setCover"
+    | "aiSuggest",
   extra: Record<string, unknown> = {},
 ): Promise<SellerState> {
   const user = auth.currentUser;

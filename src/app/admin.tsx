@@ -19,6 +19,8 @@ import {
   adminAction,
   AdminApiError,
   type AdminAction,
+  type AdminAi,
+  type AdminAiSettings,
   type AdminApplication,
   type AdminState,
   type AdminTrip,
@@ -273,6 +275,60 @@ function TripCard({
       </View>
       <Text style={styles.hint}>
         Use "Mark trip delivered" only when you know the customers got their goods.
+      </Text>
+    </View>
+  );
+}
+
+// AI listing assistant: on/off, photo check, daily limit per shop, usage.
+function AiCard({
+  ai,
+  busy,
+  onSave,
+}: {
+  ai: AdminAi;
+  busy: boolean;
+  onSave: (settings: AdminAiSettings) => void;
+}) {
+  const [limit, setLimit] = useState(String(ai.settings.dailyLimitPerSeller));
+  const save = (patch: Partial<AdminAiSettings>) => {
+    const n = parseInt(limit, 10);
+    onSave({ ...ai.settings, dailyLimitPerSeller: Number.isInteger(n) ? n : ai.settings.dailyLimitPerSeller, ...patch });
+  };
+  const m = ai.thisMonth;
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>AI listing assistant</Text>
+      <Text style={styles.muted}>
+        {ai.configured
+          ? `Using ${ai.provider === "anthropic" ? "Claude" : "DeepSeek"} (${ai.model})`
+          : "No AI key in Vercel yet. Add DEEPSEEK_API_KEY to the server settings."}
+      </Text>
+      <View style={[styles.rowBetween, { marginTop: 10 }]}>
+        <Text style={styles.item}>Sellers can use "Fill details with AI"</Text>
+        <Switch value={ai.settings.enabled} disabled={busy} onValueChange={(v) => save({ enabled: v })} />
+      </View>
+      <View style={styles.rowBetween}>
+        <Text style={styles.item}>Check every new photo</Text>
+        <Switch value={ai.settings.checkPhotos} disabled={busy} onValueChange={(v) => save({ checkPhotos: v })} />
+      </View>
+      <View style={[styles.rowBetween, { marginTop: 6 }]}>
+        <Text style={styles.item}>AI uses per shop per day</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <TextInput
+            style={[styles.input, { width: 70, textAlign: "center", paddingVertical: 6 }]}
+            value={limit}
+            onChangeText={(t) => setLimit(t.replace(/[^0-9]/g, "").slice(0, 3))}
+            keyboardType="number-pad"
+          />
+          <Pressable style={styles.smallButton} disabled={busy} onPress={() => save({})}>
+            <Text style={styles.smallButtonText}>{busy ? "..." : "Save"}</Text>
+          </Pressable>
+        </View>
+      </View>
+      <Text style={styles.hint}>
+        This month: {m.suggestCalls} listing fill(s) · {m.photoCheckCalls} photo check(s) ·{" "}
+        {(m.inputTokens + m.outputTokens).toLocaleString()} tokens. Check your balance on the AI provider's website.
       </Text>
     </View>
   );
@@ -721,6 +777,14 @@ export default function AdminScreen() {
                   </Text>
                 ) : null}
               </View>
+            ) : null}
+
+            {state.ai ? (
+              <AiCard
+                ai={state.ai}
+                busy={working === "ai"}
+                onSave={(settings) => void run("ai", "setAiSettings", { settings })}
+              />
             ) : null}
 
             {flaggedPayments.length > 0 ? (

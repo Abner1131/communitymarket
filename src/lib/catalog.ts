@@ -76,6 +76,9 @@ export function subscribeCatalog(
             thumbUrl: typeof p.thumbUrl === "string" ? p.thumbUrl : null,
             imageUrl: typeof p.imageUrl === "string" ? p.imageUrl : null,
             photos: photosFrom(p.photos),
+            searchWords: Array.isArray(p.searchIndex)
+              ? p.searchIndex.filter((w: unknown): w is string => typeof w === "string")
+              : [],
             isActive: true,
           };
         })

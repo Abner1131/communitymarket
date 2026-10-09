@@ -164,7 +164,10 @@ export default function HomeScreen() {
             product.category ===
               selectedCategory;
 
+          // Name, category, description and the search words in
+          // English, Hausa, Pidgin, Yoruba and Igbo.
           const matchesSearch =
+            !normalizedSearch ||
             product.name
               .toLowerCase()
               .includes(
@@ -174,7 +177,18 @@ export default function HomeScreen() {
               .toLowerCase()
               .includes(
                 normalizedSearch
-              );
+              ) ||
+            (product.description || "")
+              .toLowerCase()
+              .includes(
+                normalizedSearch
+              ) ||
+            (product.searchWords || []).some(
+              (w) =>
+                w.includes(normalizedSearch) ||
+                (w.length >= 3 &&
+                  normalizedSearch.includes(w))
+            );
 
           return (
             matchesCategory &&

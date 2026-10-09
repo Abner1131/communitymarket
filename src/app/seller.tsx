@@ -19,6 +19,9 @@ import { pickProductPhoto, type PickedPhoto } from "../lib/photoPick";
 import {
   sellerAction,
   SellerApiError,
+  SEARCH_LANGS,
+  type AiSuggestion,
+  type SearchLang,
   type SellerOrder,
   type SellerPhoto,
   type SellerProduct,
@@ -46,6 +49,10 @@ type Draft = {
   description: string;
   active: boolean;
   pending: PickedPhoto[]; // new photos, uploaded when the seller taps Save
+  specs: { label: string; value: string }[];
+  searchWords: Partial<Record<SearchLang, string[]>>;
+  hint: string; // optional words for the AI, e.g. "5kg bag"
+  aiNotes: string[]; // photo tips from the AI
 };
 
 const EMPTY_DRAFT: Draft = {
@@ -57,7 +64,21 @@ const EMPTY_DRAFT: Draft = {
   description: "",
   active: true,
   pending: [],
+  specs: [],
+  searchWords: {},
+  hint: "",
+  aiNotes: [],
 };
+
+function specsToObject(specs: Draft["specs"]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const s of specs) {
+    const label = s.label.trim();
+    const value = s.value.trim();
+    if (label && value) out[label] = value;
+  }
+  return out;
+}
 
 function money(n: number) {
   return `${NAIRA}${n.toLocaleString()}`;
@@ -167,10 +188,13 @@ function ProductForm({
   rates,
   saving,
   photoBusy,
+  aiBusy,
+  ai,
   progress,
   error,
   onChange,
   onPickPhoto,
+  onAiFill,
   onRemoveExisting,
   onCoverExisting,
   onSave,
@@ -183,17 +207,22 @@ function ProductForm({
   rates: Record<string, number>;
   saving: boolean;
   photoBusy: boolean;
+  aiBusy: boolean;
+  ai: { available: boolean; usesLeftToday: number } | undefined;
   progress: string;
   error: string;
   onChange: (d: Draft) => void;
   onPickPhoto: (source: "camera" | "library") => void;
+  onAiFill: () => void;
   onRemoveExisting: (photoId: string) => void;
   onCoverExisting: (photoId: string) => void;
   onSave: () => void;
   onCancel: () => void;
 }) {
   const room = maxPhotos - existing.length - draft.pending.length;
-  const busy = saving || photoBusy;
+  const busy = saving || photoBusy || aiBusy;
+  const photoCount = existing.length + draft.pending.length;
+  const wordCount = SEARCH_LANGS.reduce((n, l) => n + (draft.searchWords[l.code]?.length || 0), 0);
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{draft.productId ? "Edit product" : "New product"}</Text>
@@ -236,6 +265,39 @@ function ProductForm({
         Good light, plain background, product filling the frame. The first photo shows on Home.
         {draft.pending.length ? " New photos upload when you tap Save." : ""}
       </Text>
+
+      {ai?.available && photoCount > 0 ? (
+        <View style={styles.aiBox}>
+          <TextInput
+            style={[styles.input, { backgroundColor: "#fff" }]}
+            value={draft.hint}
+            onChangeText={(hint) => onChange({ ...draft, hint: hint.slice(0, 100) })}
+            placeholder="Optional: a few words, e.g. 5kg bag, size 42"
+            editable={!busy}
+          />
+          <Pressable
+            style={[styles.aiButton, (busy || ai.usesLeftToday <= 0) && { opacity: 0.5 }]}
+            disabled={busy || ai.usesLeftToday <= 0}
+            onPress={onAiFill}
+          >
+            <Text style={styles.aiButtonText}>{aiBusy ? "AI is looking at your photos..." : "✨ Fill details with AI"}</Text>
+          </Pressable>
+          <Text style={styles.hint}>
+            AI suggests the name, category, description, details and search words. Check them before saving. You
+            set the price. {ai.usesLeftToday} use(s) left today.
+          </Text>
+        </View>
+      ) : null}
+
+      {draft.aiNotes.length ? (
+        <View style={styles.aiNotes}>
+          {draft.aiNotes.map((n, i) => (
+            <Text key={i} style={styles.aiNoteText}>
+              {"•"} {n}
+            </Text>
+          ))}
+        </View>
+      ) : null}
 
       <Text style={styles.label}>Name</Text>
       <TextInput
@@ -303,6 +365,60 @@ function ProductForm({
         placeholder="Size, brand, quality..."
       />
 
+      <Text style={styles.label}>Details (optional)</Text>
+      {draft.specs.map((s, i) => (
+        <View key={i} style={[styles.twoCol, { marginBottom: 6, alignItems: "center" }]}>
+          <TextInput
+            style={[styles.input, { flex: 2, paddingVertical: 9 }]}
+            value={s.label}
+            placeholder="e.g. Brand"
+            onChangeText={(label) =>
+              onChange({ ...draft, specs: draft.specs.map((x, k) => (k === i ? { ...x, label: label.slice(0, 30) } : x)) })
+            }
+          />
+          <TextInput
+            style={[styles.input, { flex: 3, paddingVertical: 9 }]}
+            value={s.value}
+            placeholder="e.g. Mama Gold"
+            onChangeText={(value) =>
+              onChange({ ...draft, specs: draft.specs.map((x, k) => (k === i ? { ...x, value: value.slice(0, 60) } : x)) })
+            }
+          />
+          <Pressable
+            onPress={() => onChange({ ...draft, specs: draft.specs.filter((_, k) => k !== i) })}
+            hitSlop={8}
+            disabled={busy}
+          >
+            <Text style={styles.removeSpec}>{"✕"}</Text>
+          </Pressable>
+        </View>
+      ))}
+      {draft.specs.length < 8 ? (
+        <Pressable
+          onPress={() => onChange({ ...draft, specs: [...draft.specs, { label: "", value: "" }] })}
+          disabled={busy}
+        >
+          <Text style={styles.linkText}>+ Add detail</Text>
+        </Pressable>
+      ) : null}
+
+      {wordCount ? (
+        <View style={{ marginTop: 12 }}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.label}>Customers can find it by</Text>
+            <Pressable onPress={() => onChange({ ...draft, searchWords: {} })} disabled={busy} hitSlop={8}>
+              <Text style={styles.linkText}>Clear</Text>
+            </Pressable>
+          </View>
+          {SEARCH_LANGS.filter((l) => draft.searchWords[l.code]?.length).map((l) => (
+            <Text key={l.code} style={styles.wordsLine}>
+              <Text style={{ fontWeight: "700" }}>{l.name}: </Text>
+              {(draft.searchWords[l.code] || []).join(", ")}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
       <View style={[styles.rowBetween, { marginTop: 14 }]}>
         <Text style={styles.value}>Show to customers</Text>
         <Switch value={draft.active} onValueChange={(active) => onChange({ ...draft, active })} />
@@ -340,6 +456,7 @@ export default function SellerScreen() {
   const [progress, setProgress] = useState("");
   const [notice, setNotice] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
   const mounted = useRef(true);
 
   const run = useCallback(
@@ -398,7 +515,64 @@ export default function SellerScreen() {
       description: p.description,
       active: p.active,
       pending: [],
+      specs: Object.entries(p.specs || {}).map(([label, value]) => ({ label, value: String(value) })),
+      searchWords: p.searchWords || {},
+      hint: "",
+      aiNotes: [],
     });
+  }
+
+  // AI looks at the photos and fills the form. The seller checks, sets the price, saves.
+  async function aiFill() {
+    if (!draft) return;
+    setFormError("");
+    setAiBusy(true);
+    try {
+      const next = await sellerAction("aiSuggest", {
+        productId: draft.productId || undefined,
+        images: draft.pending.map((p) => p.base64),
+        hint: draft.hint.trim(),
+      });
+      if (!mounted.current) return;
+      setState(next);
+      const s: AiSuggestion | null | undefined = next.aiSuggestion;
+      if (!s) return;
+      setDraft((d) => {
+        if (!d) return d;
+        // New photos: drop ones that break the rules, put the best one first.
+        const blockedNew = new Set(
+          s.photos.filter((p) => p.source === "new" && p.blocking).map((p) => p.index as number),
+        );
+        let pending = d.pending.filter((_, i) => !blockedNew.has(i));
+        if (s.bestPhoto?.source === "new" && typeof s.bestPhoto.index === "number" && !blockedNew.has(s.bestPhoto.index)) {
+          const best = d.pending[s.bestPhoto.index];
+          pending = [best, ...pending.filter((p) => p !== best)];
+        }
+        const notes = s.photos
+          .filter((p) => p.problem)
+          .map((p) => {
+            const which = p.source === "new" ? `New photo ${(p.index ?? 0) + 1}` : "A saved photo";
+            return p.blocking ? `${which} was removed: ${p.tip}` : `${which}: ${p.tip}`;
+          });
+        return {
+          ...d,
+          pending,
+          name: s.name || d.name,
+          category: s.category || d.category,
+          description: s.description || d.description,
+          specs: Object.keys(s.specs).length
+            ? Object.entries(s.specs).map(([label, value]) => ({ label, value }))
+            : d.specs,
+          searchWords: s.searchWords,
+          aiNotes: notes,
+        };
+      });
+      setNotice("AI filled the details. Check them, add the price and stock, then tap Save.");
+    } catch (e: any) {
+      if (mounted.current) setFormError(e?.message || "The AI could not help right now. You can type the details.");
+    } finally {
+      if (mounted.current) setAiBusy(false);
+    }
   }
 
   async function pickPhoto(source: "camera" | "library") {
@@ -448,6 +622,8 @@ export default function SellerScreen() {
       stock,
       description: draft.description.trim(),
       active: draft.active,
+      specs: specsToObject(draft.specs),
+      searchWords: draft.searchWords,
     });
     if (!result) return;
     const productId = result.savedProductId || draft.productId;
@@ -655,6 +831,9 @@ export default function SellerScreen() {
                 rates={state.commissionRates || {}}
                 saving={working === "save"}
                 photoBusy={photoBusy}
+                aiBusy={aiBusy}
+                ai={state.ai}
+                onAiFill={() => void aiFill()}
                 progress={progress}
                 error={formError}
                 onChange={setDraft}
@@ -809,6 +988,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   removeText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  aiBox: { marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#f3eefe", borderWidth: 1, borderColor: "#d9ccf7" },
+  aiButton: { marginTop: 10, backgroundColor: "#5b2bd6", borderRadius: 10, paddingVertical: 13, alignItems: "center" },
+  aiButtonText: { color: "#fff", fontWeight: "800" },
+  aiNotes: { marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: "#fff8e1" },
+  aiNoteText: { color: "#6d4c00", fontSize: 13, marginTop: 2 },
+  removeSpec: { color: "#b00020", fontWeight: "800", fontSize: 16, paddingHorizontal: 4 },
+  linkText: { color: "#1565c0", fontWeight: "700", marginTop: 4 },
+  wordsLine: { color: "#444", fontSize: 13, marginTop: 3 },
   listThumb: { width: 54, height: 54, borderRadius: 10, marginRight: 12, backgroundColor: "#f0f0f0" },
   noPhoto: { alignItems: "center", justifyContent: "center" },
   noPhotoText: { fontSize: 9, color: "#999", fontWeight: "700", textAlign: "center" },

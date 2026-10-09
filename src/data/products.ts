@@ -11,6 +11,7 @@ export type Product = {
   thumbUrl?: string | null; // small, for lists
   imageUrl?: string | null; // large, for the product page
   photos?: ProductPhoto[];
+  searchWords?: string[]; // English, Hausa, Pidgin, Yoruba, Igbo
 };
 
 export type ProductPhoto = { id: string; url: string; thumbUrl: string };
