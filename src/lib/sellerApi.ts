@@ -12,6 +12,18 @@ export type SellerOrder = {
   earning: number; // what the shop receives (subtotal - commission)
   ready: boolean;
   riderName: string | null;
+  report: SellerReport | null; // a customer's problem report on this order
+};
+
+export type SellerReport = {
+  status: "open" | "refunded" | "rejected";
+  reason: string;
+  note: string;
+  items: { name: string; quantity: number }[]; // this shop's items only
+  photos: { url: string; thumbUrl: string }[];
+  myReply: string;
+  createdAtMs: number | null;
+  outcome: string | null;
 };
 
 export type SellerPhoto = { id: string; url: string; thumbUrl: string };
@@ -98,7 +110,8 @@ export async function sellerAction(
     | "addPhoto"
     | "removePhoto"
     | "setCover"
-    | "aiSuggest",
+    | "aiSuggest"
+    | "replyReport",
   extra: Record<string, unknown> = {},
 ): Promise<SellerState> {
   const user = auth.currentUser;

@@ -85,14 +85,81 @@ function money(n: number) {
 }
 
 // ---------- order card ----------
+function ReportBox({
+  report,
+  onReply,
+}: {
+  report: NonNullable<SellerOrder["report"]>;
+  onReply: (text: string) => Promise<string | null>;
+}) {
+  const [text, setText] = useState(report.myReply);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const open = report.status === "open";
+  return (
+    <View style={[styles.reportBox, !open && { backgroundColor: "#f5f5f5", borderColor: "#ddd" }]}>
+      <Text style={styles.reportTitle}>
+        {open ? "⚠ Customer reported a problem" : report.status === "refunded" ? "Problem settled" : "Problem report closed"}
+        {" · "}
+        {report.reason}
+      </Text>
+      {report.items.map((i, k) => (
+        <Text key={k} style={styles.item}>
+          {"•"} {i.quantity} × {i.name}
+        </Text>
+      ))}
+      {report.note ? <Text style={[styles.item, { fontStyle: "italic" }]}>“{report.note}”</Text> : null}
+      {report.photos.length ? (
+        <View style={styles.photoRow}>
+          {report.photos.map((p) => (
+            <Image key={p.url} source={{ uri: p.thumbUrl }} style={styles.reportPhoto} contentFit="cover" />
+          ))}
+        </View>
+      ) : null}
+      {open ? (
+        <>
+          <Text style={styles.hint}>
+            Your earnings from this order are on hold until CommunityMarket settles it. Add your side of the story:
+          </Text>
+          <TextInput
+            style={[styles.input, { marginTop: 6, minHeight: 60 }]}
+            value={text}
+            onChangeText={(t) => setText(t.slice(0, 300))}
+            multiline
+            textAlignVertical="top"
+            placeholder="e.g. I packed 2 bags and sealed them"
+          />
+          {msg ? <Text style={styles.hint}>{msg}</Text> : null}
+          <Pressable
+            style={[styles.smallButton, { marginTop: 8, alignSelf: "flex-start" }, saving && { opacity: 0.5 }]}
+            disabled={saving || text.trim().length < 2}
+            onPress={async () => {
+              setSaving(true);
+              const err = await onReply(text.trim());
+              setSaving(false);
+              setMsg(err || "Reply sent to CommunityMarket.");
+            }}
+          >
+            <Text style={styles.smallButtonText}>{saving ? "Sending..." : report.myReply ? "Update reply" : "Send reply"}</Text>
+          </Pressable>
+        </>
+      ) : report.outcome ? (
+        <Text style={[styles.item, { fontWeight: "700", marginTop: 6 }]}>{report.outcome}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 function OrderCard({
   order,
   busy,
   onReady,
+  onReply,
 }: {
   order: SellerOrder;
   busy: boolean;
   onReady: () => void;
+  onReply: (text: string) => Promise<string | null>;
 }) {
   const s = ORDER_STATUS[order.status] ?? { text: order.status.toUpperCase(), color: "#222" };
   const canMarkReady = !order.ready && ["paid", "dispatching", "assigned"].includes(order.status);
@@ -135,6 +202,7 @@ function OrderCard({
         <Text style={styles.value}>{money(order.earning ?? order.subtotal)}</Text>
       </View>
       {order.riderName ? <Text style={styles.muted}>Rider: {order.riderName}</Text> : null}
+      {order.report ? <ReportBox report={order.report} onReply={onReply} /> : null}
 
       {canMarkReady ? (
         <Pressable style={[styles.primaryButton, busy && { opacity: 0.6 }]} disabled={busy} onPress={onReady}>
@@ -493,6 +561,16 @@ export default function SellerScreen() {
     };
   }, [run]);
 
+  async function replyToReport(orderId: string, text: string): Promise<string | null> {
+    try {
+      const next = await sellerAction("replyReport", { orderId, text });
+      if (mounted.current) setState(next);
+      return null;
+    } catch (e: any) {
+      return (e?.message as string) || "Could not send your reply.";
+    }
+  }
+
   // Wallet actions report their own errors inside the wallet card.
   async function walletAction(action: "setBank" | "withdraw", extra: Record<string, unknown>) {
     try {
@@ -812,11 +890,18 @@ export default function SellerScreen() {
                   order={o}
                   busy={working === `ready-${o.id}`}
                   onReady={() => void run(`ready-${o.id}`, "markReady", { orderId: o.id })}
+                  onReply={(text) => replyToReport(o.id, text)}
                 />
               ))}
               {others.length > 0 && <Text style={styles.sectionTitle}>Recent</Text>}
               {others.map((o) => (
-                <OrderCard key={o.id} order={o} busy={false} onReady={() => undefined} />
+                <OrderCard
+                  key={o.id}
+                  order={o}
+                  busy={false}
+                  onReady={() => undefined}
+                  onReply={(text) => replyToReport(o.id, text)}
+                />
               ))}
             </>
           )
@@ -996,6 +1081,16 @@ const styles = StyleSheet.create({
   removeSpec: { color: "#b00020", fontWeight: "800", fontSize: 16, paddingHorizontal: 4 },
   linkText: { color: "#1565c0", fontWeight: "700", marginTop: 4 },
   wordsLine: { color: "#444", fontSize: 13, marginTop: 3 },
+  reportBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#fff4e5",
+    borderWidth: 1,
+    borderColor: "#ffcc80",
+  },
+  reportTitle: { fontWeight: "800", color: "#8a4b00", marginBottom: 4 },
+  reportPhoto: { width: 70, height: 70, borderRadius: 8, backgroundColor: "#eee" },
   listThumb: { width: 54, height: 54, borderRadius: 10, marginRight: 12, backgroundColor: "#f0f0f0" },
   noPhoto: { alignItems: "center", justifyContent: "center" },
   noPhotoText: { fontSize: 9, color: "#999", fontWeight: "700", textAlign: "center" },

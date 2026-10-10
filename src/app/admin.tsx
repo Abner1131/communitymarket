@@ -14,6 +14,8 @@ import {
   View,
 } from "react-native";
 
+import { Image } from "expo-image";
+
 import { AdminMoney } from "../components/AdminMoney";
 import {
   adminAction,
@@ -21,6 +23,7 @@ import {
   type AdminAction,
   type AdminAi,
   type AdminAiSettings,
+  type AdminReport,
   type AdminApplication,
   type AdminState,
   type AdminTrip,
@@ -280,6 +283,158 @@ function TripCard({
   );
 }
 
+// A customer's problem report: evidence on top, decision below.
+function ReportCard({
+  report,
+  armed,
+  working,
+  onArm,
+  onResolve,
+}: {
+  report: AdminReport;
+  armed: string | null;
+  working: string | null;
+  onArm: (key: string) => void;
+  onResolve: (body: Record<string, unknown>) => void;
+}) {
+  const notReceived = report.reasonCode === "not_received";
+  const [withDelivery, setWithDelivery] = useState(notReceived);
+  const base = notReceived ? report.orderTotal - report.deliveryFee : report.itemsValue;
+  const [amountText, setAmountText] = useState(String(notReceived ? report.orderTotal : report.itemsValue));
+  const [payer, setPayer] = useState<"seller" | "rider" | "platform">(
+    notReceived ? (report.hasRider ? "rider" : "platform") : "seller",
+  );
+  const [note, setNote] = useState("");
+  const amount = parseInt(amountText, 10);
+  const busy = working === `report-${report.orderId}`;
+  const h = report.customerHistory;
+  return (
+    <View style={[styles.card, styles.warnCard]}>
+      <View style={styles.rowBetween}>
+        <Text style={styles.cardTitle}>
+          {short(report.orderId)} · {report.reason}
+        </Text>
+        <Text style={styles.muted}>{ago(report.createdAtMs)}</Text>
+      </View>
+      <Text style={styles.muted}>
+        {report.customerName}
+        {report.customerPhone ? ` · ${report.customerPhone}` : ""}
+        {h && h.total > 1 ? ` · ${h.total} reports so far (${h.refunded} refunded)` : " · first report"}
+      </Text>
+      <Text style={styles.item}>
+        Delivered {ago(report.deliveredAtMs)}
+        {report.riderName ? ` by ${report.riderName}` : ""} ·{" "}
+        {report.deliveredBy === "rider-code"
+          ? "✓ customer gave the delivery code"
+          : report.deliveredBy === "admin"
+            ? "marked delivered by admin"
+            : "no delivery code used"}
+      </Text>
+      <View style={styles.divider} />
+      {report.items.map((i, k) => (
+        <Text key={k} style={styles.item}>
+          {"•"} {i.quantity} × {i.name} ({money(i.unitPrice * i.quantity)}) · {i.sellerName}
+        </Text>
+      ))}
+      {report.note ? <Text style={[styles.item, { fontStyle: "italic" }]}>Customer: “{report.note}”</Text> : null}
+      {report.photos.length ? (
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+          {report.photos.map((p) => (
+            <Pressable key={p.url} onPress={() => void Linking.openURL(p.url)}>
+              <Image source={{ uri: p.thumbUrl }} style={{ width: 90, height: 90, borderRadius: 8 }} contentFit="cover" />
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.hint}>No photos sent.</Text>
+      )}
+      {report.sellerReplies.map((r, k) => (
+        <Text key={k} style={[styles.item, { marginTop: 6 }]}>
+          <Text style={{ fontWeight: "800" }}>{r.name}: </Text>“{r.text}”
+        </Text>
+      ))}
+      {!report.sellerReplies.length ? <Text style={styles.hint}>The shop has not replied yet.</Text> : null}
+
+      <View style={styles.divider} />
+      <Text style={styles.cardTitle}>Decision</Text>
+      <View style={[styles.rowBetween, { marginTop: 8 }]}>
+        <Text style={styles.item}>Refund to customer's wallet (₦)</Text>
+        <TextInput
+          style={[styles.input, { width: 110, textAlign: "right", paddingVertical: 6 }]}
+          value={amountText}
+          onChangeText={(t) => setAmountText(t.replace(/[^0-9]/g, "").slice(0, 8))}
+          keyboardType="number-pad"
+        />
+      </View>
+      {report.deliveryFee > 0 ? (
+        <View style={styles.rowBetween}>
+          <Text style={styles.item}>Include delivery fee ({money(report.deliveryFee)})</Text>
+          <Switch
+            value={withDelivery}
+            onValueChange={(v) => {
+              setWithDelivery(v);
+              setAmountText(String(base + (v ? report.deliveryFee : 0)));
+            }}
+          />
+        </View>
+      ) : null}
+      <Text style={[styles.item, { marginTop: 8 }]}>Who pays?</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+        {(
+          [
+            ["seller", "Seller"],
+            ...(report.hasRider ? [["rider", "Rider"]] : []),
+            ["platform", "CommunityMarket"],
+          ] as [typeof payer, string][]
+        ).map(([key, label]) => (
+          <Pressable
+            key={key}
+            style={[styles.smallButton, payer === key && { backgroundColor: "#222" }]}
+            onPress={() => setPayer(key)}
+          >
+            <Text style={[styles.smallButtonText, payer === key && { color: "#fff" }]}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.hint}>
+        {payer === "seller"
+          ? "Seller pays the item value minus our commission (we give our commission back). Any delivery fee part is paid by CommunityMarket."
+          : payer === "rider"
+            ? "The whole refund is taken from the rider's earnings."
+            : "CommunityMarket pays the whole refund (goodwill). It shows in today's profit."}{" "}
+        Balances can go below zero and are paid back from future earnings.
+      </Text>
+      <TextInput
+        style={[styles.input, { marginTop: 8 }]}
+        value={note}
+        onChangeText={(t) => setNote(t.slice(0, 300))}
+        placeholder="Note (the customer sees it if you reject)"
+      />
+      <View style={styles.actionsRow}>
+        <ConfirmButton
+          label={Number.isInteger(amount) && amount > 0 ? `Refund ${money(amount)}` : "Refund"}
+          confirmKey={`refund-${report.orderId}`}
+          armed={armed}
+          busy={busy}
+          onArm={onArm}
+          onConfirm={() =>
+            onResolve({ orderId: report.orderId, outcome: "refund", amount, payer, note: note.trim() })
+          }
+        />
+        <ConfirmButton
+          label="Reject"
+          confirmKey={`rejectrep-${report.orderId}`}
+          armed={armed}
+          busy={busy}
+          danger
+          onArm={onArm}
+          onConfirm={() => onResolve({ orderId: report.orderId, outcome: "reject", note: note.trim() })}
+        />
+      </View>
+    </View>
+  );
+}
+
 // AI listing assistant: on/off, photo check, daily limit per shop, usage.
 function AiCard({
   ai,
@@ -436,6 +591,8 @@ export default function AdminScreen() {
   const lateOrders = waitingOrders.filter((o) => o.late);
   const orphanRiders = riders.filter((r) => r.tripMissing);
   const lockedDeliveries = state.delivery ? state.delivery.locked : [];
+  const openReports = state.reports ? state.reports.open : [];
+  const recentReports = state.reports ? state.reports.recent : [];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -507,6 +664,12 @@ export default function AdminScreen() {
                 <Text style={styles.item}>+ Withdrawal fees</Text>
                 <Text style={styles.value}>{money(today.withdrawalFees ?? 0)}</Text>
               </View>
+              {today.refundCosts ? (
+                <View style={styles.rowBetween}>
+                  <Text style={styles.item}>− Refunds paid by CommunityMarket</Text>
+                  <Text style={styles.value}>− {money(today.refundCosts)}</Text>
+                </View>
+              ) : null}
               <View style={styles.divider} />
               <View style={styles.rowBetween}>
                 <Text style={styles.cardTitle}>Your profit today</Text>
@@ -559,6 +722,9 @@ export default function AdminScreen() {
                   <Text style={styles.item}>
                     • {lockedDeliveries.length} delivery(ies) locked by wrong codes
                   </Text>
+                ) : null}
+                {openReports.length ? (
+                  <Text style={styles.item}>• {openReports.length} customer problem report(s) to settle (Live)</Text>
                 ) : null}
                 {state.wallets && state.wallets.requests.length ? (
                   <Text style={styles.item}>
@@ -616,6 +782,22 @@ export default function AdminScreen() {
         {/* ---------- LIVE ---------- */}
         {tab === "live" && (
           <>
+            {openReports.length > 0 ? (
+              <>
+                <Text style={styles.sectionTitle}>Customer problems ({openReports.length})</Text>
+                {openReports.map((r) => (
+                  <ReportCard
+                    key={r.orderId}
+                    report={r}
+                    armed={armed}
+                    working={working}
+                    onArm={arm}
+                    onResolve={(body) => void run(`report-${r.orderId}`, "resolveReport", body)}
+                  />
+                ))}
+              </>
+            ) : null}
+
             {lockedDeliveries.length > 0 ? (
               <>
                 <Text style={styles.sectionTitle}>Locked deliveries ({lockedDeliveries.length})</Text>
@@ -776,6 +958,24 @@ export default function AdminScreen() {
                     OFF: riders can mark orders delivered without the customer. Use only for testing.
                   </Text>
                 ) : null}
+              </View>
+            ) : null}
+
+            {recentReports.length > 0 ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Settled problems (last 30 days)</Text>
+                {recentReports.slice(0, 8).map((r) => (
+                  <Text key={r.orderId} style={styles.item}>
+                    {short(r.orderId)} · {r.reason} ·{" "}
+                    {r.status === "refunded" && r.resolution
+                      ? `${money(r.resolution.amount)} refunded${
+                          r.resolution.debits.length
+                            ? ` (${r.resolution.debits.map((d) => `${d.name} ${money(d.amount)}`).join(", ")})`
+                            : ""
+                        }${r.resolution.platformCost ? ` · we paid ${money(r.resolution.platformCost)}` : ""}`
+                      : "rejected"}
+                  </Text>
+                ))}
               </View>
             ) : null}
 

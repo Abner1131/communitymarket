@@ -36,7 +36,11 @@ type ServerOrder = {
   riderName: string | null;
   riderVehicle: string | null;
   deliveryCode: string | null;
+  deliveredAtMs: number | null;
+  issue: { status: string; amount: number | null } | null;
 };
+
+const REPORT_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 const NAIRA = "₦";
 
@@ -93,6 +97,12 @@ function toServerOrder(id: string, data: any): ServerOrder {
     riderVehicle:
       data.rider && typeof data.rider.vehicle === "string" ? data.rider.vehicle : null,
     deliveryCode: typeof data.deliveryCode === "string" ? data.deliveryCode : null,
+    deliveredAtMs:
+      data.deliveredAt && typeof data.deliveredAt.toMillis === "function" ? data.deliveredAt.toMillis() : null,
+    issue:
+      data.issue && typeof data.issue.status === "string"
+        ? { status: data.issue.status, amount: Number(data.issue.amount) || null }
+        : null,
   };
 }
 
@@ -277,6 +287,37 @@ export default function CustomerOrdersList() {
                   <DeliveryCodeCard code={order.deliveryCode} status={order.status} compact />
                 )}
 
+                {order.issue ? (
+                  <Pressable
+                    style={[
+                      styles.issueBox,
+                      order.issue.status === "refunded"
+                        ? { backgroundColor: "#e8f5e9" }
+                        : order.issue.status === "rejected"
+                          ? { backgroundColor: "#fdecea" }
+                          : { backgroundColor: "#fff8e1" },
+                    ]}
+                    onPress={() => router.push({ pathname: "/report", params: { orderId: order.id } } as any)}
+                  >
+                    <Text style={styles.issueText}>
+                      {order.issue.status === "refunded"
+                        ? `✓ Problem settled: ${NAIRA}${(order.issue.amount || 0).toLocaleString()} refunded to your wallet`
+                        : order.issue.status === "rejected"
+                          ? "Problem report not accepted · tap for details"
+                          : "Problem reported — we're checking · tap for details"}
+                    </Text>
+                  </Pressable>
+                ) : order.status === "delivered" &&
+                  order.deliveredAtMs !== null &&
+                  Date.now() - order.deliveredAtMs < REPORT_WINDOW_MS ? (
+                  <Pressable
+                    style={styles.reportButton}
+                    onPress={() => router.push({ pathname: "/report", params: { orderId: order.id } } as any)}
+                  >
+                    <Text style={styles.reportButtonText}>Report a problem</Text>
+                  </Pressable>
+                ) : null}
+
                 {order.status === "created" && (
                   <Text style={styles.hint}>
                     Tap to complete payment
@@ -359,6 +400,17 @@ const styles = StyleSheet.create({
   value: { fontSize: 14, fontWeight: "600" },
   total: { fontSize: 19, fontWeight: "900" },
   hint: { marginTop: 12, color: "#b26a00", fontWeight: "700", fontSize: 12 },
+  issueBox: { marginTop: 12, borderRadius: 10, padding: 10 },
+  issueText: { fontWeight: "700", fontSize: 13, color: "#333" },
+  reportButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#b00020",
+    borderRadius: 10,
+    paddingVertical: 9,
+    alignItems: "center",
+  },
+  reportButtonText: { color: "#b00020", fontWeight: "800" },
   primaryButton: {
     marginTop: 16,
     width: "100%",

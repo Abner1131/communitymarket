@@ -10,7 +10,8 @@ export type BankInput = { bankName: string; accountNumber: string; accountName: 
 export type WalletSummary = {
   balance: number;
   available: number; // can be withdrawn now
-  clearing: number; // still being settled by Paystack
+  clearing: number; // still being settled by Paystack (includes `frozen`)
+  frozen?: number; // held while a customer's problem report is checked
   nextClearAtMs: number | null;
   clearanceWorkingDays: number;
   fees: { upTo5k: number; upTo50k: number; above50k: number };
@@ -34,7 +35,8 @@ export type WalletSummary = {
 };
 
 const NAIRA = "₦";
-const money = (n: number) => `${NAIRA}${Math.round(n).toLocaleString()}`;
+const money = (n: number) =>
+  n < 0 ? `−${NAIRA}${Math.round(-n).toLocaleString()}` : `${NAIRA}${Math.round(n).toLocaleString()}`;
 
 function feeFor(amount: number, fees: WalletSummary["fees"]) {
   if (amount <= 5000) return fees.upTo5k;
@@ -130,9 +132,21 @@ export function WalletCard({
           <Text style={styles.splitLabel}>Clearing</Text>
         </View>
       </View>
-      {wallet.clearing > 0 && wallet.nextClearAtMs ? (
+      {wallet.clearing - (wallet.frozen || 0) > 0 && wallet.nextClearAtMs ? (
         <Text style={styles.hint}>
           Clearing money is being settled by our payment provider. Next amount ready {when(wallet.nextClearAtMs)}.
+        </Text>
+      ) : null}
+      {wallet.frozen && wallet.frozen > 0 ? (
+        <Text style={styles.hint}>
+          {money(wallet.frozen)} of this is on hold while a customer's problem report is checked. It is released
+          as soon as the report is settled.
+        </Text>
+      ) : null}
+      {wallet.balance < 0 ? (
+        <Text style={styles.hint}>
+          Your balance is below zero because of a customer refund. It is paid back automatically from your next
+          earnings.
         </Text>
       ) : null}
       <Text style={styles.muted}>

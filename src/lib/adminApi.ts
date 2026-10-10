@@ -52,6 +52,36 @@ export type AdminLockedDelivery = {
   riderName: string;
 };
 
+export type AdminReport = {
+  orderId: string;
+  status: "open" | "refunded" | "rejected";
+  reason: string;
+  reasonCode: string;
+  customerName: string;
+  customerPhone: string | null;
+  customerHistory: { total: number; refunded: number } | null;
+  riderName: string | null;
+  hasRider: boolean;
+  deliveredBy: string | null; // "rider-code" = the customer gave the rider the code
+  deliveredAtMs: number | null;
+  items: { name: string; quantity: number; unitPrice: number; sellerName: string }[];
+  itemsValue: number;
+  deliveryFee: number;
+  orderTotal: number;
+  note: string;
+  photos: { url: string; thumbUrl: string }[];
+  sellerReplies: { name: string; text: string; atMs: number }[];
+  createdAtMs: number | null;
+  resolution: {
+    amount: number;
+    payer: string;
+    platformCost: number;
+    debits: { name: string; partyType: string; amount: number }[];
+  } | null;
+  rejectReason: string | null;
+  resolvedAtMs: number | null;
+};
+
 export type AdminAiSettings = { enabled: boolean; dailyLimitPerSeller: number; checkPhotos: boolean };
 
 export type AdminAi = {
@@ -182,6 +212,7 @@ export type AdminState = {
     withdrawalFees: number;
     topups: number;
     totalProfit: number;
+    refundCosts?: number;
     trips: number;
     batchedOrders: number;
   };
@@ -207,6 +238,7 @@ export type AdminState = {
   commission: { categories: string[]; maxRate: number; rates: Record<string, number> };
   delivery?: AdminDelivery;
   ai?: AdminAi;
+  reports?: { open: AdminReport[]; recent: AdminReport[] };
   message: string | null;
 };
 
@@ -227,7 +259,8 @@ export type AdminAction =
   | "setRewardsSettings"
   | "setDeliverySettings"
   | "resetDeliveryCode"
-  | "setAiSettings";
+  | "setAiSettings"
+  | "resolveReport";
 
 export class AdminApiError extends Error {
   forbidden: boolean;
