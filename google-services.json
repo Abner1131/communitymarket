@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "706660614309",
+    "project_id": "communitymarket-c7b68",
+    "storage_bucket": "communitymarket-c7b68.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:706660614309:android:e8c322d7e8c9a6effccd4c",
+        "android_client_info": {
+          "package_name": "com.tsambi.CommunityMarket"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrXKcdDC4iWjGHfMW8FFk2sStIjh8HPbk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

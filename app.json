@@ -18,7 +18,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.tsambi.CommunityMarket"
+      "package": "com.tsambi.CommunityMarket",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -33,11 +34,37 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CommunityMarket uses your photos so sellers can add product pictures and customers can report problems.",
+          "cameraPermission": "CommunityMarket uses the camera so sellers can take product pictures and customers can report problems."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#222222"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9d052405-84bd-45d6-86fe-942c1ada2893"
+      }
+    },
+    "owner": "tsambi",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9d052405-84bd-45d6-86fe-942c1ada2893"
     }
   }
 }
