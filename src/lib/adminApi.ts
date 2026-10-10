@@ -1,3 +1,4 @@
+import { adminDeviceHeaders } from "./adminDevice";
 import { API_URL, auth } from "./firebase";
 
 export type AdminApplication = {
@@ -278,9 +279,10 @@ export async function adminAction(
   if (!user) throw new AdminApiError("Please sign in.");
   const send = async (forceFreshToken: boolean) => {
     const token = await user.getIdToken(forceFreshToken);
+    const device = await adminDeviceHeaders();
     return fetch(`${API_URL}/api/admin`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...device },
       body: JSON.stringify({ action, ...extra }),
     });
   };
@@ -292,4 +294,70 @@ export async function adminAction(
     throw new AdminApiError(data.error || "Something went wrong.", response.status === 403);
   }
   return data as AdminState;
+}
+
+// ---------- Admin log ----------
+
+export type AdminLogType = "access" | "action" | "rights" | "denied";
+
+export type AdminLogLine = {
+  id: string;
+  type: AdminLogType;
+  atMs: number;
+  lastAtMs: number | null;
+  count: number | null; // "denied": how many tries in those 10 minutes
+  who: string | null; // email (or the PC tool that did it)
+  whoName: string | null;
+  device: string | null;
+  newDevice: boolean;
+  ip: string | null;
+  place: string | null;
+  action: string | null;
+  ok: boolean;
+  summary: string;
+  changes: { field: string; from: unknown; to: unknown }[] | null;
+  details: Record<string, unknown> | null;
+  subject: string | null; // "rights": whose rights changed
+};
+
+export type AdminLogs = {
+  fromMs: number;
+  toMs: number;
+  daysAgo: number;
+  days: number;
+  lines: AdminLogLine[];
+  people: string[];
+  full: boolean; // more lines than shown: pick a shorter period
+  adminsNow: { uid: string; email: string | null; name: string | null }[];
+  adminsInRange: { uid: string; email: string | null }[];
+  devices: {
+    email: string | null;
+    deviceName: string;
+    firstSeenMs: number | null;
+    lastSeenMs: number | null;
+    lastPlace: string | null;
+    lastIp: string | null;
+  }[];
+  oldestMs: number | null;
+  keepMonths: number;
+};
+
+export async function getAdminLogs(params: {
+  daysAgo: number;
+  days: number;
+  type?: AdminLogType | null;
+  person?: string | null;
+}): Promise<AdminLogs> {
+  const user = auth.currentUser;
+  if (!user) throw new AdminApiError("Please sign in.");
+  const token = await user.getIdToken();
+  const device = await adminDeviceHeaders();
+  const response = await fetch(`${API_URL}/api/admin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...device },
+    body: JSON.stringify({ action: "logs", ...params }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new AdminApiError(data.error || "Could not load the log.", response.status === 403);
+  return data.logs as AdminLogs;
 }

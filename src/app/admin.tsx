@@ -16,6 +16,7 @@ import {
 
 import { Image } from "expo-image";
 
+import { AdminLogs } from "../components/AdminLogs";
 import { AdminMoney } from "../components/AdminMoney";
 import {
   adminAction,
@@ -32,7 +33,7 @@ import {
 const NAIRA = "₦";
 const REFRESH_EVERY_MS = 20000;
 
-type Tab = "today" | "applications" | "live" | "money";
+type Tab = "today" | "applications" | "live" | "money" | "logs";
 
 function money(n: number) {
   return `${NAIRA}${Math.round(n).toLocaleString()}`;
@@ -620,6 +621,7 @@ export default function AdminScreen() {
               ["applications", `Apps${applications.length ? ` (${applications.length})` : ""}`],
               ["live", `Live${counts.needsAttention - applications.length - (state.wallets ? state.wallets.requests.length : 0) > 0 ? " ⚠" : ""}`],
               ["money", `Money${state.wallets && state.wallets.requests.length > 0 ? ` (${state.wallets.requests.length})` : ""}`],
+              ["logs", "Logs"],
             ] as [Tab, string][]
           ).map(([t, text]) => (
             <Pressable key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
@@ -627,6 +629,9 @@ export default function AdminScreen() {
             </Pressable>
           ))}
         </View>
+
+        {/* ---------- LOGS ---------- */}
+        {tab === "logs" && <AdminLogs />}
 
         {/* ---------- TODAY ---------- */}
         {tab === "today" && (
