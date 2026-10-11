@@ -1,6 +1,8 @@
 import { Stack, usePathname, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { Platform } from "react-native";
+import { Appearance, Platform } from "react-native";
+
+import { UpdateGate } from "../components/UpdateGate";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
@@ -8,6 +10,16 @@ import { CheckoutProvider } from "../context/CheckoutContext";
 import { OrderProvider } from "../context/OrderContext";
 import { RiderProvider } from "../context/RiderContext";
 import { onNotificationTap, registerForPush } from "../lib/push";
+
+// The app is designed in light colours. On phones set to dark mode, Android
+// would otherwise draw typed text white on our white boxes.
+if (Platform.OS !== "web") {
+  try {
+    Appearance.setColorScheme("light");
+  } catch {
+    // older systems: nothing to do
+  }
+}
 
 // Which screens each role may open. Anything not listed is open to every
 // signed-in user. The server enforces the same rules on its side.
@@ -78,6 +90,7 @@ function AppNavigator() {
           headerShown: false,
         }}
       />
+      <UpdateGate />
     </>
   );
 }

@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { PasswordInput } from "../components/PasswordInput";
 
 import { friendlyAuthError, useAuth } from "../context/AuthContext";
 import { applyInviteCode } from "../lib/walletApi";
@@ -151,10 +152,9 @@ export default function AuthScreen() {
             />
 
             <Text style={styles.label}>Password</Text>
-            <TextInput
+            <PasswordInput
               style={styles.input}
               placeholder="At least 6 characters"
-              secureTextEntry
               value={password}
               onChangeText={setPassword}
             />

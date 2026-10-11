@@ -21,6 +21,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { PasswordInput } from "../components/PasswordInput";
 
 import DeliveryCodeEntry from "../components/DeliveryCodeEntry";
 import { WalletCard } from "../components/WalletCard";
@@ -111,10 +112,9 @@ function RiderSignIn() {
         value={email}
         onChangeText={setEmail}
       />
-      <TextInput
+      <PasswordInput
         style={styles.input}
         placeholder="Password (6+ characters)"
-        secureTextEntry
         value={password}
         onChangeText={setPassword}
       />

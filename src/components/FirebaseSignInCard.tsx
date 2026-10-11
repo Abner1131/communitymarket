@@ -5,6 +5,7 @@ import {
 } from "firebase/auth";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { PasswordInput } from "./PasswordInput";
 
 import { auth } from "../lib/firebase";
 
@@ -73,10 +74,9 @@ export default function FirebaseSignInCard({
         value={email}
         onChangeText={setEmail}
       />
-      <TextInput
+      <PasswordInput
         style={styles.input}
         placeholder="Password (6+ characters)"
-        secureTextEntry
         value={password}
         onChangeText={setPassword}
       />
