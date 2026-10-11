@@ -3,6 +3,7 @@ import { collection, onSnapshot, query, where } from "firebase/firestore";
 import type { Product, ProductPhoto } from "../data/products";
 import { sellers } from "../data/sellers";
 import { db } from "./firebase";
+import { variantsFrom } from "./variants";
 
 // The live product catalogue, read straight from Firestore. Every customer
 // sees the same products, prices and stock, and sellers' changes appear
@@ -79,6 +80,7 @@ export function subscribeCatalog(
             searchWords: Array.isArray(p.searchIndex)
               ? p.searchIndex.filter((w: unknown): w is string => typeof w === "string")
               : [],
+            ...variantsFrom(p.options, p.variants),
             isActive: true,
           };
         })

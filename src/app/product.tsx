@@ -19,6 +19,16 @@ import { useCart } from "../context/CartContext";
 import type { Product } from "../data/products";
 import { emojiFor, photosFrom } from "../lib/catalog";
 import { db } from "../lib/firebase";
+import {
+  findVariant,
+  hasOptions,
+  priceRange,
+  valueExists,
+  valueInStock,
+  variantLabel,
+  variantPrice,
+  variantsFrom,
+} from "../lib/variants";
 
 const NAIRA = "₦";
 const MAX_WIDTH = 520; // keeps the page tidy on tablets / web
@@ -44,6 +54,8 @@ export default function ProductScreen() {
   const [missing, setMissing] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [added, setAdded] = useState(false);
+  const [chosen, setChosen] = useState<(string | null)[]>([]);
+  const [chooseHint, setChooseHint] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -71,6 +83,7 @@ export default function ProductScreen() {
           imageUrl: typeof p.imageUrl === "string" ? p.imageUrl : null,
           photos: photosFrom(p.photos),
           specs: specsFrom(p.specs),
+          ...variantsFrom(p.options, p.variants),
         });
       },
       () => {
@@ -85,14 +98,46 @@ export default function ProductScreen() {
     if (i !== photoIndex) setPhotoIndex(i);
   }
 
+  const withOptions = product ? hasOptions(product) : false;
+  const options = product?.options ?? [];
+  // A value with only one choice is picked for the buyer.
+  const picks = options.map((o, i) => {
+    if (chosen[i]) return chosen[i];
+    const existing = product ? o.values.filter((v) => valueExists(product, i, v)) : [];
+    return existing.length === 1 ? existing[0] : null;
+  });
+  const variant = product && withOptions ? findVariant(product, picks) : null;
+  const missingOption = withOptions ? options.find((_, i) => !picks[i]) : undefined;
+  const range = product ? priceRange(product) : { min: 0, max: 0 };
+  const shownPrice = product ? (variant ? variantPrice(product, variant) : range.min) : 0;
+  const showFrom = withOptions && !variant && range.min !== range.max;
+  const stockNow = product ? (withOptions ? (variant ? variant.stock : product.stock) : product.stock) : 0;
+
+  function choose(optionIndex: number, value: string) {
+    const next = options.map((_, i) => picks[i] ?? null);
+    next[optionIndex] = next[optionIndex] === value ? null : value;
+    setChosen(next);
+    setChooseHint("");
+  }
+
   async function add() {
-    if (!product || product.stock <= 0) return;
-    await addToCart(product);
+    if (!product) return;
+    if (withOptions) {
+      if (!variant) {
+        setChooseHint(missingOption ? `Choose a ${missingOption.name.toLowerCase()} first.` : "That combination is not available.");
+        return;
+      }
+      if (variant.stock <= 0) return;
+      await addToCart(product, variant);
+    } else {
+      if (product.stock <= 0) return;
+      await addToCart(product);
+    }
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   }
 
-  const inCart = product ? items.find((i) => i.product.id === product.id)?.quantity ?? 0 : 0;
+  const inCart = product ? items.filter((i) => i.product.id === product.id).reduce((n, i) => n + i.quantity, 0) : 0;
   const photos = product?.photos ?? [];
 
   return (
@@ -160,13 +205,54 @@ export default function ProductScreen() {
               <Text style={styles.category}>{product.category}</Text>
               <Text style={styles.name}>{product.name}</Text>
               <Text style={styles.price}>
+                {showFrom ? "from " : ""}
                 {NAIRA}
-                {product.price.toLocaleString()}
+                {shownPrice.toLocaleString()}
               </Text>
               <Text style={styles.muted}>
                 Sold by {product.seller} {"·"}{" "}
-                {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+                {stockNow > 0
+                  ? variant
+                    ? `${variant.stock} left in ${variantLabel(product, variant)}`
+                    : `${product.stock} in stock`
+                  : variant
+                    ? `${variantLabel(product, variant)} is sold out`
+                    : "Out of stock"}
               </Text>
+
+              {withOptions
+                ? options.map((o, i) => (
+                    <View key={o.name}>
+                      <Text style={styles.section}>
+                        {o.name}
+                        {picks[i] ? <Text style={styles.chosenValue}>: {picks[i]}</Text> : null}
+                      </Text>
+                      <View style={styles.chips}>
+                        {o.values
+                          .filter((v) => valueExists(product, i, v))
+                          .map((v) => {
+                            const active = picks[i] === v;
+                            const available = valueInStock(product, i, v, picks.map((c, j) => (j === i ? null : c)));
+                            return (
+                              <Pressable
+                                key={v}
+                                style={[styles.chip, active && styles.chipActive, !available && styles.chipOut]}
+                                onPress={() => choose(i, v)}
+                                accessibilityLabel={`${o.name} ${v}${available ? "" : ", sold out"}`}
+                              >
+                                <Text
+                                  style={[styles.chipText, active && styles.chipTextActive, !available && styles.chipTextOut]}
+                                >
+                                  {v}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                      </View>
+                    </View>
+                  ))
+                : null}
+              {chooseHint ? <Text style={styles.hintText}>{chooseHint}</Text> : null}
 
               {product.description ? (
                 <>
@@ -197,18 +283,26 @@ export default function ProductScreen() {
         <View style={styles.bottomBar}>
           <View style={{ flex: 1 }}>
             <Text style={styles.bottomPrice}>
+              {showFrom ? "from " : ""}
               {NAIRA}
-              {product.price.toLocaleString()}
+              {shownPrice.toLocaleString()}
             </Text>
+            {variant ? <Text style={styles.muted}>{variantLabel(product, variant)}</Text> : null}
             {inCart ? <Text style={styles.muted}>{inCart} in your cart</Text> : null}
           </View>
           <Pressable
-            style={[styles.button, styles.addButton, product.stock <= 0 && { opacity: 0.4 }]}
-            disabled={product.stock <= 0}
+            style={[styles.button, styles.addButton, stockNow <= 0 && { opacity: 0.4 }]}
+            disabled={stockNow <= 0}
             onPress={() => void add()}
           >
             <Text style={styles.buttonText}>
-              {product.stock <= 0 ? "Out of stock" : added ? "✓ Added" : "+ Add to cart"}
+              {stockNow <= 0
+                ? "Sold out"
+                : added
+                  ? "✓ Added"
+                  : withOptions && !variant && missingOption
+                    ? `Choose ${missingOption.name.toLowerCase()}`
+                    : "+ Add to cart"}
             </Text>
           </Pressable>
         </View>
@@ -274,5 +368,23 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   addButton: { marginTop: 0, backgroundColor: "#1e7d32" },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    minWidth: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#cfd3da",
+    backgroundColor: "#fff",
+    alignItems: "center",
+  },
+  chipActive: { borderColor: "#1e7d32", backgroundColor: "#1e7d32" },
+  chipOut: { backgroundColor: "#f1f1f1", borderColor: "#e3e3e3" },
+  chipText: { fontWeight: "700", color: "#222" },
+  chipTextActive: { color: "#fff" },
+  chipTextOut: { color: "#aaa", textDecorationLine: "line-through" },
+  chosenValue: { fontWeight: "600", color: "#1e7d32" },
+  hintText: { color: "#b26a00", fontWeight: "700", marginTop: 10 },
   buttonText: { color: "#fff", fontWeight: "800" },
 });

@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { Image } from "expo-image";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { useCart } from "../context/CartContext";
+import { lineKey, linePrice, useCart } from "../context/CartContext";
 
 export default function CartScreen() {
   const { items, cartCount, cartTotal } = useCart();
@@ -43,7 +43,7 @@ export default function CartScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* CART ITEMS */}
           {items.map((item) => (
-            <View key={item.product.id} style={styles.cartItem}>
+            <View key={lineKey(item)} style={styles.cartItem}>
               {item.product.thumbUrl ? (
                 <Image
                   source={{ uri: item.product.thumbUrl }}
@@ -61,13 +61,14 @@ export default function CartScreen() {
                 <Text style={styles.productName}>
                   {item.product.name}
                 </Text>
+                {item.variant ? <Text style={styles.variantText}>{item.variant.label}</Text> : null}
 
                 <Text style={styles.seller}>
                   {item.product.seller}
                 </Text>
 
                 <Text style={styles.price}>
-                  ₦{item.product.price.toLocaleString()}
+                  ₦{linePrice(item).toLocaleString()}
                 </Text>
 
                 <Text style={styles.quantity}>
@@ -77,7 +78,7 @@ export default function CartScreen() {
 
               <Text style={styles.itemTotal}>
                 ₦{(
-                  item.product.price * item.quantity
+                  linePrice(item) * item.quantity
                 ).toLocaleString()}
               </Text>
             </View>
@@ -120,6 +121,7 @@ export default function CartScreen() {
 }
 
 const styles = StyleSheet.create({
+  variantText: { color: "#1e7d32", fontWeight: "700", fontSize: 13, marginTop: 2 },
   container: {
     flex: 1,
     backgroundColor: "#f5f6f8",

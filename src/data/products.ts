@@ -12,9 +12,15 @@ export type Product = {
   imageUrl?: string | null; // large, for the product page
   photos?: ProductPhoto[];
   searchWords?: string[]; // English, Hausa, Pidgin, Yoruba, Igbo
+  // Sizes / colours (see src/lib/variants.ts). Without them: one price, one stock.
+  options?: ProductOption[];
+  variants?: ProductVariant[];
 };
 
 export type ProductPhoto = { id: string; url: string; thumbUrl: string };
+
+export type ProductOption = { name: string; values: string[] }; // e.g. Size: 40, 41, 42
+export type ProductVariant = { id: string; values: string[]; stock: number; price: number | null };
 
 export const products: Product[] = [
   {

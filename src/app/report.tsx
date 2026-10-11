@@ -27,6 +27,7 @@ import {
 const NAIRA = "₦";
 const MAX_PHOTOS = 2;
 
+// productId here is the order LINE id: "product#variant" when a size/colour was chosen.
 type Line = { productId: string; name: string; unitPrice: number; quantity: number };
 type OrderInfo = {
   status: string;
@@ -66,8 +67,8 @@ export default function ReportScreen() {
         for (const b of Array.isArray(o.sellerBreakdown) ? o.sellerBreakdown : []) {
           for (const it of Array.isArray(b.items) ? b.items : []) {
             lines.push({
-              productId: String(it.productId),
-              name: String(it.name || "Item"),
+              productId: it.variantId ? `${it.productId}#${it.variantId}` : String(it.productId),
+              name: it.variantLabel ? `${it.name || "Item"} (${it.variantLabel})` : String(it.name || "Item"),
               unitPrice: Number(it.unitPrice) || 0,
               quantity: Number(it.quantity) || 0,
             });
@@ -112,7 +113,7 @@ export default function ReportScreen() {
         ? []
         : Object.entries(picked)
             .filter(([, q]) => q > 0)
-            .map(([productId, quantity]) => ({ productId, quantity }));
+            .map(([lineId, quantity]) => ({ lineId, quantity }));
     if (reason !== "not_received" && items.length === 0) return setError("Tick the item(s) with the problem.");
     if (reason === "other" && note.trim().length < 5) return setError("Please describe the problem.");
     setBusy(true);

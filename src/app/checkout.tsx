@@ -1,4 +1,4 @@
-﻿import { router } from "expo-router";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Pressable,
@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import DeliveryMap from "../components/DeliveryMap";
-import { useCart } from "../context/CartContext";
+import { lineKey, linePrice, useCart } from "../context/CartContext";
 import { useCheckout } from "../context/CheckoutContext";
 import { sellers } from "../data/sellers";
 import { quoteCheckout, submitCheckout, type CheckoutQuote } from "../lib/checkout";
@@ -69,7 +69,7 @@ export default function CheckoutScreen() {
   const [quote, setQuote] = useState<CheckoutQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState("");
-  const cartKey = items.map((i) => `${i.product.id}:${i.quantity}`).join(",");
+  const cartKey = items.map((i) => `${lineKey(i)}:${i.quantity}`).join(",");
 
   useEffect(() => {
     if (!customerLocation || items.length === 0 || !firebaseUser) {
@@ -81,7 +81,7 @@ export default function CheckoutScreen() {
     setQuoteError("");
     const timer = setTimeout(() => {
       quoteCheckout({
-        items: items.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
+        items: items.map((item) => ({ productId: item.product.id, variantId: item.variant?.id ?? null, quantity: item.quantity })),
         deliveryAddress: { latitude: customerLocation.latitude, longitude: customerLocation.longitude },
         vehiclePreference: selectedVehicle,
       })
@@ -162,6 +162,7 @@ export default function CheckoutScreen() {
       const result = await submitCheckout({
         items: items.map((item) => ({
           productId: item.product.id,
+          variantId: item.variant?.id ?? null,
           quantity: item.quantity,
         })),
         deliveryAddress: {
@@ -321,16 +322,18 @@ export default function CheckoutScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🛍️ Order Items</Text>
           {items.map((item) => {
-            const itemTotal = item.product.price * item.quantity;
+            const itemTotal = linePrice(item) * item.quantity;
+            const key = lineKey(item);
             return (
-              <View key={item.product.id} style={styles.productCard}>
+              <View key={key} style={styles.productCard}>
                 <View style={styles.productTop}>
                   <Text style={styles.productEmoji}>{item.product.emoji}</Text>
                   <View style={styles.productInfo}>
                     <Text style={styles.productName}>{item.product.name}</Text>
+                    {item.variant ? <Text style={styles.variantText}>{item.variant.label}</Text> : null}
                     <Text style={styles.seller}>Seller: {item.product.seller}</Text>
                     <Text style={styles.productPrice}>
-                      ₦{item.product.price.toLocaleString()} each
+                      ₦{linePrice(item).toLocaleString()} each
                     </Text>
                   </View>
                   <Text style={styles.itemTotal}>₦{itemTotal.toLocaleString()}</Text>
@@ -341,14 +344,14 @@ export default function CheckoutScreen() {
                   <View style={styles.quantityControls}>
                     <Pressable
                       style={styles.quantityButton}
-                      onPress={() => decreaseQuantity(item.product.id)}
+                      onPress={() => decreaseQuantity(key)}
                     >
                       <Text style={styles.quantityButtonText}>−</Text>
                     </Pressable>
                     <Text style={styles.quantity}>{item.quantity}</Text>
                     <Pressable
                       style={styles.quantityButton}
-                      onPress={() => increaseQuantity(item.product.id)}
+                      onPress={() => increaseQuantity(key)}
                     >
                       <Text style={styles.quantityButtonText}>+</Text>
                     </Pressable>
@@ -357,7 +360,7 @@ export default function CheckoutScreen() {
 
                 <Pressable
                   style={styles.removeButton}
-                  onPress={() => removeFromCart(item.product.id)}
+                  onPress={() => removeFromCart(key)}
                 >
                   <Text style={styles.removeText}>🗑 Remove Item</Text>
                 </Pressable>
@@ -413,6 +416,7 @@ export default function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
+  variantText: { color: "#1e7d32", fontWeight: "700", fontSize: 13, marginTop: 2 },
   container: { flex: 1, backgroundColor: "#f4f5f7" },
   content: { padding: 20, paddingTop: 55, paddingBottom: 80 },
   header: { marginBottom: 20 },

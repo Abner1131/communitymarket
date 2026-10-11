@@ -42,7 +42,7 @@ async function supportCall(body: Record<string, unknown>) {
 export async function reportProblem(input: {
   orderId: string;
   reason: ReportReason;
-  items: { productId: string; quantity: number }[];
+  items: { lineId: string; quantity: number }[]; // "product" or "product#variant"
   note: string;
   photos: string[]; // base64 JPEG
 }): Promise<MyReport | null> {

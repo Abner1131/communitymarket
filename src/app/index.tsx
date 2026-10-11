@@ -17,6 +17,7 @@ import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { products } from "../data/products";
 import { emojiFor, subscribeCatalog } from "../lib/catalog";
+import { hasOptions, optionSummary, priceRange } from "../lib/variants";
 const categories = [
   "All",
   "Groceries",
@@ -665,8 +666,9 @@ export default function HomeScreen() {
                     styles.productPrice
                   }
                 >
+                  {hasOptions(product) && priceRange(product).min !== priceRange(product).max ? "from " : ""}
                   {UI.naira}
-                  {product.price.toLocaleString()}
+                  {priceRange(product).min.toLocaleString()}
                 </Text>
 
                 <Text
@@ -674,8 +676,9 @@ export default function HomeScreen() {
                     styles.productStock
                   }
                 >
-                  {product.stock}{" "}
-                  in stock
+                  {hasOptions(product)
+                    ? `${optionSummary(product)} · ${product.stock} in stock`
+                    : `${product.stock} in stock`}
                 </Text>
 
                 <Pressable
@@ -690,6 +693,12 @@ export default function HomeScreen() {
                       product.stock <=
                       0
                     ) {
+                      return;
+                    }
+
+                    // Sizes / colours are chosen on the product page.
+                    if (hasOptions(product)) {
+                      router.push({ pathname: "/product", params: { id: product.id } });
                       return;
                     }
 
@@ -709,7 +718,9 @@ export default function HomeScreen() {
                   >
                     {product.stock >
                     0
-                      ? "+ Add to Cart"
+                      ? hasOptions(product)
+                        ? `Choose ${((product.options || [])[0]?.name || "option").toLowerCase()}`
+                        : "+ Add to Cart"
                       : "Out of Stock"}
                   </Text>
                 </Pressable>

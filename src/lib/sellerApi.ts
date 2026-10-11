@@ -6,7 +6,7 @@ export type SellerOrder = {
   status: "paid" | "dispatching" | "assigned" | "picked_up" | "delivered";
   createdAtMs: number | null;
   customerFirstName: string;
-  items: { productId: string; name: string; quantity: number; unitPrice: number }[];
+  items: { productId: string; name: string; variantLabel?: string | null; quantity: number; unitPrice: number }[];
   subtotal: number;
   commission: number; // CommunityMarket's commission on this shop's items
   earning: number; // what the shop receives (subtotal - commission)
@@ -39,6 +39,9 @@ export type SellerProduct = {
   photos: SellerPhoto[]; // first = cover
   specs: Record<string, string>;
   searchWords: Partial<Record<SearchLang, string[]>>;
+  // Sizes / colours, each with its own stock (stock above = their total).
+  options?: { name: string; values: string[] }[];
+  variants?: { id: string; values: string[]; stock: number; price: number | null }[];
 };
 
 export type SearchLang = "en" | "ha" | "pcm" | "yo" | "ig";
@@ -66,6 +69,7 @@ export type AiSuggestion = {
   description: string;
   specs: Record<string, string>;
   searchWords: Record<SearchLang, string[]>;
+  options?: { name: string; values: string[] }[]; // e.g. Size 36-47: tick the ones you have
   photos: AiPhotoNote[];
   bestPhoto: { source: "saved" | "new"; photoId?: string; index?: number } | null;
   usesLeftToday: number;

@@ -14,6 +14,15 @@ import {
   View,
 } from "react-native";
 
+import {
+  combinations,
+  draftOptionsFrom,
+  draftOptionsFromAi,
+  EMPTY_OPTIONS,
+  optionsPayload,
+  ProductOptionsEditor,
+  type DraftOptions,
+} from "../components/ProductOptionsEditor";
 import { WalletCard } from "../components/WalletCard";
 import { pickProductPhoto, type PickedPhoto } from "../lib/photoPick";
 import {
@@ -53,6 +62,7 @@ type Draft = {
   searchWords: Partial<Record<SearchLang, string[]>>;
   hint: string; // optional words for the AI, e.g. "5kg bag"
   aiNotes: string[]; // photo tips from the AI
+  opts: DraftOptions; // sizes / colours
 };
 
 const EMPTY_DRAFT: Draft = {
@@ -68,6 +78,7 @@ const EMPTY_DRAFT: Draft = {
   searchWords: {},
   hint: "",
   aiNotes: [],
+  opts: EMPTY_OPTIONS,
 };
 
 function specsToObject(specs: Draft["specs"]): Record<string, string> {
@@ -183,6 +194,7 @@ function OrderCard({
         <View key={i} style={styles.rowBetween}>
           <Text style={styles.item}>
             {item.quantity} {"×"} {item.name}
+            {item.variantLabel ? <Text style={styles.variantText}> ({item.variantLabel})</Text> : null}
           </Text>
           <Text style={styles.item}>{money(item.unitPrice * item.quantity)}</Text>
         </View>
@@ -411,17 +423,21 @@ function ProductForm({
             placeholder="25000"
           />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.label}>In stock</Text>
-          <TextInput
-            style={styles.input}
-            value={draft.stock}
-            onChangeText={(stock) => onChange({ ...draft, stock: stock.replace(/[^0-9]/g, "") })}
-            keyboardType="number-pad"
-            placeholder="10"
-          />
-        </View>
+        {combinations(draft.opts.options).length ? null : (
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>In stock</Text>
+            <TextInput
+              style={styles.input}
+              value={draft.stock}
+              onChangeText={(stock) => onChange({ ...draft, stock: stock.replace(/[^0-9]/g, "") })}
+              keyboardType="number-pad"
+              placeholder="10"
+            />
+          </View>
+        )}
       </View>
+
+      <ProductOptionsEditor value={draft.opts} onChange={(opts) => onChange({ ...draft, opts })} mainPrice={draft.price} />
 
       <Text style={styles.label}>Description</Text>
       <TextInput
@@ -597,6 +613,7 @@ export default function SellerScreen() {
       searchWords: p.searchWords || {},
       hint: "",
       aiNotes: [],
+      opts: draftOptionsFrom(p.options, p.variants),
     });
   }
 
@@ -643,9 +660,15 @@ export default function SellerScreen() {
             : d.specs,
           searchWords: s.searchWords,
           aiNotes: notes,
+          // Sizes/colours suggested only if the seller hasn't set any yet.
+          opts: s.options && s.options.length && !d.opts.options.length ? draftOptionsFromAi(s.options) : d.opts,
         };
       });
-      setNotice("AI filled the details. Check them, add the price and stock, then tap Save.");
+      setNotice(
+        s.options && s.options.length
+          ? "AI filled the details. Tick the sizes/colours you have, enter the price and stock, then tap Save."
+          : "AI filled the details. Check them, add the price and stock, then tap Save.",
+      );
     } catch (e: any) {
       if (mounted.current) setFormError(e?.message || "The AI could not help right now. You can type the details.");
     } finally {
@@ -688,9 +711,12 @@ export default function SellerScreen() {
     if (!draft) return;
     setFormError("");
     const price = parseInt(draft.price, 10);
-    const stock = parseInt(draft.stock, 10);
+    const opts = optionsPayload(draft.opts);
+    if (typeof opts === "string") return setFormError(opts);
+    const withOptions = opts.options.length > 0;
+    const stock = withOptions ? 0 : parseInt(draft.stock, 10); // with sizes, the server adds them up
     if (!draft.name.trim()) return setFormError("Enter a product name.");
-    if (!Number.isInteger(price)) return setFormError("Enter a price.");
+    if (!Number.isInteger(price)) return setFormError(withOptions ? "Enter the main price." : "Enter a price.");
     if (!Number.isInteger(stock)) return setFormError("Enter how many are in stock.");
     const result = await run("save", "saveProduct", {
       productId: draft.productId,
@@ -698,6 +724,8 @@ export default function SellerScreen() {
       category: draft.category,
       price,
       stock,
+      options: opts.options,
+      variants: opts.variants,
       description: draft.description.trim(),
       active: draft.active,
       specs: specsToObject(draft.specs),
@@ -963,6 +991,7 @@ export default function SellerScreen() {
                     <Text style={styles.cardTitle}>{p.name}</Text>
                     <Text style={styles.muted}>
                       {p.category} {"·"} {p.stock} in stock
+                      {p.options && p.options.length ? ` · ${p.options.map((o) => o.name).join(" & ")}` : ""}
                     </Text>
                   </View>
                   <Text style={styles.value}>{money(p.price)}</Text>
@@ -980,6 +1009,7 @@ export default function SellerScreen() {
 }
 
 const styles = StyleSheet.create({
+  variantText: { color: "#1e7d32", fontWeight: "700" },
   safe: { flex: 1, backgroundColor: "#f5f6f8" },
   container: { padding: 20, paddingBottom: 60 },
   backText: { fontWeight: "700", marginBottom: 14 },

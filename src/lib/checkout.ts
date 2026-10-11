@@ -1,6 +1,6 @@
 import { API_URL, auth } from "./firebase";
 
-export type CartLine = { productId: string; quantity: number };
+export type CartLine = { productId: string; variantId?: string | null; quantity: number }; // variantId: chosen size/colour
 
 export type CheckoutResult = {
   orderId: string;
