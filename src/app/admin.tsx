@@ -594,6 +594,9 @@ export default function AdminScreen() {
   const lockedDeliveries = state.delivery ? state.delivery.locked : [];
   const openReports = state.reports ? state.reports.open : [];
   const recentReports = state.reports ? state.reports.recent : [];
+  // Money tab: withdrawals to send + bank accounts to check.
+  const moneyCount =
+    (state.wallets ? state.wallets.requests.length : 0) + (state.bankChecks ? state.bankChecks.review.length : 0);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -619,8 +622,8 @@ export default function AdminScreen() {
             [
               ["today", "Today"],
               ["applications", `Apps${applications.length ? ` (${applications.length})` : ""}`],
-              ["live", `Live${counts.needsAttention - applications.length - (state.wallets ? state.wallets.requests.length : 0) > 0 ? " ⚠" : ""}`],
-              ["money", `Money${state.wallets && state.wallets.requests.length > 0 ? ` (${state.wallets.requests.length})` : ""}`],
+              ["live", `Live${counts.needsAttention - applications.length - moneyCount > 0 ? " ⚠" : ""}`],
+              ["money", `Money${moneyCount > 0 ? ` (${moneyCount})` : ""}`],
               ["logs", "Logs"],
             ] as [Tab, string][]
           ).map(([t, text]) => (
@@ -1027,6 +1030,9 @@ export default function AdminScreen() {
             onSaveSettings={(settings) => void run("payoutSettings", "setPayoutSettings", { settings })}
             onSaveFunding={(settings) => void run("funding", "setFundingSettings", { settings })}
             onSaveRewards={(settings) => void run("rewards", "setRewardsSettings", { settings })}
+            onBankAction={(action, partyType, partyId, reason) =>
+              void run(`bank-${partyType}-${partyId}`, action, { partyType, partyId, reason })
+            }
           />
         ) : null}
 

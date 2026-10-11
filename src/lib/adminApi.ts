@@ -126,10 +126,44 @@ export type AdminWithdrawalRequest = {
   amount: number; // taken from their wallet
   fee: number; // our withdrawal fee
   netAmount: number; // what you send
-  bank: { bankName: string; accountNumber: string; accountName: string } | null;
+  bank: {
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+    verifiedStatus?: "verified" | "admin" | "test" | null; // how the name was checked
+  } | null;
   requestedAtMs: number | null;
   balanceLeft: number;
 };
+
+// Bank accounts whose name didn't match (to check), and new accounts on the 24h hold.
+export type AdminBankReview = {
+  partyType: "seller" | "rider";
+  partyId: string;
+  name: string;
+  phone: string | null;
+  registeredNames: string[];
+  bankName: string;
+  accountNumber: string;
+  accountName: string; // what the bank says
+  requestedAtMs: number | null;
+};
+
+export type AdminBankHeld = {
+  partyType: "seller" | "rider";
+  partyId: string;
+  name: string;
+  phone: string | null;
+  bankName: string;
+  accountNumberMasked: string;
+  accountName: string;
+  verifiedStatus: "verified" | "admin" | "test" | null;
+  changedAtMs: number | null;
+  holdUntilMs: number;
+  previous: { bankName: string | null; accountName: string | null; accountNumberMasked: string } | null;
+};
+
+export type AdminBankChecks = { review: AdminBankReview[]; held: AdminBankHeld[]; testMode: boolean };
 
 export type AdminWallet = {
   partyType: "seller" | "rider" | "customer";
@@ -240,6 +274,7 @@ export type AdminState = {
   delivery?: AdminDelivery;
   ai?: AdminAi;
   reports?: { open: AdminReport[]; recent: AdminReport[] };
+  bankChecks?: AdminBankChecks;
   message: string | null;
 };
 
@@ -261,7 +296,10 @@ export type AdminAction =
   | "setDeliverySettings"
   | "resetDeliveryCode"
   | "setAiSettings"
-  | "resolveReport";
+  | "resolveReport"
+  | "approveBank"
+  | "rejectBank"
+  | "liftBankHold";
 
 export class AdminApiError extends Error {
   forbidden: boolean;

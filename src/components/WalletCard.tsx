@@ -1,11 +1,27 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+
+import { listBanks, POPULAR_BANKS, type BankOption } from "../lib/bankApi";
 
 // Wallet for sellers and riders: money lands here as soon as an order is
 // delivered. It can be withdrawn once Paystack has settled the customer's
 // payment ("clearing"), less a small withdrawal fee.
 
-export type BankInput = { bankName: string; accountNumber: string; accountName: string };
+// The bank tells the server the real name on the account; the user can't type it.
+export type BankInput = { bankCode: string; accountNumber: string };
+
+export type WalletBank = {
+  none?: boolean; // no account yet, but one is waiting for a check
+  bankName?: string;
+  accountName?: string;
+  accountNumberMasked?: string;
+  verifiedStatus?: "verified" | "admin" | "test" | null;
+  holdUntilMs?: number | null; // withdrawals paused after a change
+  needsRecheck?: boolean; // old/test-checked account: add it again
+  canWithdraw?: boolean;
+  blockReason?: string | null;
+  pendingReview?: { bankName: string; accountName: string; accountNumberMasked: string; requestedAtMs: number | null } | null;
+};
 
 export type WalletSummary = {
   balance: number;
@@ -20,7 +36,7 @@ export type WalletSummary = {
   totalWithdrawn: number;
   totalSpent: number; // paid for their own orders
   minWithdrawal: number;
-  bank: { bankName: string; accountName: string; accountNumberMasked: string } | null;
+  bank: WalletBank | null;
   pendingRequest: { id: string; amount: number; fee: number; netAmount: number; requestedAtMs: number | null } | null;
   activity: {
     id: string;
@@ -59,29 +75,37 @@ export function WalletCard({
   onWithdraw: (amount: number) => Promise<string | null>;
 }) {
   const [editingBank, setEditingBank] = useState(false);
-  const [bankName, setBankName] = useState("");
+  const [banks, setBanks] = useState<BankOption[] | null>(null);
+  const [bankSearch, setBankSearch] = useState("");
+  const [chosenBank, setChosenBank] = useState<BankOption | null>(null);
   const [accountNumber, setAccountNumber] = useState("");
-  const [accountName, setAccountName] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
 
+  const hasBank = Boolean(wallet.bank && !wallet.bank.none);
+
   function startBank() {
-    setBankName(wallet.bank?.bankName || "");
-    setAccountName(wallet.bank?.accountName || "");
+    setChosenBank(null);
+    setBankSearch("");
     setAccountNumber("");
     setError("");
+    setDone("");
     setEditingBank(true);
+    if (!banks) {
+      listBanks()
+        .then(setBanks)
+        .catch((e) => setError(e?.message || "Could not load the list of banks."));
+    }
   }
 
   async function saveBank() {
-    if (bankName.trim().length < 2) return setError("Enter your bank's name.");
+    if (!chosenBank) return setError("Choose your bank from the list.");
     if (!/^\d{10}$/.test(accountNumber)) return setError("Account number must be exactly 10 digits.");
-    if (accountName.trim().length < 3) return setError("Enter the name on the account.");
     setBusy(true);
-    const err = await onSaveBank({ bankName: bankName.trim(), accountNumber, accountName: accountName.trim() });
+    const err = await onSaveBank({ bankCode: chosenBank.code, accountNumber });
     setBusy(false);
     if (err) setError(err);
     else {
@@ -89,6 +113,16 @@ export function WalletCard({
       setError("");
     }
   }
+
+  const search = bankSearch.trim().toLowerCase();
+  const bankMatches = banks
+    ? (search
+        ? banks.filter((b) => b.name.toLowerCase().includes(search))
+        : POPULAR_BANKS.map((p) => banks.find((b) => b.name.toLowerCase().includes(p.toLowerCase()))).filter(
+            (b): b is BankOption => Boolean(b),
+          )
+      ).slice(0, 8)
+    : [];
 
   function startWithdraw() {
     setAmount(String(Math.floor(wallet.available)));
@@ -114,7 +148,8 @@ export function WalletCard({
     }
   }
 
-  const canWithdraw = !wallet.pendingRequest && wallet.available >= wallet.minWithdrawal;
+  const bankOk = hasBank && wallet.bank?.canWithdraw !== false;
+  const canWithdraw = bankOk && !wallet.pendingRequest && wallet.available >= wallet.minWithdrawal;
   const typed = parseInt(amount, 10);
   const typedFee = Number.isInteger(typed) && typed > 0 ? feeFor(typed, wallet.fees) : null;
 
@@ -202,7 +237,7 @@ export function WalletCard({
           </View>
         </>
       ) : !editingBank ? (
-        wallet.bank ? (
+        hasBank ? (
           <Pressable
             style={[styles.greenButton, !canWithdraw && { opacity: 0.4 }]}
             disabled={!canWithdraw}
@@ -212,7 +247,7 @@ export function WalletCard({
           </Pressable>
         ) : null
       ) : null}
-      {!withdrawing && !wallet.pendingRequest && wallet.bank && wallet.available < wallet.minWithdrawal ? (
+      {!withdrawing && !wallet.pendingRequest && bankOk && wallet.available < wallet.minWithdrawal ? (
         <Text style={styles.hint}>
           You can withdraw once at least {money(wallet.minWithdrawal)} has cleared.
         </Text>
@@ -229,12 +264,33 @@ export function WalletCard({
       <Text style={styles.label}>Bank account</Text>
       {editingBank ? (
         <>
-          <TextInput
-            style={styles.input}
-            value={bankName}
-            onChangeText={setBankName}
-            placeholder="Bank (e.g. Opay, GTBank, Moniepoint)"
-          />
+          {chosenBank ? (
+            <View style={[styles.rowBetween, styles.chosenBank]}>
+              <Text style={[styles.value, { flex: 1 }]}>{chosenBank.name}</Text>
+              <Pressable onPress={() => setChosenBank(null)}>
+                <Text style={styles.linkText}>Change</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                style={styles.input}
+                value={bankSearch}
+                onChangeText={setBankSearch}
+                placeholder="Search your bank (e.g. Opay, Moniepoint, GTBank)"
+              />
+              {!banks && !error ? <ActivityIndicator style={{ marginTop: 10 }} /> : null}
+              {banks && !search ? <Text style={styles.hintSmall}>Popular banks:</Text> : null}
+              {bankMatches.map((b) => (
+                <Pressable key={b.code} style={styles.bankRow} onPress={() => setChosenBank(b)}>
+                  <Text style={styles.bankRowText}>{b.name}</Text>
+                </Pressable>
+              ))}
+              {banks && search && bankMatches.length === 0 ? (
+                <Text style={styles.hint}>No bank matches "{bankSearch}".</Text>
+              ) : null}
+            </>
+          )}
           <TextInput
             style={styles.input}
             value={accountNumber}
@@ -242,29 +298,56 @@ export function WalletCard({
             placeholder="10-digit account number"
             keyboardType="number-pad"
           />
-          <TextInput style={styles.input} value={accountName} onChangeText={setAccountName} placeholder="Name on the account" />
+          <Text style={styles.hint}>
+            We ask your bank for the name on this account. It must match your registered name. For your safety,
+            withdrawals pause for 24 hours after a change.
+          </Text>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           <View style={styles.twoCol}>
             <Pressable style={[styles.secondaryButton, { flex: 1 }]} onPress={() => setEditingBank(false)} disabled={busy}>
               <Text style={styles.secondaryButtonText}>Cancel</Text>
             </Pressable>
             <Pressable style={[styles.primaryButton, { flex: 1 }, busy && { opacity: 0.6 }]} onPress={saveBank} disabled={busy}>
-              <Text style={styles.primaryButtonText}>{busy ? "Saving..." : "Save"}</Text>
+              <Text style={styles.primaryButtonText}>{busy ? "Checking..." : "Check & save"}</Text>
             </Pressable>
           </View>
         </>
-      ) : wallet.bank ? (
-        <View style={styles.rowBetween}>
-          <View style={{ flex: 1, paddingRight: 8 }}>
-            <Text style={styles.value}>{wallet.bank.accountName}</Text>
-            <Text style={styles.muted}>
-              {wallet.bank.bankName} {"·"} {wallet.bank.accountNumberMasked}
-            </Text>
+      ) : hasBank && wallet.bank ? (
+        <>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.value}>{wallet.bank.accountName}</Text>
+              <Text style={styles.muted}>
+                {wallet.bank.bankName} {"·"} {wallet.bank.accountNumberMasked}
+              </Text>
+              {wallet.bank.verifiedStatus === "verified" ? (
+                <Text style={styles.verifiedText}>✓ Name checked with your bank</Text>
+              ) : wallet.bank.verifiedStatus === "admin" ? (
+                <Text style={styles.verifiedText}>✓ Approved by CommunityMarket</Text>
+              ) : wallet.bank.verifiedStatus === "test" ? (
+                <Text style={styles.testText}>TEST MODE — name not really checked</Text>
+              ) : null}
+            </View>
+            <Pressable style={styles.smallButton} onPress={startBank}>
+              <Text style={styles.smallButtonText}>Change</Text>
+            </Pressable>
           </View>
-          <Pressable style={styles.smallButton} onPress={startBank}>
-            <Text style={styles.smallButtonText}>Change</Text>
-          </Pressable>
-        </View>
+          {wallet.bank.needsRecheck ? (
+            <View style={styles.pendingBox}>
+              <Text style={styles.pendingText}>{wallet.bank.blockReason}</Text>
+              <Pressable style={styles.primaryButton} onPress={startBank}>
+                <Text style={styles.primaryButtonText}>Add bank account again</Text>
+              </Pressable>
+            </View>
+          ) : wallet.bank.holdUntilMs ? (
+            <View style={styles.pendingBox}>
+              <Text style={styles.pendingText}>
+                🔒 New bank account: withdrawals open {when(wallet.bank.holdUntilMs)}. If you did not change it, contact
+                CommunityMarket now.
+              </Text>
+            </View>
+          ) : null}
+        </>
       ) : (
         <>
           <Text style={styles.warnText}>Add your bank account so you can withdraw.</Text>
@@ -273,6 +356,14 @@ export function WalletCard({
           </Pressable>
         </>
       )}
+      {!editingBank && wallet.bank && wallet.bank.pendingReview ? (
+        <View style={styles.pendingBox}>
+          <Text style={styles.pendingText}>
+            Waiting for CommunityMarket to check {wallet.bank.pendingReview.accountName} ({wallet.bank.pendingReview.bankName}{" "}
+            {wallet.bank.pendingReview.accountNumberMasked}). We'll let you know.
+          </Text>
+        </View>
+      ) : null}
 
       {/* history */}
       {wallet.activity.length > 0 ? (
@@ -356,4 +447,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryButtonText: { fontWeight: "700" },
+  verifiedText: { color: "#1e7d32", fontWeight: "700", fontSize: 12, marginTop: 4 },
+  testText: { color: "#b26a00", fontWeight: "800", fontSize: 11, marginTop: 4 },
+  linkText: { color: "#1565c0", fontWeight: "700" },
+  chosenBank: { borderWidth: 1, borderColor: "#1e7d32", borderRadius: 10, padding: 12, marginTop: 8, backgroundColor: "#f1f8f2" },
+  bankRow: { paddingVertical: 11, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
+  bankRowText: { fontSize: 14, color: "#222" },
 });

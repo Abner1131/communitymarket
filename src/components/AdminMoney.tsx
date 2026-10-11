@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import type {
+  AdminBankHeld,
+  AdminBankReview,
   AdminRewards,
   AdminRewardsSettings,
   AdminFundingSettings,
@@ -23,6 +25,115 @@ function ago(msValue: number | null) {
   if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.round(minutes / 60);
   return hours < 48 ? `${hours} h ago` : `${Math.round(hours / 24)} days ago`;
+}
+
+function whenText(msValue: number) {
+  return new Date(msValue).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+}
+
+const CHECKED_LABEL: Record<string, string> = {
+  verified: "✓ Name checked with the bank",
+  admin: "✓ Approved by you",
+  test: "TEST MODE — name not checked",
+};
+
+export type BankAction = "approveBank" | "rejectBank" | "liftBankHold";
+
+// A bank account whose name didn't match their registered name.
+function BankReviewCard({
+  item,
+  busy,
+  onAction,
+}: {
+  item: AdminBankReview;
+  busy: boolean;
+  onAction: (action: BankAction, reason?: string) => void;
+}) {
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
+  return (
+    <View style={[styles.card, styles.warnCard]}>
+      <Text style={styles.cardTitle}>
+        {item.name} <Text style={styles.muted}>({item.partyType})</Text>
+      </Text>
+      <Text style={styles.muted}>Registered name: {item.registeredNames.join(" / ") || "unknown"}</Text>
+      <View style={styles.bankBox}>
+        <Text style={styles.muted}>The bank says:</Text>
+        <Text style={styles.bankLine} selectable>
+          {item.accountName}
+        </Text>
+        <Text style={styles.muted} selectable>
+          {item.bankName} {"·"} {item.accountNumber}
+        </Text>
+      </View>
+      <Text style={styles.hint}>
+        Sent {ago(item.requestedAtMs)}. Call them first: approve only if it is really their own account (e.g. a spelling
+        difference).
+      </Text>
+      {item.phone ? (
+        <Pressable onPress={() => Linking.openURL(`tel:${item.phone}`)}>
+          <Text style={styles.link}>📞 Call {item.phone}</Text>
+        </Pressable>
+      ) : null}
+      {rejecting ? (
+        <>
+          <TextInput style={styles.input} value={reason} onChangeText={setReason} placeholder="Reason (they will see it)" />
+          <View style={styles.actionsRow}>
+            <Pressable style={styles.smallButton} onPress={() => setRejecting(false)} disabled={busy}>
+              <Text style={styles.smallButtonText}>Cancel</Text>
+            </Pressable>
+            <Pressable style={[styles.smallButton, styles.dangerFilled]} onPress={() => onAction("rejectBank", reason)} disabled={busy}>
+              <Text style={styles.whiteText}>{busy ? "..." : "Refuse account"}</Text>
+            </Pressable>
+          </View>
+        </>
+      ) : (
+        <View style={styles.actionsRow}>
+          <Pressable style={[styles.smallButton, styles.greenFilled]} onPress={() => onAction("approveBank")} disabled={busy}>
+            <Text style={styles.whiteText}>{busy ? "..." : "Approve (I checked)"}</Text>
+          </Pressable>
+          <Pressable style={[styles.smallButton, styles.dangerOutline]} onPress={() => setRejecting(true)} disabled={busy}>
+            <Text style={styles.smallButtonText}>Refuse</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// A new/changed account on the 24-hour withdrawal pause.
+function BankHeldRow({ item, busy, onLift }: { item: AdminBankHeld; busy: boolean; onLift: () => void }) {
+  return (
+    <View style={styles.heldRow}>
+      <Text style={styles.value}>
+        {item.name} <Text style={styles.muted}>({item.partyType})</Text>
+      </Text>
+      <Text style={styles.muted}>
+        {item.accountName} {"·"} {item.bankName} {item.accountNumberMasked}
+      </Text>
+      {item.verifiedStatus ? <Text style={styles.hint}>{CHECKED_LABEL[item.verifiedStatus]}</Text> : null}
+      {item.previous ? (
+        <Text style={styles.hint}>
+          Before: {item.previous.accountName || "?"} {"·"} {item.previous.bankName || "?"} {item.previous.accountNumberMasked}
+        </Text>
+      ) : (
+        <Text style={styles.hint}>First bank account.</Text>
+      )}
+      <Text style={styles.warnText}>
+        Changed {ago(item.changedAtMs)} {"·"} withdrawals open {whenText(item.holdUntilMs)}
+      </Text>
+      <View style={styles.actionsRow}>
+        {item.phone ? (
+          <Pressable style={styles.smallButton} onPress={() => Linking.openURL(`tel:${item.phone}`)}>
+            <Text style={styles.smallButtonText}>📞 Call</Text>
+          </Pressable>
+        ) : null}
+        <Pressable style={styles.smallButton} onPress={onLift} disabled={busy}>
+          <Text style={styles.smallButtonText}>{busy ? "..." : "Lift hold (I confirmed)"}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 }
 
 function RequestCard({
@@ -88,6 +199,9 @@ function RequestCard({
           </Text>
           <Text style={styles.muted} selectable>
             {req.bank.bankName} {"·"} {req.bank.accountName}
+          </Text>
+          <Text style={req.bank.verifiedStatus ? styles.hint : styles.warnText}>
+            {req.bank.verifiedStatus ? CHECKED_LABEL[req.bank.verifiedStatus] : "⚠ Name not checked (old account)"}
           </Text>
         </View>
       ) : (
@@ -509,9 +623,11 @@ export function AdminMoney({
   onSaveSettings,
   onSaveFunding,
   onSaveRewards,
+  onBankAction,
 }: {
   state: AdminState;
   working: string | null;
+  onBankAction: (action: BankAction, partyType: string, partyId: string, reason?: string) => void;
   onPay: (req: AdminWithdrawalRequest, method: string, reference: string) => void;
   onReject: (req: AdminWithdrawalRequest, reason: string) => void;
   onSaveRates: (rates: Record<string, number>) => void;
@@ -538,6 +654,41 @@ export function AdminMoney({
         {money(wallets.totalClearing)} of the wallet money is still clearing from Paystack. Keep the rest available:
         sellers and riders can withdraw it at any time.
       </Text>
+
+      {state.bankChecks && state.bankChecks.testMode ? (
+        <Text style={styles.warnText}>
+          Paystack TEST mode: bank account names are not really checked. Live keys turn the check on.
+        </Text>
+      ) : null}
+      {state.bankChecks && state.bankChecks.review.length > 0 ? (
+        <>
+          <Text style={styles.sectionTitle}>Bank accounts to check ({state.bankChecks.review.length})</Text>
+          {state.bankChecks.review.map((b) => (
+            <BankReviewCard
+              key={`${b.partyType}-${b.partyId}`}
+              item={b}
+              busy={working === `bank-${b.partyType}-${b.partyId}`}
+              onAction={(action, reason) => onBankAction(action, b.partyType, b.partyId, reason)}
+            />
+          ))}
+        </>
+      ) : null}
+      {state.bankChecks && state.bankChecks.held.length > 0 ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🔒 New bank accounts on 24-hour hold ({state.bankChecks.held.length})</Text>
+          <Text style={styles.hint}>
+            Withdrawals wait 24 hours after an account is added or changed. If a change looks strange, call them.
+          </Text>
+          {state.bankChecks.held.map((b) => (
+            <BankHeldRow
+              key={`${b.partyType}-${b.partyId}`}
+              item={b}
+              busy={working === `bank-${b.partyType}-${b.partyId}`}
+              onLift={() => onBankAction("liftBankHold", b.partyType, b.partyId)}
+            />
+          ))}
+        </View>
+      ) : null}
 
       <Text style={styles.sectionTitle}>Withdrawal requests ({wallets.requests.length})</Text>
       {wallets.requests.length === 0 ? (
@@ -641,6 +792,14 @@ export function AdminMoney({
 }
 
 const styles = StyleSheet.create({
+  warnCard: { borderWidth: 1, borderColor: "#f0b35b", backgroundColor: "#fffaf2" },
+  actionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  smallButton: { borderWidth: 1, borderColor: "#222", borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12 },
+  smallButtonText: { fontWeight: "700", fontSize: 13 },
+  dangerFilled: { backgroundColor: "#b00020", borderColor: "#b00020" },
+  greenFilled: { backgroundColor: "#1e7d32", borderColor: "#1e7d32" },
+  dangerOutline: { borderColor: "#b00020" },
+  heldRow: { borderTopWidth: 1, borderTopColor: "#eee", paddingVertical: 10, marginTop: 8 },
   card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 12 },
   cardTitle: { fontSize: 16, fontWeight: "800" },
   sectionTitle: { fontSize: 14, fontWeight: "800", color: "#555", marginTop: 10, marginBottom: 8 },
