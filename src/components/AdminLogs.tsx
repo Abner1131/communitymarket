@@ -51,9 +51,10 @@ const TYPES: { code: AdminLogType | null; label: string }[] = [
   { code: "action", label: "Changes" },
   { code: "rights", label: "Admin rights" },
   { code: "denied", label: "Blocked" },
+  { code: "account", label: "Accounts" },
 ];
 
-const ICONS: Record<AdminLogType, string> = { access: "🔑", action: "✏️", rights: "🛡️", denied: "⛔" };
+const ICONS: Record<AdminLogType, string> = { access: "🔑", action: "✏️", rights: "🛡️", denied: "⛔", account: "👤" };
 
 function LogRow({ line, showDay }: { line: AdminLogLine; showDay: boolean }) {
   const [open, setOpen] = useState(false);

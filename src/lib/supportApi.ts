@@ -54,3 +54,16 @@ export async function getMyReport(orderId: string): Promise<MyReport | null> {
   const data = await supportCall({ action: "myReport", orderId });
   return (data.report as MyReport) ?? null;
 }
+
+// ---------- "Delete my account" ----------
+
+export type DeletionCheck = { blockers: string[]; loss: number; waitDays: number };
+
+export async function checkDeletion(): Promise<DeletionCheck> {
+  return (await supportCall({ action: "deletionCheck" })) as DeletionCheck;
+}
+
+// Locks the account now; it is erased after 7 days.
+export async function deleteMyAccount(acceptLoss: boolean): Promise<{ eraseAfterMs: number }> {
+  return (await supportCall({ action: "deleteAccount", confirm: "DELETE", acceptLoss })) as { eraseAfterMs: number };
+}

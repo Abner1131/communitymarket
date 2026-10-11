@@ -4,6 +4,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
+  sendEmailVerification,
   updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth";
@@ -193,6 +194,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const cred = await createUserWithEmailAndPassword(auth, input.email.trim(), input.password);
       await updateProfile(cred.user, { displayName: name }).catch(() => undefined);
+      // Verification link (invite codes and referral rewards need a verified email).
+      await sendEmailVerification(cred.user).catch(() => undefined);
     } catch (e) {
       pendingSignUp = null;
       throw e;

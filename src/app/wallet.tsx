@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 
+import { EmailVerifyCard } from "../components/EmailVerifyCard";
 import { applyInviteCode, getMyWallet, redeemPoints, startTopup, type MyWallet } from "../lib/walletApi";
 
 const money = (n: number) => `₦${Math.round(n).toLocaleString()}`;
@@ -225,8 +226,18 @@ export default function WalletScreen() {
                   </>
                 ) : null}
 
+                {/* invite codes need a verified email */}
+                {wallet.emailVerified === false &&
+                (wallet.rewards.referral.enabled || wallet.rewards.referral.partnerEnabled) ? (
+                  <>
+                    <View style={styles.divider} />
+                    <EmailVerifyCard onVerified={() => void load()} />
+                  </>
+                ) : null}
+
                 {/* my invite code */}
-                {wallet.rewards.referral.enabled || wallet.rewards.referral.partnerEnabled ? (
+                {wallet.emailVerified !== false &&
+                (wallet.rewards.referral.enabled || wallet.rewards.referral.partnerEnabled) ? (
                   <>
                     <View style={styles.divider} />
                     <Text style={styles.value}>Invite friends</Text>
@@ -260,7 +271,7 @@ export default function WalletScreen() {
                 ) : null}
 
                 {/* enter someone's code */}
-                {wallet.rewards.canEnterCode ? (
+                {wallet.rewards.canEnterCode && wallet.emailVerified !== false ? (
                   <>
                     <View style={styles.divider} />
                     <Text style={styles.value}>Got an invite code?</Text>

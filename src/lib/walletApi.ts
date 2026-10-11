@@ -15,6 +15,7 @@ export type WalletActivity = {
 };
 
 export type MyWallet = {
+  emailVerified?: boolean; // invite codes and referral rewards need a verified email
   funds: { balance: number; totalFunded: number; totalSpent: number; activity: WalletActivity[] };
   earnings: {
     partyType: "seller" | "rider";

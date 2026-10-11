@@ -790,6 +790,68 @@ export default function AdminScreen() {
         {/* ---------- LIVE ---------- */}
         {tab === "live" && (
           <>
+            {state.deletions && state.deletions.length > 0 ? (
+              <View style={[styles.card, styles.warnCard]}>
+                <Text style={styles.cardTitle}>👤 Accounts being deleted ({state.deletions.length})</Text>
+                <Text style={styles.hint}>
+                  Locked now and erased on the date shown. Restore only if the person contacts you and asks.
+                </Text>
+                {state.deletions.map((d) => (
+                  <View key={d.uid} style={{ marginTop: 10 }}>
+                    <Text style={styles.value}>
+                      {d.name || d.email || d.uid} <Text style={styles.muted}>({d.role})</Text>
+                    </Text>
+                    <Text style={styles.muted}>
+                      {d.email || ""} · erased {d.eraseAfterMs ? new Date(d.eraseAfterMs).toDateString() : "soon"}
+                    </Text>
+                    <Pressable
+                      style={[styles.smallButton, { alignSelf: "flex-start", marginTop: 6 }]}
+                      onPress={() => {
+                        if (armed !== `restore-${d.uid}`) return arm(`restore-${d.uid}`);
+                        void run(`restore-${d.uid}`, "restoreAccount", { uid: d.uid });
+                      }}
+                      disabled={working === `restore-${d.uid}`}
+                    >
+                      <Text style={styles.smallButtonText}>
+                        {working === `restore-${d.uid}` ? "..." : armed === `restore-${d.uid}` ? "Tap again to restore" : "Restore account"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {state.backup ? (
+              <View style={[styles.card, !state.backup.configured || !state.backup.lastOk ? styles.warnCard : null]}>
+                <Text style={styles.cardTitle}>🗄 Daily backup</Text>
+                {!state.backup.configured ? (
+                  <Text style={styles.warnText}>
+                    Not set up: add BACKUP_KEY in Vercel → Settings → Environment Variables, then redeploy.
+                  </Text>
+                ) : state.backup.lastAtMs ? (
+                  <Text style={state.backup.lastOk ? styles.muted : styles.warnText}>
+                    {state.backup.lastOk ? "✓ Last backup" : "⚠ Last try failed"} {new Date(state.backup.lastAtMs).toLocaleString()}
+                    {state.backup.lastOk && state.backup.docs
+                      ? ` · ${state.backup.docs.toLocaleString()} records · ${Math.round((state.backup.bytes || 0) / 1024).toLocaleString()} KB`
+                      : ""}
+                    {!state.backup.lastOk && state.backup.error ? `\n${state.backup.error}` : ""}
+                  </Text>
+                ) : (
+                  <Text style={styles.muted}>No backup yet. The first one runs tonight, or tap below.</Text>
+                )}
+                <Text style={styles.hint}>
+                  Every night at 3:30 AM, locked with your BACKUP_KEY. Kept {state.backup.keepDays} days.
+                </Text>
+                <Pressable
+                  style={[styles.smallButton, { alignSelf: "flex-start", marginTop: 10 }]}
+                  onPress={() => void run("backup", "backupNow")}
+                  disabled={working === "backup"}
+                >
+                  <Text style={styles.smallButtonText}>{working === "backup" ? "Backing up..." : "Back up now"}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
             {openReports.length > 0 ? (
               <>
                 <Text style={styles.sectionTitle}>Customer problems ({openReports.length})</Text>

@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
 } from "firebase/auth";
@@ -48,7 +49,8 @@ export default function FirebaseSignInCard({
     setBusy(true);
     try {
       if (mode === "create") {
-        await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        await sendEmailVerification(cred.user).catch(() => undefined);
       } else if (mode === "signin") {
         await signInWithEmailAndPassword(auth, cleanEmail, password);
       } else {

@@ -163,6 +163,25 @@ export type AdminBankHeld = {
   previous: { bankName: string | null; accountName: string | null; accountNumberMasked: string } | null;
 };
 
+export type AdminDeletion = {
+  uid: string;
+  name: string | null;
+  email: string | null;
+  role: string;
+  requestedAtMs: number | null;
+  eraseAfterMs: number | null;
+};
+
+export type AdminBackup = {
+  configured: boolean; // BACKUP_KEY set in Vercel
+  lastAtMs: number | null;
+  lastOk: boolean;
+  bytes: number | null;
+  docs: number | null;
+  error: string | null;
+  keepDays: number;
+};
+
 export type AdminBankChecks = { review: AdminBankReview[]; held: AdminBankHeld[]; testMode: boolean };
 
 export type AdminWallet = {
@@ -275,6 +294,8 @@ export type AdminState = {
   ai?: AdminAi;
   reports?: { open: AdminReport[]; recent: AdminReport[] };
   bankChecks?: AdminBankChecks;
+  deletions?: AdminDeletion[]; // "Delete my account" requests, erased after 7 days
+  backup?: AdminBackup;
   message: string | null;
 };
 
@@ -299,7 +320,9 @@ export type AdminAction =
   | "resolveReport"
   | "approveBank"
   | "rejectBank"
-  | "liftBankHold";
+  | "liftBankHold"
+  | "restoreAccount"
+  | "backupNow";
 
 export class AdminApiError extends Error {
   forbidden: boolean;
@@ -336,7 +359,7 @@ export async function adminAction(
 
 // ---------- Admin log ----------
 
-export type AdminLogType = "access" | "action" | "rights" | "denied";
+export type AdminLogType = "access" | "action" | "rights" | "denied" | "account";
 
 export type AdminLogLine = {
   id: string;

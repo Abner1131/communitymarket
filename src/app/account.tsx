@@ -1,7 +1,9 @@
-﻿import { router } from "expo-router";
+import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -11,6 +13,8 @@ import {
   View,
 } from "react-native";
 
+import { DeleteAccountCard } from "../components/DeleteAccountCard";
+import { EmailVerifyCard } from "../components/EmailVerifyCard";
 import { useAuth } from "../context/AuthContext";
 
 const ROLE_COLOR: Record<string, string> = {
@@ -72,6 +76,8 @@ export default function AccountScreen() {
           <Text style={styles.backText}>{"←"} Home</Text>
         </Pressable>
         <Text style={styles.title}>Account</Text>
+
+        <EmailVerifyCard reason="Verify your email to keep your account safe, use invite codes and earn referral rewards." />
 
         {/* PROFILE */}
         <View style={styles.card}>
@@ -192,6 +198,18 @@ export default function AccountScreen() {
         <Pressable style={styles.signOutButton} onPress={handleSignOut}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
+
+        <DeleteAccountCard
+          onDeleted={(eraseAfterMs) => {
+            const text = `You will now be signed out. Your details will be erased on ${new Date(eraseAfterMs).toDateString()}. If this was a mistake, contact CommunityMarket before then.`;
+            if (Platform.OS === "web") {
+              window.alert(text);
+              void signOut();
+            } else {
+              Alert.alert("Account deleted", text, [{ text: "OK", onPress: () => void signOut() }], { cancelable: false });
+            }
+          }}
+        />
 
         <View style={{ height: 30 }} />
       </ScrollView>

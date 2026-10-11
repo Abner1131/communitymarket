@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import {
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
@@ -90,7 +91,8 @@ function RiderSignIn() {
     setBusy(true);
     try {
       if (create) {
-        await createUserWithEmailAndPassword(auth, email.trim(), password);
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await sendEmailVerification(cred.user).catch(() => undefined);
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), password);
       }
