@@ -1,5 +1,5 @@
 import { Stack, usePathname, useRouter } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Appearance, Platform } from "react-native";
 
 import { UpdateGate } from "../components/UpdateGate";
@@ -10,6 +10,7 @@ import { CheckoutProvider } from "../context/CheckoutContext";
 import { OrderProvider } from "../context/OrderContext";
 import { RiderProvider } from "../context/RiderContext";
 import { onNotificationTap, registerForPush } from "../lib/push";
+import { setSignInNotice, takeSignInIntent } from "../lib/signInIntent";
 
 // The app is designed in light colours. On phones set to dark mode, Android
 // would otherwise draw typed text white on our white boxes.
@@ -32,22 +33,45 @@ const ROLE_ROUTES: { prefix: string; roles: string[] }[] = [
 function AuthGate() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, signOut } = useAuth();
+  // Who was signed in when we last looked: undefined = app just opened.
+  const lastUid = useRef<string | null | undefined>(undefined);
+
+  // Go to a screen with a clean history (Back can't return to the old screens).
+  function startFresh(path: string) {
+    try {
+      if (router.canDismiss()) router.dismissAll();
+    } catch {
+      // nothing to clear
+    }
+    router.replace(path as any);
+  }
 
   useEffect(() => {
     if (isLoading) return;
 
     const onAuthScreen = pathname === "/auth";
+    const uid = user ? user.id : null;
+    const before = lastUid.current;
+    lastUid.current = uid;
 
     // Not signed in: only the sign-in screen.
     if (!user) {
-      if (!onAuthScreen) router.replace("/auth" as any);
+      if (!onAuthScreen) startFresh("/auth");
       return;
     }
 
-    // Signed in: leave the sign-in screen.
-    if (onAuthScreen) {
-      router.replace("/");
+    // Just signed in (or still on the sign-in screen): always start at Home,
+    // or at Admin when they used "Admin sign in".
+    const justSignedIn = before === null || (before !== undefined && before !== uid);
+    if (justSignedIn || onAuthScreen) {
+      const intent = takeSignInIntent();
+      if (intent === "admin" && user.role !== "admin") {
+        setSignInNotice("This account does not have admin rights. Use the normal sign-in.");
+        void signOut();
+        return;
+      }
+      startFresh(intent === "admin" ? "/admin" : "/");
       return;
     }
 

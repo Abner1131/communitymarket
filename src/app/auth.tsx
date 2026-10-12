@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +13,7 @@ import {
 import { PasswordInput } from "../components/PasswordInput";
 
 import { friendlyAuthError, useAuth } from "../context/AuthContext";
+import { setSignInIntent, takeSignInNotice } from "../lib/signInIntent";
 import { applyInviteCode } from "../lib/walletApi";
 
 // The one sign-in screen for everybody: customers, sellers, riders, admin.
@@ -20,7 +21,7 @@ import { applyInviteCode } from "../lib/walletApi";
 export default function AuthScreen() {
   const { signIn, signUp, resetPassword } = useAuth();
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "admin">("signin");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -29,6 +30,15 @@ export default function AuthScreen() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(true);
+
+  // A message left by the app, e.g. "not an admin account".
+  useEffect(() => {
+    const notice = takeSignInNotice();
+    if (notice) {
+      setMessage(notice);
+      setIsError(true);
+    }
+  }, []);
 
   function show(text: string, error = true) {
     setMessage(text);
@@ -46,7 +56,9 @@ export default function AuthScreen() {
 
     setBusy(true);
     try {
-      if (mode === "signin") {
+      if (mode === "signin" || mode === "admin") {
+        // "Admin sign in" goes straight to the Admin dashboard (checked in _layout).
+        setSignInIntent(mode === "admin" ? "admin" : null);
         await signIn(email, password);
       } else {
         await signUp({ name, phone, email, password });
@@ -57,6 +69,7 @@ export default function AuthScreen() {
         }
       }
     } catch (e) {
+      setSignInIntent(null);
       show(friendlyAuthError(e));
     } finally {
       setBusy(false);
@@ -86,28 +99,37 @@ export default function AuthScreen() {
           <Text style={styles.brand}>CommunityMarket</Text>
           <Text style={styles.tagline}>Shop local. Delivered fast.</Text>
 
-          <View style={styles.tabs}>
-            <Pressable
-              style={[styles.tab, mode === "signin" && styles.tabActive]}
-              onPress={() => {
-                setMode("signin");
-                setMessage("");
-              }}
-            >
-              <Text style={[styles.tabText, mode === "signin" && styles.tabTextActive]}>Sign in</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, mode === "signup" && styles.tabActive]}
-              onPress={() => {
-                setMode("signup");
-                setMessage("");
-              }}
-            >
-              <Text style={[styles.tabText, mode === "signup" && styles.tabTextActive]}>
-                Create account
-              </Text>
-            </Pressable>
-          </View>
+          {mode === "admin" ? (
+            <View style={styles.adminBanner}>
+              <Text style={styles.adminTitle}>🔒 Admin sign in</Text>
+              <Text style={styles.adminText}>For CommunityMarket staff only. Every sign-in is recorded.</Text>
+            </View>
+          ) : null}
+
+          {mode !== "admin" ? (
+            <View style={styles.tabs}>
+              <Pressable
+                style={[styles.tab, mode === "signin" && styles.tabActive]}
+                onPress={() => {
+                  setMode("signin");
+                  setMessage("");
+                }}
+              >
+                <Text style={[styles.tabText, mode === "signin" && styles.tabTextActive]}>Sign in</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, mode === "signup" && styles.tabActive]}
+                onPress={() => {
+                  setMode("signup");
+                  setMessage("");
+                }}
+              >
+                <Text style={[styles.tabText, mode === "signup" && styles.tabTextActive]}>
+                  Create account
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           <View style={styles.card}>
             {mode === "signup" && (
@@ -169,11 +191,11 @@ export default function AuthScreen() {
               onPress={handleSubmit}
             >
               <Text style={styles.primaryButtonText}>
-                {busy ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
+                {busy ? "Please wait..." : mode === "signup" ? "Create account" : mode === "admin" ? "Sign in to Admin" : "Sign in"}
               </Text>
             </Pressable>
 
-            {mode === "signin" ? (
+            {mode !== "signup" ? (
               <Pressable disabled={busy} onPress={handleReset}>
                 <Text style={styles.link}>Forgot password?</Text>
               </Pressable>
@@ -184,6 +206,16 @@ export default function AuthScreen() {
               </Text>
             )}
           </View>
+          <Pressable
+            style={styles.adminLink}
+            disabled={busy}
+            onPress={() => {
+              setMessage("");
+              setMode(mode === "admin" ? "signin" : "admin");
+            }}
+          >
+            <Text style={styles.adminLinkText}>{mode === "admin" ? "← Back to customer sign in" : "Admin sign in"}</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -228,4 +260,9 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 15 },
   link: { marginTop: 16, textAlign: "center", color: "#1565c0", fontWeight: "600" },
   note: { marginTop: 16, color: "#666", textAlign: "center", lineHeight: 20, fontSize: 13 },
+  adminBanner: { backgroundColor: "#fdecea", borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: "#f3c2c8" },
+  adminTitle: { fontWeight: "900", color: "#b00020", fontSize: 16, textAlign: "center" },
+  adminText: { color: "#7a2a33", textAlign: "center", marginTop: 4, fontSize: 12 },
+  adminLink: { marginTop: 22, alignItems: "center", paddingVertical: 8 },
+  adminLinkText: { color: "#888", fontWeight: "700", fontSize: 13 },
 });
