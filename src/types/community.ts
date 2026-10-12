@@ -59,6 +59,10 @@ export type User = {
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
+  /** Policy version this user agreed to (null = not yet). */
+  policiesVersion?: string | null;
+  /** True when the profile really loaded (so we know whether they agreed). */
+  policiesKnown?: boolean;
 };
 
 export type Seller = {

@@ -10,6 +10,8 @@ export type AdminApplication = {
   vehicle: string | null;
   businessName: string | null;
   businessAddress: string | null;
+  termsAcceptedAtMs?: number | null;
+  termsVersion?: string | null;
   note: string | null;
   createdAtMs: number | null;
 };

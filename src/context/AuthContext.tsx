@@ -17,6 +17,7 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { POLICIES_VERSION } from "../data/policies";
 import { clearScreenCache } from "../lib/screenCache";
 
 import { auth, db } from "../lib/firebase";
@@ -45,6 +46,7 @@ type AuthContextType = {
   resetPassword: (email: string) => Promise<void>;
   updateMyProfile: (changes: { name?: string; phone?: string }) => Promise<void>;
   refreshUser: () => Promise<User | null>;
+  acceptPolicies: () => Promise<void>;
   hasRole: (role: UserRole) => boolean;
   hasAnyRole: (roles: UserRole[]) => boolean;
 };
@@ -75,6 +77,9 @@ function profileFromDoc(uid: string, data: any, fallbackEmail: string | null): U
     status: data?.status === "suspended" || data?.status === "inactive" ? data.status : "active",
     createdAt: toIso(data?.createdAt),
     updatedAt: toIso(data?.updatedAt),
+    policiesVersion:
+      typeof data?.policiesAccepted?.version === "string" ? data.policiesAccepted.version : null,
+    policiesKnown: data !== null && typeof data === "object" && Object.keys(data).length > 0,
   };
 }
 
@@ -149,6 +154,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               status: "active",
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
+              // Agreed on the sign-up screen; the time comes from Google's clock.
+              ...(pending
+                ? { policiesAccepted: { version: POLICIES_VERSION, at: serverTimestamp() } }
+                : {}),
             });
           } catch (err) {
             console.warn("PROFILE CREATE FAILED:", err);
@@ -210,6 +219,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseSignOut(auth);
   }
 
+  // "I agree" on the policy screen: saves the version and Google's time.
+  async function acceptPolicies() {
+    if (!firebaseUser) throw new Error("Please sign in.");
+    await updateDoc(doc(db, "users", firebaseUser.uid), {
+      policiesAccepted: { version: POLICIES_VERSION, at: serverTimestamp() },
+      updatedAt: serverTimestamp(),
+    });
+  }
+
   async function resetPassword(email: string) {
     await sendPasswordResetEmail(auth, email.trim());
   }
@@ -238,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetPassword,
       updateMyProfile,
       refreshUser,
+      acceptPolicies,
       hasRole: (role) => user?.role === role,
       hasAnyRole: (roles) => (user ? roles.includes(user.role) : false),
     }),

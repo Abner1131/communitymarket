@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { Appearance, Platform } from "react-native";
 
 import { UpdateGate } from "../components/UpdateGate";
+import { PolicyGate } from "../components/PolicyGate";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
@@ -114,6 +115,7 @@ function AppNavigator() {
           headerShown: false,
         }}
       />
+      <PolicyGate />
       <UpdateGate />
     </>
   );

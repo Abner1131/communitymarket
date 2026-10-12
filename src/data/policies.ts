@@ -7,6 +7,10 @@
 
 export const POLICIES_UPDATED = "12 October 2026";
 
+// Raise this (new date) when a policy changes in a way people must agree to
+// again: everyone is then asked once, in the app, to agree to the new version.
+export const POLICIES_VERSION = "2026-10-12";
+
 export const BUSINESS = {
   legalName: "EA.TSAMBI ENTERPRISES",
   tradingName: "CommunityMarket",

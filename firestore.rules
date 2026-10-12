@@ -31,6 +31,15 @@ service cloud.firestore {
       return value is string && value.size() <= max;
     }
 
+    // Agreement to the policies: { version, at }, where "at" must be the
+    // server's own time (the app sends serverTimestamp), so it can't be faked.
+    function isAcceptance(value) {
+      return value is map &&
+             value.keys().hasOnly(["version", "at"]) &&
+             isShortText(value.version, 20) &&
+             value.at == request.time;
+    }
+
     // ---------- users: your own profile ----------
     // Everyone signs up as a customer. Role and status are changed only by
     // the server when the admin approves an application.
@@ -38,15 +47,21 @@ service cloud.firestore {
       allow read: if isOwner(uid) || isAdmin();
       allow create: if isOwner(uid) &&
                        request.resource.data.keys().hasOnly([
-                         "name", "phone", "email", "role", "status", "createdAt", "updatedAt"
+                         "name", "phone", "email", "role", "status", "createdAt", "updatedAt",
+                         "policiesAccepted"
                        ]) &&
+                       (!("policiesAccepted" in request.resource.data) ||
+                        isAcceptance(request.resource.data.policiesAccepted)) &&
                        request.resource.data.role == "customer" &&
                        request.resource.data.status == "active" &&
                        isShortText(request.resource.data.name, 100) &&
                        isShortText(request.resource.data.phone, 20);
       allow update: if isOwner(uid) &&
                        request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(["name", "phone", "updatedAt"]) &&
+                         .hasOnly(["name", "phone", "updatedAt", "policiesAccepted"]) &&
+                       (!request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(["policiesAccepted"]) ||
+                        isAcceptance(request.resource.data.policiesAccepted)) &&
                        isShortText(request.resource.data.get("name", ""), 100) &&
                        isShortText(request.resource.data.get("phone", ""), 20);
       allow delete: if false;
@@ -58,8 +73,9 @@ service cloud.firestore {
                        request.resource.data.keys().hasOnly([
                          "uid", "name", "email", "phone", "requestedRole", "vehicle",
                          "businessName", "businessAddress", "businessType", "note",
-                         "status", "createdAt"
+                         "status", "createdAt", "termsAccepted"
                        ]) &&
+                       isAcceptance(request.resource.data.termsAccepted) &&
                        request.resource.data.uid == request.auth.uid &&
                        request.resource.data.status == "pending" &&
                        request.resource.data.requestedRole in ["rider", "seller"] &&

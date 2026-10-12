@@ -21,6 +21,7 @@ import {
 } from "react-native";
 
 import { useAuth } from "../context/AuthContext";
+import { POLICIES_VERSION } from "../data/policies";
 import { db } from "../lib/firebase";
 
 type Application = {
@@ -120,6 +121,8 @@ export default function ApplyScreen() {
         note: note.trim().slice(0, 500),
         status: "pending",
         createdAt: serverTimestamp(),
+        // The tick box: which rules they agreed to, and when (Google's clock).
+        termsAccepted: { version: POLICIES_VERSION, at: serverTimestamp() },
       });
       setNote("");
     } catch (e: any) {

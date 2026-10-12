@@ -148,6 +148,11 @@ function ApplicationCard({
       )}
       {app.note ? <Text style={styles.item}>Note: {app.note}</Text> : null}
       <Text style={styles.hint}>Applied {ago(app.createdAtMs)}</Text>
+      <Text style={styles.hint}>
+        {app.termsAcceptedAtMs
+          ? `Agreed to Terms: ${new Date(app.termsAcceptedAtMs).toLocaleString()}`
+          : "Agreed to Terms: not recorded (applied before agreements were saved)"}
+      </Text>
 
       {isRider && freeRiderProfiles.length > 0 ? (
         <>
