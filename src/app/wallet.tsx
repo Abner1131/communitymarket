@@ -1,5 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StaleNote } from "../components/StaleNote";
+import { useScreenCache } from "../lib/screenCache";
 import {
   ActivityIndicator,
   AppState,
@@ -25,7 +27,10 @@ const QUICK_AMOUNTS = [1000, 2000, 5000, 10000];
 // and riders, a summary of earnings (withdrawn from their dashboards).
 export default function WalletScreen() {
   const params = useLocalSearchParams<{ fund?: string }>();
-  const [wallet, setWallet] = useState<MyWallet | null>(null);
+  // Opens instantly with the last saved wallet, then refreshes (see screenCache).
+  const walletCache = useScreenCache<MyWallet>("wallet");
+  const wallet = walletCache.value;
+  const setWallet = walletCache.setFresh;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [funding, setFunding] = useState(params.fund === "1");
@@ -123,8 +128,10 @@ export default function WalletScreen() {
     if (n > f.roomLeft) return setFundError(`You can add at most ${money(f.roomLeft)} now.`);
     setStarting(true);
     try {
+      // Compare against the live balance, never a saved copy.
+      const live = await getMyWallet().catch(() => null);
       const { authorizationUrl } = await startTopup(n);
-      balanceBefore.current = wallet.funds.balance;
+      balanceBefore.current = (live ?? wallet).funds.balance;
       setWaitingForPayment(true);
       await Linking.openURL(authorizationUrl);
     } catch (e: any) {
@@ -150,6 +157,8 @@ export default function WalletScreen() {
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => void load()} />}
       >
         {header}
+
+        <StaleNote fromCache={walletCache.fromCache} failed={!!error} savedAtMs={walletCache.savedAtMs} />
 
         {loading && !wallet ? (
           <ActivityIndicator size="large" style={{ marginTop: 40 }} />

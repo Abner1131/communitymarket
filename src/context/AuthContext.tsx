@@ -17,6 +17,7 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { clearScreenCache } from "../lib/screenCache";
 
 import { auth, db } from "../lib/firebase";
 import { unregisterPush } from "../lib/push";
@@ -108,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setFirebaseUser(fbUser);
       setAuthReady(true);
       if (!fbUser) {
+        void clearScreenCache(); // signed out by any route: wipe saved screens
         setUser(null);
         setProfileReady(true);
       } else {
@@ -204,6 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     await unregisterPush(); // stop this phone getting this account's alerts
+    await clearScreenCache(); // the next person must never see this account's saved screens
     await firebaseSignOut(auth);
   }
 

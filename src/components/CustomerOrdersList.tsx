@@ -8,6 +8,8 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { useScreenCache } from "../lib/screenCache";
+import { StaleNote } from "./StaleNote";
 import {
   ActivityIndicator,
   Pressable,
@@ -113,9 +115,19 @@ export default function CustomerOrdersList() {
     auth.currentUser,
   );
   const [authChecked, setAuthChecked] = useState(false);
-  const [orders, setOrders] = useState<ServerOrder[]>([]);
+  // Opens instantly with the last saved list, then the live list replaces it.
+  // Delivery codes are never saved on the phone: they only show from live data.
+  const ordersCache = useScreenCache<ServerOrder[]>("orders", {
+    toStore: (list) =>
+      list.map((o) => ({ ...o, deliveryCode: null, createdAt: o.createdAt ? o.createdAt.getTime() : null })),
+    fromStore: (raw: any[]) =>
+      raw.map((o) => ({ ...o, createdAt: typeof o.createdAt === "number" ? new Date(o.createdAt) : null })),
+  });
+  const orders = ordersCache.value ?? [];
+  const setOrders = ordersCache.setFresh;
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
@@ -140,9 +152,12 @@ export default function CustomerOrdersList() {
       where("customerId", "==", firebaseUser.uid),
     );
 
-    return onSnapshot(
+    // No answer within 12 s (no internet): say we're showing the saved list.
+    const slow = setTimeout(() => setLoadFailed(true), 12000);
+    const unsubscribe = onSnapshot(
       q,
       (snap) => {
+        clearTimeout(slow);
         const list = snap.docs
           .map((d) => toServerOrder(d.id, d.data()))
           .sort(
@@ -151,17 +166,25 @@ export default function CustomerOrdersList() {
               (a.createdAt?.getTime() ?? Date.now()),
           );
         setOrders(list);
+        setLoadFailed(false);
         setLoading(false);
       },
       (err) => {
         console.error("CUSTOMER ORDERS LOAD ERROR:", err);
-        setErrorMessage("Could not load your orders. Please try again.");
+        setErrorMessage(
+          ordersCache.fromCache ? "" : "Could not load your orders. Please try again.",
+        );
+        setLoadFailed(true);
         setLoading(false);
       },
     );
+    return () => {
+      clearTimeout(slow);
+      unsubscribe();
+    };
   }, [firebaseUser]);
 
-  if (!authChecked || loading) {
+  if ((!authChecked || loading) && !ordersCache.value) {
     return (
       <SafeAreaView style={styles.centered}>
         <ActivityIndicator size="large" />
@@ -179,6 +202,7 @@ export default function CustomerOrdersList() {
           </Pressable>
           <Text style={styles.title}>My Orders</Text>
           <Text style={styles.subtitle}>{orders.length} order(s)</Text>
+          <StaleNote fromCache={ordersCache.fromCache} failed={loadFailed} savedAtMs={ordersCache.savedAtMs} />
           {firebaseUser ? (
             <Text style={styles.signedIn}>
               Signed in as {firebaseUser.email}

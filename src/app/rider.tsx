@@ -8,6 +8,8 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StaleNote } from "../components/StaleNote";
+import { useScreenCache } from "../lib/screenCache";
 import {
   ActivityIndicator,
   Alert,
@@ -135,7 +137,10 @@ function RiderSignIn() {
 export default function RiderScreen() {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
   const [authChecked, setAuthChecked] = useState(false);
-  const [state, setState] = useState<RiderState | null>(null);
+  // Opens instantly with the last saved dashboard, then refreshes (see screenCache).
+  const riderCache = useScreenCache<RiderState>("rider");
+  const state = riderCache.value;
+  const setState = riderCache.setFresh;
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -271,6 +276,7 @@ export default function RiderScreen() {
           </View>
         ) : rider ? (
           <>
+            <StaleNote fromCache={riderCache.fromCache} failed={!!errorMessage} savedAtMs={riderCache.savedAtMs} />
             {errorMessage ? (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{errorMessage}</Text>

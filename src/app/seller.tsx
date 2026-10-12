@@ -1,6 +1,8 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StaleNote } from "../components/StaleNote";
+import { useScreenCache } from "../lib/screenCache";
 import {
   ActivityIndicator,
   Pressable,
@@ -529,7 +531,10 @@ function ProductForm({
 
 // ---------- screen ----------
 export default function SellerScreen() {
-  const [state, setState] = useState<SellerState | null>(null);
+  // Opens instantly with the last saved dashboard, then refreshes (see screenCache).
+  const sellerCache = useScreenCache<SellerState>("seller");
+  const state = sellerCache.value;
+  const setState = sellerCache.setFresh;
   const [loading, setLoading] = useState(true);
   const [notLinked, setNotLinked] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -794,7 +799,7 @@ export default function SellerScreen() {
     </>
   );
 
-  if (loading) {
+  if (loading && !state) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
@@ -839,6 +844,8 @@ export default function SellerScreen() {
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => void run(null, "me")} />}
       >
         {header}
+
+        <StaleNote fromCache={sellerCache.fromCache} failed={!!errorMessage} savedAtMs={sellerCache.savedAtMs} />
 
         {errorMessage ? (
           <View style={styles.errorBox}>
