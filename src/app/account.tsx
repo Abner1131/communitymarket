@@ -195,6 +195,15 @@ export default function AccountScreen() {
           </View>
         )}
 
+        {/* POLICIES */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Policies</Text>
+          <Text style={styles.description}>Terms of Use, Privacy Policy, and Refund and Cancellation Policy.</Text>
+          <Pressable style={styles.secondaryButton} onPress={() => router.push("/policies" as any)}>
+            <Text style={styles.secondaryButtonText}>Read our policies</Text>
+          </Pressable>
+        </View>
+
         <Pressable style={styles.signOutButton} onPress={handleSignOut}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>

@@ -53,6 +53,7 @@ export default function ApplyScreen() {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -99,6 +100,10 @@ export default function ApplyScreen() {
     }
     if (role === "seller" && (!businessName.trim() || !businessAddress.trim())) {
       setMessage("Enter your shop name and address.");
+      return;
+    }
+    if (!agreed) {
+      setMessage(`Tick the box to agree to the ${role === "seller" ? "seller" : "rider"} rules in our Terms of Use.`);
       return;
     }
     setBusy(true);
@@ -249,10 +254,27 @@ export default function ApplyScreen() {
                   We'll contact you on {user.phone || "your phone number"}.
                 </Text>
 
+                <Pressable style={styles.agreeRow} onPress={() => setAgreed((a) => !a)} hitSlop={6}>
+                  <View style={[styles.checkbox, agreed && styles.checkboxOn]}>
+                    {agreed ? <Text style={styles.checkMark}>{"\u2713"}</Text> : null}
+                  </View>
+                  <Text style={styles.agreeText}>
+                    I have read and agree to the {role === "seller" ? "seller" : "rider"} rules in the{" "}
+                    <Text style={styles.agreeLink} onPress={() => router.push("/policies?tab=terms" as any)}>
+                      Terms of Use
+                    </Text>
+                    , including the{" "}
+                    <Text style={styles.agreeLink} onPress={() => router.push("/policies?tab=refunds" as any)}>
+                      Refund Policy
+                    </Text>
+                    .
+                  </Text>
+                </Pressable>
+
                 {message ? <Text style={styles.error}>{message}</Text> : null}
 
                 <Pressable
-                  style={[styles.primaryButton, busy && { opacity: 0.6 }]}
+                  style={[styles.primaryButton, (busy || !agreed) && { opacity: 0.6 }]}
                   disabled={busy}
                   onPress={submit}
                 >
@@ -303,6 +325,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   error: { color: "#b00020", marginTop: 12 },
+  agreeRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginTop: 16 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#999",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  checkboxOn: { backgroundColor: "#0a7d4f", borderColor: "#0a7d4f" },
+  checkMark: { color: "#fff", fontWeight: "900", fontSize: 13 },
+  agreeText: { flex: 1, color: "#444", lineHeight: 20 },
+  agreeLink: { color: "#1565c0", fontWeight: "700", textDecorationLine: "underline" },
   primaryButton: {
     marginTop: 18,
     backgroundColor: "#222",

@@ -55,9 +55,9 @@ function AuthGate() {
     const before = lastUid.current;
     lastUid.current = uid;
 
-    // Not signed in: only the sign-in screen.
+    // Not signed in: only the sign-in screen (and the policies, linked from sign-up).
     if (!user) {
-      if (!onAuthScreen) startFresh("/auth");
+      if (!onAuthScreen && pathname !== "/policies") startFresh("/auth");
       return;
     }
 

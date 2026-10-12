@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -200,10 +201,23 @@ export default function AuthScreen() {
                 <Text style={styles.link}>Forgot password?</Text>
               </Pressable>
             ) : (
-              <Text style={styles.note}>
-                Want to sell or ride with us? Create your account first, then apply from the
-                Account page.
-              </Text>
+              <>
+                <Text style={styles.agree}>
+                  By creating an account you confirm you are 18 or older and agree to our{" "}
+                  <Text style={styles.agreeLink} onPress={() => router.push("/policies?tab=terms" as any)}>
+                    Terms of Use
+                  </Text>{" "}
+                  and{" "}
+                  <Text style={styles.agreeLink} onPress={() => router.push("/policies?tab=privacy" as any)}>
+                    Privacy Policy
+                  </Text>
+                  .
+                </Text>
+                <Text style={styles.note}>
+                  Want to sell or ride with us? Create your account first, then apply from the
+                  Account page.
+                </Text>
+              </>
             )}
           </View>
           <Pressable
@@ -260,6 +274,8 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 15 },
   link: { marginTop: 16, textAlign: "center", color: "#1565c0", fontWeight: "600" },
   note: { marginTop: 16, color: "#666", textAlign: "center", lineHeight: 20, fontSize: 13 },
+  agree: { marginTop: 14, color: "#555", textAlign: "center", lineHeight: 19, fontSize: 12.5 },
+  agreeLink: { color: "#1565c0", fontWeight: "700", textDecorationLine: "underline" },
   adminBanner: { backgroundColor: "#fdecea", borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: "#f3c2c8" },
   adminTitle: { fontWeight: "900", color: "#b00020", fontSize: 16, textAlign: "center" },
   adminText: { color: "#7a2a33", textAlign: "center", marginTop: 4, fontSize: 12 },
