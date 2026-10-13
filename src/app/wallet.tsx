@@ -17,6 +17,8 @@ import {
   View,
 } from "react-native";
 
+import { BrandLoader } from "../components/Brand";
+
 import { EmailVerifyCard } from "../components/EmailVerifyCard";
 import { applyInviteCode, getMyWallet, redeemPoints, startTopup, type MyWallet } from "../lib/walletApi";
 
@@ -161,7 +163,7 @@ export default function WalletScreen() {
         <StaleNote fromCache={walletCache.fromCache} failed={!!error} savedAtMs={walletCache.savedAtMs} />
 
         {loading && !wallet ? (
-          <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+          <BrandLoader style={{ marginTop: 40 }} />
         ) : !wallet ? (
           <View style={styles.card}>
             <Text style={styles.errorText}>{error}</Text>

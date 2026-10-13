@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { StaleNote } from "../components/StaleNote";
 import { useScreenCache } from "../lib/screenCache";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -15,6 +14,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { BrandLoader } from "../components/Brand";
 
 import {
   combinations,
@@ -804,7 +805,7 @@ export default function SellerScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
           {header}
-          <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+          <BrandLoader style={{ marginTop: 40 }} />
         </View>
       </SafeAreaView>
     );

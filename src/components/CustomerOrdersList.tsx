@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 import { useScreenCache } from "../lib/screenCache";
 import { StaleNote } from "./StaleNote";
 import {
-  ActivityIndicator,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -19,6 +18,8 @@ import {
   Text,
   View,
 } from "react-native";
+
+import { BrandLoader } from "./Brand";
 
 import { auth, db } from "../lib/firebase";
 import DeliveryCodeCard, { shouldShowDeliveryCode } from "./DeliveryCodeCard";
@@ -187,7 +188,7 @@ export default function CustomerOrdersList() {
   if ((!authChecked || loading) && !ordersCache.value) {
     return (
       <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <BrandLoader />
         <Text style={styles.loadingText}>Loading your orders...</Text>
       </SafeAreaView>
     );

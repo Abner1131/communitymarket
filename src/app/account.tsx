@@ -1,7 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
@@ -12,6 +11,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { BrandLoader } from "../components/Brand";
 
 import { DeleteAccountCard } from "../components/DeleteAccountCard";
 import { EmailVerifyCard } from "../components/EmailVerifyCard";
@@ -36,7 +37,7 @@ export default function AccountScreen() {
   if (!user) {
     return (
       <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <BrandLoader />
       </SafeAreaView>
     );
   }

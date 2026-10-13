@@ -11,7 +11,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { StaleNote } from "../components/StaleNote";
 import { useScreenCache } from "../lib/screenCache";
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Platform,
@@ -24,6 +23,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { BrandLoader } from "../components/Brand";
 import { PasswordInput } from "../components/PasswordInput";
 
 import DeliveryCodeEntry from "../components/DeliveryCodeEntry";
@@ -255,11 +256,11 @@ export default function RiderScreen() {
         <Text style={styles.title}>Rider</Text>
 
         {!authChecked ? (
-          <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+          <BrandLoader style={{ marginTop: 40 }} />
         ) : !firebaseUser ? (
           <RiderSignIn />
         ) : loading && !state && notLinkedEmail === null ? (
-          <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+          <BrandLoader style={{ marginTop: 40 }} />
         ) : notLinkedEmail !== null ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Not linked to a rider profile yet</Text>

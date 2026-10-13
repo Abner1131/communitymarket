@@ -12,7 +12,6 @@ import {
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -21,6 +20,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { BrandLoader } from "../components/Brand";
 
 import { useAuth } from "../context/AuthContext";
 import { POLICIES_VERSION } from "../data/policies";
@@ -167,7 +168,7 @@ export default function ApplyScreen() {
         </Text>
 
         {loading ? (
-          <ActivityIndicator size="large" style={{ marginTop: 30 }} />
+          <BrandLoader style={{ marginTop: 30 }} />
         ) : (
           <>
             {applications.map((a) => {

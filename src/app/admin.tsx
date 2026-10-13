@@ -1,7 +1,6 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Linking,
   Pressable,
   RefreshControl,
@@ -13,6 +12,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { BrandLoader } from "../components/Brand";
 
 import { Image } from "expo-image";
 
@@ -654,7 +655,7 @@ export default function AdminScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
           {header}
-          <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+          <BrandLoader style={{ marginTop: 40 }} />
         </View>
       </SafeAreaView>
     );

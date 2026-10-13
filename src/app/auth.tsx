@@ -11,6 +11,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { BrandMark, BrandWordmark } from "../components/Brand";
 import { PasswordInput } from "../components/PasswordInput";
 
 import { friendlyAuthError, useAuth } from "../context/AuthContext";
@@ -97,7 +99,10 @@ export default function AuthScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.brand}>CommunityMarket</Text>
+          <View style={styles.brandBox} accessible accessibilityRole="header" accessibilityLabel="CommunityMarket">
+            <BrandMark size={84} />
+            <BrandWordmark height={28} />
+          </View>
           <Text style={styles.tagline}>Shop local. Delivered fast.</Text>
 
           {mode === "admin" ? (
@@ -239,7 +244,7 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#f5f6f8" },
   container: { padding: 24, paddingTop: 60, paddingBottom: 40 },
-  brand: { fontSize: 30, fontWeight: "900", textAlign: "center" },
+  brandBox: { alignItems: "center", gap: 14 },
   tagline: { color: "#666", textAlign: "center", marginTop: 6, marginBottom: 28 },
   tabs: {
     flexDirection: "row",

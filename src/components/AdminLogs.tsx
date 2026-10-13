@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { BrandLoader } from "./Brand";
 
 import { getAdminLogs, type AdminLogLine, type AdminLogs as Logs, type AdminLogType } from "../lib/adminApi";
 
@@ -246,7 +248,7 @@ export function AdminLogs() {
         </View>
       ) : null}
 
-      {loading && !logs ? <ActivityIndicator size="large" style={{ marginTop: 20 }} /> : null}
+      {loading && !logs ? <BrandLoader style={{ marginTop: 20 }} /> : null}
 
       {logs ? (
         <View style={styles.card}>

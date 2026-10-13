@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -14,6 +13,8 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+
+import { BrandLoader } from "../components/Brand";
 
 import { useCart } from "../context/CartContext";
 import type { Product } from "../data/products";
@@ -152,7 +153,7 @@ export default function ProductScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" style={{ marginTop: 60 }} />
+        <BrandLoader style={{ marginTop: 60 }} />
       ) : missing || !product ? (
         <View style={styles.center}>
           <Text style={styles.missingTitle}>This product is not available</Text>

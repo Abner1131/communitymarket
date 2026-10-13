@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Linking,
   Pressable,
   ScrollView,
@@ -10,6 +9,8 @@ import {
   Text,
   View,
 } from "react-native";
+
+import { BrandLoader } from "../components/Brand";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { payForOrder, previewWallet, type WalletPreview } from "../lib/pay";
@@ -108,7 +109,7 @@ export default function PaymentScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <BrandLoader />
         <Text style={styles.loadingText}>Loading order...</Text>
       </View>
     );

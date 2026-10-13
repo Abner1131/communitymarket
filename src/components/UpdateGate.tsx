@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, AppState, Platform, StyleSheet, Text, View } from "react-native";
+import { AppState, Platform, StyleSheet, Text, View } from "react-native";
+
+import { BrandLoader } from "./Brand";
 
 import { fetchAndRestart, isUpdateWaiting } from "../lib/appUpdate";
 
@@ -38,7 +40,7 @@ export function UpdateGate() {
   return (
     <View style={styles.overlay} pointerEvents="auto">
       <View style={styles.box}>
-        <ActivityIndicator size="large" color="#1e7d32" />
+        <BrandLoader />
         <Text style={styles.title}>Updating CommunityMarket…</Text>
         <Text style={styles.text}>Getting the newest version. This takes a few seconds.</Text>
       </View>

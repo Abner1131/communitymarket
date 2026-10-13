@@ -7,7 +7,6 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Linking,
   Pressable,
   RefreshControl,
@@ -19,6 +18,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { BrandLoader } from "../components/Brand";
 
 import { StaleNote } from "../components/StaleNote";
 import { useAuth } from "../context/AuthContext";
@@ -146,7 +147,7 @@ export default function MarketingScreen() {
         {error && state ? <Text style={styles.error}>{error}</Text> : null}
 
         {loading && !state ? (
-          <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+          <BrandLoader style={{ marginTop: 40 }} />
         ) : !state ? (
           <View style={styles.card}>
             <Text style={styles.error}>{error || "Could not load."}</Text>

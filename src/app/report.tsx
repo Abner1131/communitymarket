@@ -13,6 +13,8 @@ import {
   View,
 } from "react-native";
 
+import { BrandLoader } from "../components/Brand";
+
 import { db } from "../lib/firebase";
 import { pickProductPhoto, type PickedPhoto } from "../lib/photoPick";
 import {
@@ -146,7 +148,7 @@ export default function ReportScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         {header}
-        <ActivityIndicator size="large" style={{ marginTop: 60 }} />
+        <BrandLoader style={{ marginTop: 60 }} />
       </SafeAreaView>
     );
   }

@@ -11,6 +11,8 @@ import {
   View,
 } from "react-native";
 
+import { BrandMark, BrandWordmark } from "../components/Brand";
+
 import { HomeWalletCard } from "../components/HomeWalletCard";
 import PoweredByGreenFusion from "../components/PoweredByGreenFusion";
 import { useAuth } from "../context/AuthContext";
@@ -224,11 +226,15 @@ export default function HomeScreen() {
         <View
           style={styles.headerLeft}
         >
-          <Text
-            style={styles.logo}
+          <View
+            style={styles.logoRow}
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel="CommunityMarket"
           >
-            CommunityMarket
-          </Text>
+            <BrandMark size={30} />
+            <BrandWordmark height={19} />
+          </View>
 
           <Text
             style={styles.subtitle}
@@ -961,9 +967,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  logo: {
-    fontSize: 24,
-    fontWeight: "800",
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 
   subtitle: {

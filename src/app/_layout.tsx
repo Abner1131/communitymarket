@@ -4,6 +4,7 @@ import { Appearance, Platform } from "react-native";
 
 import { UpdateGate } from "../components/UpdateGate";
 import { PolicyGate } from "../components/PolicyGate";
+import { BrandIntro } from "../components/Brand";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
@@ -120,6 +121,7 @@ function AppNavigator() {
       />
       <PolicyGate />
       <UpdateGate />
+      <BrandIntro />
     </>
   );
 }
