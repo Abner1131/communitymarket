@@ -4,7 +4,6 @@ import {
   Linking,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -14,6 +13,10 @@ import {
 } from "react-native";
 
 import { BrandLoader } from "../components/Brand";
+import { AdminDownloads, DownloadButton } from "../components/AdminDownloads";
+import { Icon, type IconName } from "../components/Icon";
+import { ScreenHeader } from "../components/ui";
+import { colors, fonts, radius, shadow, text, ui } from "../theme";
 
 import { Image } from "expo-image";
 
@@ -35,7 +38,7 @@ import {
 const NAIRA = "₦";
 const REFRESH_EVERY_MS = 20000;
 
-type Tab = "today" | "applications" | "live" | "money" | "logs";
+type Tab = "today" | "applications" | "orders" | "money" | "people" | "settings" | "records";
 
 function money(n: number) {
   return `${NAIRA}${Math.round(n).toLocaleString()}`;
@@ -101,7 +104,7 @@ function ConfirmButton({
       disabled={busy}
       onPress={() => (isArmed ? onConfirm() : onArm(confirmKey))}
     >
-      <Text style={[styles.smallButtonText, danger && { color: "#b00020" }, isArmed && { color: "#fff" }]}>
+      <Text style={[styles.smallButtonText, danger && { color: colors.danger }, isArmed && { color: "#ffffff" }]}>
         {busy ? "Working..." : isArmed ? "Tap again to confirm" : label}
       </Text>
     </Pressable>
@@ -134,7 +137,7 @@ function ApplicationCard({
           <Text style={styles.muted}>{app.email}</Text>
           {app.phone ? <Text style={styles.muted}>{app.phone}</Text> : null}
         </View>
-        <View style={[styles.badge, { backgroundColor: isRider ? "#1565c0" : "#6a1b9a" }]}>
+        <View style={[styles.badge, { backgroundColor: isRider ? "#1f4f8a" : "#6a1b9a" }]}>
           <Text style={styles.badgeText}>{isRider ? "RIDER" : "SELLER"}</Text>
         </View>
       </View>
@@ -209,7 +212,7 @@ function ApplicationCard({
       ) : (
         <View style={styles.twoCol}>
           <Pressable style={[styles.secondaryButton, { flex: 1 }]} disabled={busy} onPress={() => setRejecting(true)}>
-            <Text style={[styles.secondaryButtonText, { color: "#b00020" }]}>Reject</Text>
+            <Text style={[styles.secondaryButtonText, { color: colors.danger }]}>Reject</Text>
           </Pressable>
           <Pressable
             style={[styles.approveButton, { flex: 1 }, busy && { opacity: 0.5 }]}
@@ -250,7 +253,7 @@ function TripCard({
           </Text>
         </View>
         {trip.stuck ? (
-          <View style={[styles.badge, { backgroundColor: "#b26a00" }]}>
+          <View style={[styles.badge, { backgroundColor: colors.goldDeep }]}>
             <Text style={styles.badgeText}>STUCK?</Text>
           </View>
         ) : null}
@@ -264,7 +267,7 @@ function TripCard({
       </Text>
       {trip.lockedOrderIds && trip.lockedOrderIds.length ? (
         <Text style={styles.warnText}>
-          🔒 Locked by wrong codes: {trip.lockedOrderIds.map(short).join(", ")} (see top of Live)
+          Locked by wrong codes: {trip.lockedOrderIds.map(short).join(", ")} (see Orders & Delivery)
         </Text>
       ) : null}
       <Text style={styles.item}>
@@ -341,7 +344,7 @@ function ReportCard({
         Delivered {ago(report.deliveredAtMs)}
         {report.riderName ? ` by ${report.riderName}` : ""} ·{" "}
         {report.deliveredBy === "rider-code"
-          ? "✓ customer gave the delivery code"
+          ? "customer gave the delivery code"
           : report.deliveredBy === "admin"
             ? "marked delivered by admin"
             : "no delivery code used"}
@@ -366,7 +369,7 @@ function ReportCard({
       )}
       {report.sellerReplies.map((r, k) => (
         <Text key={k} style={[styles.item, { marginTop: 6 }]}>
-          <Text style={{ fontWeight: "800" }}>{r.name}: </Text>“{r.text}”
+          <Text style={{ fontFamily: fonts.bold }}>{r.name}: </Text>“{r.text}”
         </Text>
       ))}
       {!report.sellerReplies.length ? <Text style={styles.hint}>The shop has not replied yet.</Text> : null}
@@ -405,10 +408,10 @@ function ReportCard({
         ).map(([key, label]) => (
           <Pressable
             key={key}
-            style={[styles.smallButton, payer === key && { backgroundColor: "#222" }]}
+            style={[styles.smallButton, payer === key && { backgroundColor: colors.green }]}
             onPress={() => setPayer(key)}
           >
-            <Text style={[styles.smallButtonText, payer === key && { color: "#fff" }]}>{label}</Text>
+            <Text style={[styles.smallButtonText, payer === key && { color: "#ffffff" }]}>{label}</Text>
           </Pressable>
         ))}
       </View>
@@ -507,7 +510,7 @@ function AiCard({
 
 // ---------- screen ----------
 
-// Admin -> Live: who has marketing access, give or remove it by email.
+// Admin -> People: who has marketing access, give or remove it by email.
 function TeamCard({
   staff,
   working,
@@ -641,31 +644,20 @@ export default function AdminScreen() {
     armTimer.current = setTimeout(() => setArmed(null), 5000);
   }
 
-  const header = (
-    <>
-      <Pressable onPress={() => router.replace("/")}>
-        <Text style={styles.backText}>{"←"} Home</Text>
-      </Pressable>
-      <Text style={styles.title}>Admin</Text>
-    </>
-  );
-
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.container}>
-          {header}
-          <BrandLoader style={{ marginTop: 40 }} />
-        </View>
-      </SafeAreaView>
+      <View style={ui.screen}>
+        <ScreenHeader title="Admin" onBack={() => router.replace("/")} />
+        <BrandLoader style={{ marginTop: 40 }} />
+      </View>
     );
   }
 
   if (forbidden || !state) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={ui.screen}>
+        <ScreenHeader title="Admin" onBack={() => router.replace("/")} />
         <View style={styles.container}>
-          {header}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{forbidden ? "Admins only" : "Could not load the dashboard"}</Text>
             <Text style={styles.muted}>
@@ -676,7 +668,7 @@ export default function AdminScreen() {
             </Pressable>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -690,94 +682,137 @@ export default function AdminScreen() {
   // Money tab: withdrawals to send + bank accounts to check.
   const moneyCount =
     (state.wallets ? state.wallets.requests.length : 0) + (state.bankChecks ? state.bankChecks.review.length : 0);
+  const ordersCount = lateOrders.length + stuckTrips.length + lockedDeliveries.length + openReports.length + flaggedPayments.length;
+  const peopleCount = orphanRiders.length + (state.deletions ? state.deletions.length : 0);
+  const backupBad = state.backup ? !state.backup.configured || !state.backup.lastOk : false;
+
+  // Each "needs attention" line opens the tab where it is fixed.
+  const attention: { text: string; tab: Tab; icon: IconName }[] = [
+    applications.length ? { text: `${applications.length} application(s) to review`, tab: "applications", icon: "users" } : null,
+    lateOrders.length ? { text: `${lateOrders.length} paid order(s) waiting over 20 min for a rider`, tab: "orders", icon: "clock" } : null,
+    stuckTrips.length ? { text: `${stuckTrips.length} trip(s) running over 2 hours`, tab: "orders", icon: "bike" } : null,
+    lockedDeliveries.length ? { text: `${lockedDeliveries.length} delivery(ies) locked by wrong codes`, tab: "orders", icon: "lock" } : null,
+    openReports.length ? { text: `${openReports.length} customer problem(s) to settle`, tab: "orders", icon: "alert" } : null,
+    flaggedPayments.length ? { text: `${flaggedPayments.length} flagged payment(s) to check in Paystack`, tab: "orders", icon: "card" } : null,
+    state.wallets && state.wallets.requests.length
+      ? { text: `${state.wallets.requests.length} withdrawal request(s) to pay`, tab: "money", icon: "wallet" }
+      : null,
+    state.bankChecks && state.bankChecks.review.length
+      ? { text: `${state.bankChecks.review.length} bank account(s) to check`, tab: "money", icon: "shield" }
+      : null,
+    orphanRiders.length ? { text: `${orphanRiders.length} rider(s) stuck on a finished trip`, tab: "people", icon: "bike" } : null,
+    backupBad ? { text: "Daily backup needs a look", tab: "settings", icon: "settings" } : null,
+  ].filter(Boolean) as { text: string; tab: Tab; icon: IconName }[];
+
+  const TABS: [Tab, string, number][] = [
+    ["today", "Today", 0],
+    ["applications", "Applications", applications.length],
+    ["orders", "Orders & Delivery", ordersCount],
+    ["money", "Money", moneyCount],
+    ["people", "People", peopleCount],
+    ["settings", "Settings", backupBad ? 1 : 0],
+    ["records", "Records", 0],
+  ];
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={ui.screen}>
+      <View style={ui.glow} pointerEvents="none" />
+      <ScreenHeader
+        title="Admin"
+        subtitle={`Updated ${new Date(state.generatedAtMs).toLocaleTimeString()}`}
+        onBack={() => router.replace("/")}
+      />
+
+      <View style={styles.tabsBar}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabsScroll}
+        contentContainerStyle={styles.tabs}
+      >
+        {TABS.map(([t, label, n]) => {
+          const on = tab === t;
+          return (
+            <Pressable
+              key={t}
+              style={[styles.tab, on && styles.tabActive]}
+              onPress={() => setTab(t)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+            >
+              <Text style={[styles.tabText, on && styles.tabTextActive]}>{label}</Text>
+              {n > 0 ? (
+                <View style={[styles.tabCount, on && styles.tabCountOn]}>
+                  <Text style={[styles.tabCountText, on && { color: colors.green }]}>{n}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => void run(null, "overview")} />}
       >
-        {header}
-
         {notice ? (
           <Pressable style={styles.noticeBox} onPress={() => setNotice("")}>
+            <Icon name="check" size={16} color={colors.green} />
             <Text style={styles.noticeText}>{notice}</Text>
           </Pressable>
         ) : null}
         {errorMessage ? (
           <View style={styles.errorBox}>
+            <Icon name="alert" size={16} color={colors.danger} />
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
         ) : null}
 
-        <View style={styles.tabs}>
-          {(
-            [
-              ["today", "Today"],
-              ["applications", `Apps${applications.length ? ` (${applications.length})` : ""}`],
-              ["live", `Live${counts.needsAttention - applications.length - moneyCount > 0 ? " ⚠" : ""}`],
-              ["money", `Money${moneyCount > 0 ? ` (${moneyCount})` : ""}`],
-              ["logs", "Logs"],
-            ] as [Tab, string][]
-          ).map(([t, text]) => (
-            <Pressable key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
-              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{text}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* ---------- LOGS ---------- */}
-        {tab === "logs" && <AdminLogs />}
-
-        {/* ---------- TODAY ---------- */}
+        {/* ---------- 1. TODAY ---------- */}
         {tab === "today" && (
           <>
-            <View style={styles.statsRow}>
-              <Stat value={String(today.orders)} label="Paid orders" />
-              <Stat value={String(today.delivered)} label="Delivered" />
-              <Stat value={String(today.cancelled)} label="Cancelled" />
+            <View style={styles.profitCard}>
+              <View style={styles.ring} pointerEvents="none" />
+              <Text style={styles.profitLabel}>Your profit today</Text>
+              <Text style={[styles.profitValue, (today.totalProfit ?? today.deliveryProfit) < 0 && { color: "#ffb4b4" }]}>
+                {money(today.totalProfit ?? today.deliveryProfit)}
+              </Text>
+              <View style={styles.profitStats}>
+                <View style={styles.profitStat}>
+                  <Text style={styles.profitStatValue}>{today.orders}</Text>
+                  <Text style={styles.profitStatLabel}>Paid orders</Text>
+                </View>
+                <View style={styles.profitStat}>
+                  <Text style={styles.profitStatValue}>{today.delivered}</Text>
+                  <Text style={styles.profitStatLabel}>Delivered</Text>
+                </View>
+                <View style={styles.profitStat}>
+                  <Text style={styles.profitStatValue}>{today.cancelled}</Text>
+                  <Text style={styles.profitStatLabel}>Cancelled</Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Money today</Text>
               <View style={styles.divider} />
-              <View style={styles.rowBetween}>
-                <Text style={styles.item}>Goods sold (sellers' money)</Text>
-                <Text style={styles.value}>{money(today.goodsSales)}</Text>
-              </View>
-              <View style={styles.rowBetween}>
-                <Text style={styles.item}>Delivery fees paid by customers</Text>
-                <Text style={styles.value}>{money(today.deliveryFees)}</Text>
-              </View>
-              <View style={styles.rowBetween}>
-                <Text style={styles.item}>Rider pay</Text>
-                <Text style={styles.value}>− {money(today.riderPay)}</Text>
-              </View>
-              <View style={styles.rowBetween}>
-                <Text style={styles.item}>= Delivery profit</Text>
-                <Text style={styles.value}>{money(today.deliveryProfit)}</Text>
-              </View>
-              <View style={styles.rowBetween}>
-                <Text style={styles.item}>+ Commission on goods</Text>
-                <Text style={styles.value}>{money(today.commission ?? 0)}</Text>
-              </View>
-              <View style={styles.rowBetween}>
-                <Text style={styles.item}>+ Withdrawal fees</Text>
-                <Text style={styles.value}>{money(today.withdrawalFees ?? 0)}</Text>
-              </View>
+              <Line label="Goods sold (sellers' money)" value={money(today.goodsSales)} />
+              <Line label="Delivery fees paid by customers" value={money(today.deliveryFees)} />
+              <Line label="Rider pay" value={`− ${money(today.riderPay)}`} />
+              <Line label="= Delivery profit" value={money(today.deliveryProfit)} />
+              <Line label="+ Commission on goods" value={money(today.commission ?? 0)} />
+              <Line label="+ Withdrawal fees" value={money(today.withdrawalFees ?? 0)} />
               {today.refundCosts ? (
-                <View style={styles.rowBetween}>
-                  <Text style={styles.item}>− Refunds paid by CommunityMarket</Text>
-                  <Text style={styles.value}>− {money(today.refundCosts)}</Text>
-                </View>
+                <Line label="− Refunds paid by CommunityMarket" value={`− ${money(today.refundCosts)}`} />
               ) : null}
               <View style={styles.divider} />
               <View style={styles.rowBetween}>
                 <Text style={styles.cardTitle}>Your profit today</Text>
                 <Text
                   style={[
-                    styles.cardTitle,
-                    { color: (today.totalProfit ?? today.deliveryProfit) >= 0 ? "#1e7d32" : "#b00020" },
+                    styles.bigValue,
+                    { color: (today.totalProfit ?? today.deliveryProfit) >= 0 ? colors.green : colors.danger },
                   ]}
                 >
                   {money(today.totalProfit ?? today.deliveryProfit)}
@@ -800,65 +835,37 @@ export default function AdminScreen() {
               <Stat
                 value={String(waitingOrders.length)}
                 label="Need a rider"
-                tint={waitingOrders.length ? "#fff4e5" : undefined}
+                tint={waitingOrders.length ? colors.goldSoft : undefined}
               />
             </View>
 
-            {counts.needsAttention > 0 ? (
-              <View style={[styles.card, styles.warnCard]}>
+            {attention.length > 0 ? (
+              <View style={styles.card}>
                 <Text style={styles.cardTitle}>Needs your attention</Text>
-                {applications.length ? (
-                  <Text style={styles.item}>• {applications.length} application(s) to review</Text>
-                ) : null}
-                {lateOrders.length ? (
-                  <Text style={styles.item}>• {lateOrders.length} paid order(s) waiting over 20 min for a rider</Text>
-                ) : null}
-                {stuckTrips.length ? (
-                  <Text style={styles.item}>• {stuckTrips.length} trip(s) running over 2 hours</Text>
-                ) : null}
-                {orphanRiders.length ? (
-                  <Text style={styles.item}>• {orphanRiders.length} rider(s) stuck on a finished trip</Text>
-                ) : null}
-                {lockedDeliveries.length ? (
-                  <Text style={styles.item}>
-                    • {lockedDeliveries.length} delivery(ies) locked by wrong codes
-                  </Text>
-                ) : null}
-                {openReports.length ? (
-                  <Text style={styles.item}>• {openReports.length} customer problem report(s) to settle (Live)</Text>
-                ) : null}
-                {state.wallets && state.wallets.requests.length ? (
-                  <Text style={styles.item}>
-                    • {state.wallets.requests.length} withdrawal request(s) to pay (Money tab)
-                  </Text>
-                ) : null}
-                {flaggedPayments.length ? (
-                  <Text style={styles.item}>• {flaggedPayments.length} flagged payment(s) to check in Paystack</Text>
-                ) : null}
-                <Pressable
-                  style={styles.primaryButton}
-                  onPress={() =>
-                    setTab(
-                      applications.length
-                        ? "applications"
-                        : state.wallets && state.wallets.requests.length
-                          ? "money"
-                          : "live",
-                    )
-                  }
-                >
-                  <Text style={styles.primaryButtonText}>Review</Text>
-                </Pressable>
+                {attention.map((a, i) => (
+                  <Pressable
+                    key={i}
+                    style={({ pressed }) => [styles.attentionRow, pressed && { backgroundColor: colors.chip }]}
+                    onPress={() => setTab(a.tab)}
+                  >
+                    <View style={styles.attentionIcon}>
+                      <Icon name={a.icon} size={16} color={colors.goldText} />
+                    </View>
+                    <Text style={styles.attentionText}>{a.text}</Text>
+                    <Icon name="chevron-right" size={18} color={colors.faint} />
+                  </Pressable>
+                ))}
               </View>
             ) : (
-              <View style={styles.card}>
-                <Text style={styles.okText}>{"✓"} Nothing needs your attention.</Text>
+              <View style={[styles.card, styles.okCard]}>
+                <Icon name="check" size={18} color={colors.green} />
+                <Text style={styles.okText}>Nothing needs your attention.</Text>
               </View>
             )}
           </>
         )}
 
-        {/* ---------- APPLICATIONS ---------- */}
+        {/* ---------- 2. APPLICATIONS ---------- */}
         {tab === "applications" &&
           (applications.length === 0 ? (
             <View style={styles.card}>
@@ -880,80 +887,14 @@ export default function AdminScreen() {
             ))
           ))}
 
-        {/* ---------- LIVE ---------- */}
-        {tab === "live" && (
+
+        {/* ---------- 3. ORDERS & DELIVERY ---------- */}
+        {tab === "orders" && (
           <>
-            {state.deletions && state.deletions.length > 0 ? (
-              <View style={[styles.card, styles.warnCard]}>
-                <Text style={styles.cardTitle}>👤 Accounts being deleted ({state.deletions.length})</Text>
-                <Text style={styles.hint}>
-                  Locked now and erased on the date shown. Restore only if the person contacts you and asks.
-                </Text>
-                {state.deletions.map((d) => (
-                  <View key={d.uid} style={{ marginTop: 10 }}>
-                    <Text style={styles.value}>
-                      {d.name || d.email || d.uid} <Text style={styles.muted}>({d.role})</Text>
-                    </Text>
-                    <Text style={styles.muted}>
-                      {d.email || ""} · erased {d.eraseAfterMs ? new Date(d.eraseAfterMs).toDateString() : "soon"}
-                    </Text>
-                    <Pressable
-                      style={[styles.smallButton, { alignSelf: "flex-start", marginTop: 6 }]}
-                      onPress={() => {
-                        if (armed !== `restore-${d.uid}`) return arm(`restore-${d.uid}`);
-                        void run(`restore-${d.uid}`, "restoreAccount", { uid: d.uid });
-                      }}
-                      disabled={working === `restore-${d.uid}`}
-                    >
-                      <Text style={styles.smallButtonText}>
-                        {working === `restore-${d.uid}` ? "..." : armed === `restore-${d.uid}` ? "Tap again to restore" : "Restore account"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            <TeamCard
-              staff={state.staff || []}
-              working={working}
-              armed={armed}
-              arm={arm}
-              onGive={(email) => run("team-give", "setMarketingAccess", { email, on: true })}
-              onRemove={(email) => run(`team-remove-${email}`, "setMarketingAccess", { email, on: false })}
-            />
-
-            {state.backup ? (
-              <View style={[styles.card, !state.backup.configured || !state.backup.lastOk ? styles.warnCard : null]}>
-                <Text style={styles.cardTitle}>🗄 Daily backup</Text>
-                {!state.backup.configured ? (
-                  <Text style={styles.warnText}>
-                    Not set up: add BACKUP_KEY in Vercel → Settings → Environment Variables, then redeploy.
-                  </Text>
-                ) : state.backup.lastAtMs ? (
-                  <Text style={state.backup.lastOk ? styles.muted : styles.warnText}>
-                    {state.backup.lastOk ? "✓ Last backup" : "⚠ Last try failed"} {new Date(state.backup.lastAtMs).toLocaleString()}
-                    {state.backup.lastOk && state.backup.docs
-                      ? ` · ${state.backup.docs.toLocaleString()} records · ${Math.round((state.backup.bytes || 0) / 1024).toLocaleString()} KB`
-                      : ""}
-                    {!state.backup.lastOk && state.backup.error ? `\n${state.backup.error}` : ""}
-                  </Text>
-                ) : (
-                  <Text style={styles.muted}>No backup yet. The first one runs tonight, or tap below.</Text>
-                )}
-                <Text style={styles.hint}>
-                  Every night at 3:30 AM, locked with your BACKUP_KEY. Kept {state.backup.keepDays} days.
-                </Text>
-                <Pressable
-                  style={[styles.smallButton, { alignSelf: "flex-start", marginTop: 10 }]}
-                  onPress={() => void run("backup", "backupNow")}
-                  disabled={working === "backup"}
-                >
-                  <Text style={styles.smallButtonText}>{working === "backup" ? "Backing up..." : "Back up now"}</Text>
-                </Pressable>
-              </View>
-            ) : null}
-
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>Orders & delivery</Text>
+              <DownloadButton report="orders" label="Orders" />
+            </View>
             {openReports.length > 0 ? (
               <>
                 <Text style={styles.sectionTitle}>Customer problems ({openReports.length})</Text>
@@ -969,7 +910,6 @@ export default function AdminScreen() {
                 ))}
               </>
             ) : null}
-
             {lockedDeliveries.length > 0 ? (
               <>
                 <Text style={styles.sectionTitle}>Locked deliveries ({lockedDeliveries.length})</Text>
@@ -1005,7 +945,6 @@ export default function AdminScreen() {
                 ))}
               </>
             ) : null}
-
             <View style={styles.rowBetween}>
               <Text style={styles.sectionTitle}>Waiting for a rider ({waitingOrders.length})</Text>
               {waitingOrders.length ? (
@@ -1046,7 +985,6 @@ export default function AdminScreen() {
                 </View>
               ))
             )}
-
             <Text style={styles.sectionTitle}>Trips in progress ({trips.length})</Text>
             {trips.length === 0 ? (
               <Text style={[styles.muted, { marginBottom: 12 }]}>No riders on the road.</Text>
@@ -1062,8 +1000,126 @@ export default function AdminScreen() {
                 />
               ))
             )}
+            {flaggedPayments.length > 0 ? (
+              <>
+                <Text style={styles.sectionTitle}>Flagged payments ({flaggedPayments.length})</Text>
+                {flaggedPayments.map((p) => (
+                  <View key={p.id} style={[styles.card, styles.warnCard]}>
+                    <Text style={styles.cardTitle}>Ref {p.reference || p.id}</Text>
+                    <Text style={styles.muted}>
+                      Order {p.orderId ? short(p.orderId) : "-"} · paid{" "}
+                      {p.paidNaira !== null ? money(p.paidNaira) : "-"} · {ago(p.flaggedAtMs)}
+                    </Text>
+                    <Text style={styles.warnText}>{p.reasons.join(", ").replace(/-/g, " ")}</Text>
+                    <Text style={styles.hint}>
+                      Money arrived but the order was not marked paid. Check it in the Paystack dashboard and refund
+                      if needed.
+                    </Text>
+                  </View>
+                ))}
+              </>
+            ) : null}
+            {recentReports.length > 0 ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Settled problems (last 30 days)</Text>
+                {recentReports.slice(0, 8).map((r) => (
+                  <Text key={r.orderId} style={styles.item}>
+                    {short(r.orderId)} · {r.reason} ·{" "}
+                    {r.status === "refunded" && r.resolution
+                      ? `${money(r.resolution.amount)} refunded${
+                          r.resolution.debits.length
+                            ? ` (${r.resolution.debits.map((d) => `${d.name} ${money(d.amount)}`).join(", ")})`
+                            : ""
+                        }${r.resolution.platformCost ? ` · we paid ${money(r.resolution.platformCost)}` : ""}`
+                      : "rejected"}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+          </>
+        )}
 
-            <Text style={styles.sectionTitle}>Riders ({riders.length})</Text>
+        {/* ---------- 4. MONEY ---------- */}
+        {tab === "money" && state.wallets && state.commission ? (
+          <>
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>Money</Text>
+              <DownloadButton report="payouts" label="Payouts" />
+            </View>
+            <AdminMoney
+              section="money"
+              state={state}
+              working={working}
+              onPay={(req, method, reference) =>
+                void run(`wd-${req.id}`, "payWithdrawal", { withdrawalId: req.id, method, reference })
+              }
+              onReject={(req, reason) => void run(`wd-${req.id}`, "rejectWithdrawal", { withdrawalId: req.id, reason })}
+              onSaveRates={(rates) => void run("rates", "setCommissionRates", { rates })}
+              onSaveSettings={(settings) => void run("payoutSettings", "setPayoutSettings", { settings })}
+              onSaveFunding={(settings) => void run("funding", "setFundingSettings", { settings })}
+              onSaveRewards={(settings) => void run("rewards", "setRewardsSettings", { settings })}
+              onBankAction={(action, partyType, partyId, reason) =>
+                void run(`bank-${partyType}-${partyId}`, action, { partyType, partyId, reason })
+              }
+            />
+          </>
+        ) : null}
+
+        {/* ---------- 5. PEOPLE ---------- */}
+        {tab === "people" && (
+          <>
+            <TeamCard
+              staff={state.staff || []}
+              working={working}
+              armed={armed}
+              arm={arm}
+              onGive={(email) => run("team-give", "setMarketingAccess", { email, on: true })}
+              onRemove={(email) => run(`team-remove-${email}`, "setMarketingAccess", { email, on: false })}
+            />
+            {state.deletions && state.deletions.length > 0 ? (
+              <View style={[styles.card, styles.warnCard]}>
+                <Text style={styles.cardTitle}>Accounts being deleted ({state.deletions.length})</Text>
+                <Text style={styles.hint}>
+                  Locked now and erased on the date shown. Restore only if the person contacts you and asks.
+                </Text>
+                {state.deletions.map((d) => (
+                  <View key={d.uid} style={{ marginTop: 10 }}>
+                    <Text style={styles.value}>
+                      {d.name || d.email || d.uid} <Text style={styles.muted}>({d.role})</Text>
+                    </Text>
+                    <Text style={styles.muted}>
+                      {d.email || ""} · erased {d.eraseAfterMs ? new Date(d.eraseAfterMs).toDateString() : "soon"}
+                    </Text>
+                    <Pressable
+                      style={[styles.smallButton, { alignSelf: "flex-start", marginTop: 6 }]}
+                      onPress={() => {
+                        if (armed !== `restore-${d.uid}`) return arm(`restore-${d.uid}`);
+                        void run(`restore-${d.uid}`, "restoreAccount", { uid: d.uid });
+                      }}
+                      disabled={working === `restore-${d.uid}`}
+                    >
+                      <Text style={styles.smallButtonText}>
+                        {working === `restore-${d.uid}` ? "..." : armed === `restore-${d.uid}` ? "Tap again to restore" : "Restore account"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            <View style={[styles.card, styles.rowBetween]}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={styles.cardTitle}>Shops and customers</Text>
+                <Text style={styles.muted}>Full lists as spreadsheets.</Text>
+              </View>
+              <View style={{ gap: 8 }}>
+                <DownloadButton report="shops" label="Shops" />
+                <DownloadButton report="customers" label="Customers" />
+              </View>
+            </View>
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>Riders ({riders.length})</Text>
+              <DownloadButton report="riders" />
+            </View>
             {riders.map((r) => (
               <View key={r.id} style={[styles.card, r.tripMissing && styles.warnCard]}>
                 <View style={styles.rowBetween}>
@@ -1083,12 +1139,20 @@ export default function AdminScreen() {
                       styles.badge,
                       {
                         backgroundColor:
-                          r.availability === "available" ? "#1e7d32" : r.availability === "busy" ? "#1565c0" : "#888",
+                          r.availability === "available" ? colors.greenSoft : r.availability === "busy" ? "#e7eef8" : colors.chip,
                       },
                     ]}
                   >
-                    <Text style={styles.badgeText}>
-                      {r.availability === "available" ? "FREE" : r.availability === "busy" ? "ON TRIP" : "OFFLINE"}
+                    <Text
+                      style={[
+                        styles.badgeText,
+                        {
+                          color:
+                            r.availability === "available" ? colors.green : r.availability === "busy" ? "#1f4f8a" : colors.muted,
+                        },
+                      ]}
+                    >
+                      {r.availability === "available" ? "Free" : r.availability === "busy" ? "On a trip" : "Offline"}
                     </Text>
                   </View>
                 </View>
@@ -1109,7 +1173,33 @@ export default function AdminScreen() {
                 ) : null}
               </View>
             ))}
+          </>
+        )}
 
+        {/* ---------- 6. SETTINGS ---------- */}
+        {tab === "settings" && (
+          <>
+            {state.pricing ? (
+              <AdminPricing
+                pricing={state.pricing}
+                working={working === "pricing"}
+                onSave={(settings) => void run("pricing", "setPricingSettings", { settings })}
+              />
+            ) : null}
+            {state.wallets && state.commission ? (
+              <AdminMoney
+                section="settings"
+                state={state}
+                working={working}
+                onPay={() => undefined}
+                onReject={() => undefined}
+                onSaveRates={(rates) => void run("rates", "setCommissionRates", { rates })}
+                onSaveSettings={(settings) => void run("payoutSettings", "setPayoutSettings", { settings })}
+                onSaveFunding={(settings) => void run("funding", "setFundingSettings", { settings })}
+                onSaveRewards={(settings) => void run("rewards", "setRewardsSettings", { settings })}
+                onBankAction={() => undefined}
+              />
+            ) : null}
             {state.delivery ? (
               <View style={styles.card}>
                 <View style={styles.rowBetween}>
@@ -1123,6 +1213,8 @@ export default function AdminScreen() {
                     value={state.delivery.settings.requireCode}
                     disabled={working !== null}
                     onValueChange={(v) => void run("delivery", "setDeliverySettings", { settings: { requireCode: v } })}
+                    trackColor={{ true: colors.green, false: "#d6d3cb" }}
+                    thumbColor="#ffffff"
                   />
                 </View>
                 {!state.delivery.settings.requireCode ? (
@@ -1132,25 +1224,6 @@ export default function AdminScreen() {
                 ) : null}
               </View>
             ) : null}
-
-            {recentReports.length > 0 ? (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Settled problems (last 30 days)</Text>
-                {recentReports.slice(0, 8).map((r) => (
-                  <Text key={r.orderId} style={styles.item}>
-                    {short(r.orderId)} · {r.reason} ·{" "}
-                    {r.status === "refunded" && r.resolution
-                      ? `${money(r.resolution.amount)} refunded${
-                          r.resolution.debits.length
-                            ? ` (${r.resolution.debits.map((d) => `${d.name} ${money(d.amount)}`).join(", ")})`
-                            : ""
-                        }${r.resolution.platformCost ? ` · we paid ${money(r.resolution.platformCost)}` : ""}`
-                      : "rejected"}
-                  </Text>
-                ))}
-              </View>
-            ) : null}
-
             {state.ai ? (
               <AiCard
                 ai={state.ai}
@@ -1158,144 +1231,211 @@ export default function AdminScreen() {
                 onSave={(settings) => void run("ai", "setAiSettings", { settings })}
               />
             ) : null}
-
-            {flaggedPayments.length > 0 ? (
-              <>
-                <Text style={styles.sectionTitle}>Flagged payments ({flaggedPayments.length})</Text>
-                {flaggedPayments.map((p) => (
-                  <View key={p.id} style={[styles.card, styles.warnCard]}>
-                    <Text style={styles.cardTitle}>Ref {p.reference || p.id}</Text>
-                    <Text style={styles.muted}>
-                      Order {p.orderId ? short(p.orderId) : "-"} · paid{" "}
-                      {p.paidNaira !== null ? money(p.paidNaira) : "-"} · {ago(p.flaggedAtMs)}
-                    </Text>
-                    <Text style={styles.warnText}>{p.reasons.join(", ").replace(/-/g, " ")}</Text>
-                    <Text style={styles.hint}>
-                      Money arrived but the order was not marked paid. Check it in the Paystack dashboard and refund
-                      if needed.
-                    </Text>
-                  </View>
-                ))}
-              </>
+            {state.backup ? (
+              <View style={[styles.card, !state.backup.configured || !state.backup.lastOk ? styles.warnCard : null]}>
+                <Text style={styles.cardTitle}>Daily backup</Text>
+                {!state.backup.configured ? (
+                  <Text style={styles.warnText}>
+                    Not set up: add BACKUP_KEY in Vercel → Settings → Environment Variables, then redeploy.
+                  </Text>
+                ) : state.backup.lastAtMs ? (
+                  <Text style={state.backup.lastOk ? styles.muted : styles.warnText}>
+                    {state.backup.lastOk ? "Last backup" : "Last try failed"} {new Date(state.backup.lastAtMs).toLocaleString()}
+                    {state.backup.lastOk && state.backup.docs
+                      ? ` · ${state.backup.docs.toLocaleString()} records · ${Math.round((state.backup.bytes || 0) / 1024).toLocaleString()} KB`
+                      : ""}
+                    {!state.backup.lastOk && state.backup.error ? `\n${state.backup.error}` : ""}
+                  </Text>
+                ) : (
+                  <Text style={styles.muted}>No backup yet. The first one runs tonight, or tap below.</Text>
+                )}
+                <Text style={styles.hint}>
+                  Every night at 3:30 AM, locked with your BACKUP_KEY. Kept {state.backup.keepDays} days.
+                </Text>
+                <Pressable
+                  style={[styles.smallButton, { alignSelf: "flex-start", marginTop: 10 }]}
+                  onPress={() => void run("backup", "backupNow")}
+                  disabled={working === "backup"}
+                >
+                  <Text style={styles.smallButtonText}>{working === "backup" ? "Backing up..." : "Back up now"}</Text>
+                </Pressable>
+              </View>
             ) : null}
           </>
         )}
 
-        {/* ---------- MONEY ---------- */}
-        {tab === "money" && state.pricing ? (
-          <AdminPricing
-            pricing={state.pricing}
-            working={working === "pricing"}
-            onSave={(settings) => void run("pricing", "setPricingSettings", { settings })}
-          />
-        ) : null}
-        {tab === "money" && state.wallets && state.commission ? (
-          <AdminMoney
-            state={state}
-            working={working}
-            onPay={(req, method, reference) =>
-              void run(`wd-${req.id}`, "payWithdrawal", { withdrawalId: req.id, method, reference })
-            }
-            onReject={(req, reason) => void run(`wd-${req.id}`, "rejectWithdrawal", { withdrawalId: req.id, reason })}
-            onSaveRates={(rates) => void run("rates", "setCommissionRates", { rates })}
-            onSaveSettings={(settings) => void run("payoutSettings", "setPayoutSettings", { settings })}
-            onSaveFunding={(settings) => void run("funding", "setFundingSettings", { settings })}
-            onSaveRewards={(settings) => void run("rewards", "setRewardsSettings", { settings })}
-            onBankAction={(action, partyType, partyId, reason) =>
-              void run(`bank-${partyType}-${partyId}`, action, { partyType, partyId, reason })
-            }
-          />
-        ) : null}
+        {/* ---------- 7. RECORDS ---------- */}
+        {tab === "records" && (
+          <>
+            <Text style={styles.sectionTitle}>Downloads</Text>
+            <AdminDownloads />
+            <Text style={styles.sectionTitle}>Activity log</Text>
+            <AdminLogs />
+          </>
+        )}
 
         <Text style={[styles.hint, { textAlign: "center", marginTop: 10 }]}>
           Updated {new Date(state.generatedAtMs).toLocaleTimeString()} · pull down to refresh
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+function Line({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.lineRow}>
+      <Text style={styles.item}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f5f6f8" },
-  container: { padding: 20, paddingBottom: 60 },
-  backText: { fontWeight: "700", marginBottom: 14 },
-  title: { fontSize: 26, fontWeight: "800", marginBottom: 14 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 12 },
-  warnCard: { borderWidth: 1, borderColor: "#f0b35b", backgroundColor: "#fffaf2" },
-  cardTitle: { fontSize: 16, fontWeight: "800" },
-  sectionTitle: { fontSize: 14, fontWeight: "800", color: "#555", marginTop: 8, marginBottom: 8 },
-  muted: { color: "#666", marginTop: 3, fontWeight: "400", fontSize: 13 },
-  hint: { color: "#888", fontSize: 12, marginTop: 8 },
-  value: { fontWeight: "700" },
-  item: { marginTop: 5, color: "#333" },
-  divider: { height: 1, backgroundColor: "#eee", marginVertical: 10 },
+  container: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 60 },
+  tabsBar: { height: 56, marginBottom: 6 },
+  tabsScroll: { flexGrow: 0, height: 56 },
+  tabs: { paddingHorizontal: 20, gap: 8, alignItems: "center", height: 56 },
+  tab: {
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: "rgba(23,33,27,0.08)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  tabActive: { backgroundColor: colors.green, borderColor: colors.green },
+  tabText: { fontFamily: fonts.semibold, fontSize: 13.5, color: colors.ink2 },
+  tabTextActive: { fontFamily: fonts.bold, color: "#ffffff" },
+  tabCount: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: colors.goldSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabCountOn: { backgroundColor: "#ffffff" },
+  tabCountText: { fontFamily: fonts.bold, fontSize: 11, color: colors.goldText },
+  profitCard: {
+    backgroundColor: colors.green,
+    borderRadius: radius.xl,
+    padding: 20,
+    marginBottom: 12,
+    overflow: "hidden",
+    ...shadow.button,
+  },
+  ring: {
+    position: "absolute",
+    right: -44,
+    top: -44,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    borderWidth: 20,
+    borderColor: "rgba(242,179,61,0.16)",
+  },
+  profitLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.onGreenMuted },
+  profitValue: { fontFamily: fonts.display, fontSize: 34, letterSpacing: -0.8, color: colors.gold, marginTop: 4 },
+  profitStats: { flexDirection: "row", gap: 8, marginTop: 14 },
+  profitStat: { flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 14, padding: 10 },
+  profitStatValue: { fontFamily: fonts.bold, fontSize: 18, color: "#ffffff" },
+  profitStatLabel: { fontFamily: fonts.regular, fontSize: 12, color: colors.onGreenMuted },
+  card: { ...ui.card, padding: 16, marginBottom: 12 },
+  warnCard: { backgroundColor: "#fffaf0", borderWidth: 1, borderColor: "#f3dcae" },
+  okCard: { flexDirection: "row", alignItems: "center", gap: 8 },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 15.5, color: colors.ink },
+  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  sectionTitle: { ...text.label, marginTop: 10, marginBottom: 8, marginLeft: 2 },
+  muted: { fontFamily: fonts.regular, color: colors.muted, marginTop: 3, fontSize: 13, lineHeight: 18 },
+  hint: { fontFamily: fonts.regular, color: colors.muted, fontSize: 12, marginTop: 8, lineHeight: 17 },
+  value: { fontFamily: fonts.semibold, color: colors.ink },
+  bigValue: { ...text.price, fontSize: 19 },
+  item: { fontFamily: fonts.regular, marginTop: 5, color: colors.ink2, flexShrink: 1, paddingRight: 8 },
+  lineRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  divider: { height: 1, backgroundColor: colors.line, marginVertical: 10 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   twoCol: { flexDirection: "row", gap: 10, alignItems: "flex-end" },
   actionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
-  badge: { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5 },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-  okText: { color: "#1e7d32", fontWeight: "800" },
-  warnText: { color: "#b26a00", fontWeight: "700", marginTop: 8 },
+  badge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.chip },
+  badgeText: { fontFamily: fonts.bold, fontSize: 11.5, color: colors.ink2 },
+  okText: { fontFamily: fonts.bold, color: colors.green },
+  warnText: { fontFamily: fonts.semibold, color: colors.goldText, marginTop: 8, lineHeight: 19 },
   statsRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
-  stat: { flex: 1, backgroundColor: "#fff", borderRadius: 14, padding: 12, alignItems: "center" },
-  statNumber: { fontSize: 18, fontWeight: "900" },
-  statLabel: { color: "#666", fontSize: 12, marginTop: 2, textAlign: "center" },
-  tabs: { flexDirection: "row", backgroundColor: "#e7e9ee", borderRadius: 12, padding: 4, marginBottom: 12 },
-  tab: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: "center" },
-  tabActive: { backgroundColor: "#fff" },
-  tabText: { fontWeight: "700", color: "#666", fontSize: 13 },
-  tabTextActive: { color: "#111" },
-  label: { fontSize: 13, fontWeight: "700", color: "#444", marginTop: 12, marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: "#d0d4db", borderRadius: 10, padding: 12, backgroundColor: "#fff" },
+  stat: { flex: 1, ...ui.card, borderRadius: radius.md, padding: 12, alignItems: "center" },
+  statNumber: { ...text.price, fontSize: 19 },
+  statLabel: { fontFamily: fonts.regular, color: colors.muted, fontSize: 12, marginTop: 2, textAlign: "center" },
+  attentionRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, borderRadius: 10 },
+  attentionIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: colors.goldSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attentionText: { flex: 1, fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
+  label: { ...ui.label },
+  input: { ...ui.input },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { borderWidth: 1, borderColor: "#ccc", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
-  chipActive: { backgroundColor: "#222", borderColor: "#222" },
-  chipText: { fontSize: 12, color: "#444", fontWeight: "600" },
-  chipTextActive: { color: "#fff" },
-  smallButton: {
+  chip: {
+    height: 34,
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#222",
-    borderRadius: 10,
-    paddingVertical: 9,
+    borderColor: "rgba(23,33,27,0.12)",
+    borderRadius: 17,
     paddingHorizontal: 12,
+    backgroundColor: colors.card,
   },
-  smallButtonText: { fontWeight: "700", fontSize: 13 },
-  dangerOutline: { borderColor: "#b00020" },
-  dangerFilled: { backgroundColor: "#b00020", borderColor: "#b00020" },
-  darkFilled: { backgroundColor: "#222", borderColor: "#222" },
-  primaryButton: {
-    marginTop: 14,
-    backgroundColor: "#222",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
+  chipActive: { backgroundColor: colors.greenSoft, borderColor: colors.green },
+  chipText: { fontFamily: fonts.semibold, fontSize: 12.5, color: colors.ink2 },
+  chipTextActive: { color: colors.green },
+  smallButton: {
+    height: 38,
+    justifyContent: "center",
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    backgroundColor: colors.greenSoft,
   },
-  approveButton: {
-    marginTop: 12,
-    backgroundColor: "#1e7d32",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
+  smallButtonText: { fontFamily: fonts.bold, fontSize: 13, color: colors.green },
+  dangerOutline: { backgroundColor: colors.dangerSoft },
+  dangerFilled: { backgroundColor: colors.danger },
+  darkFilled: { backgroundColor: colors.green },
+  primaryButton: { ...ui.primaryButton, marginTop: 14, height: 48, borderRadius: 24 },
+  approveButton: { ...ui.primaryButton, marginTop: 12, height: 48, borderRadius: 24 },
   dangerButton: {
     marginTop: 12,
-    backgroundColor: "#b00020",
-    paddingVertical: 14,
-    borderRadius: 10,
+    backgroundColor: colors.danger,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
+    justifyContent: "center",
   },
-  primaryButtonText: { color: "#fff", fontWeight: "800" },
-  secondaryButton: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#222",
-    paddingVertical: 13,
-    borderRadius: 10,
+  primaryButtonText: ui.primaryButtonText,
+  secondaryButton: { ...ui.secondaryButton, marginTop: 12, height: 48 },
+  secondaryButtonText: ui.secondaryButtonText,
+  noticeBox: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.greenSoft,
+    borderRadius: radius.md,
+    padding: 12,
+    marginBottom: 12,
   },
-  secondaryButtonText: { fontWeight: "700" },
-  noticeBox: { backgroundColor: "#e8f5e9", borderRadius: 12, padding: 12, marginBottom: 12 },
-  noticeText: { color: "#1e7d32", fontWeight: "700" },
-  errorBox: { backgroundColor: "#fdecea", borderRadius: 12, padding: 12, marginBottom: 12 },
-  errorText: { color: "#b00020" },
+  noticeText: { flex: 1, fontFamily: fonts.semibold, color: colors.green },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radius.md,
+    padding: 12,
+    marginBottom: 12,
+  },
+  errorText: { flex: 1, fontFamily: fonts.semibold, color: colors.danger },
 });

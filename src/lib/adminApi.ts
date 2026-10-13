@@ -466,3 +466,40 @@ export async function getAdminLogs(params: {
   if (!response.ok) throw new AdminApiError(data.error || "Could not load the log.", response.status === 403);
   return data.logs as AdminLogs;
 }
+
+// ---------- Records -> Downloads ----------
+
+export type ExportReport =
+  | "orders"
+  | "payments"
+  | "profit"
+  | "seller_earnings"
+  | "rider_earnings"
+  | "payouts"
+  | "problems"
+  | "shops"
+  | "riders"
+  | "customers"
+  | "applications"
+  | "terms"
+  | "activity";
+
+/** A one-time download link (works once, for 5 minutes). Admins only. */
+export async function getExportLink(
+  report: ExportReport,
+  fromMs: number | null,
+  toMs: number | null,
+): Promise<{ url: string; message: string }> {
+  const user = auth.currentUser;
+  if (!user) throw new AdminApiError("Please sign in.");
+  const token = await user.getIdToken();
+  const device = await adminDeviceHeaders();
+  const response = await fetch(`${API_URL}/api/admin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...device },
+    body: JSON.stringify({ action: "exportLink", report, fromMs, toMs }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new AdminApiError(data.error || "Could not make the download.", response.status === 403);
+  return data as { url: string; message: string };
+}

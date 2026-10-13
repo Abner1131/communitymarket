@@ -6,6 +6,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { colors, fonts, ui } from "../theme";
+
 import type { AdminPricing, PricingSettings } from "../lib/adminApi";
 
 type Form = Record<string, string>;
@@ -206,30 +208,31 @@ export function AdminPricing({
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 12 },
-  title: { fontSize: 17, fontWeight: "800", color: "#111" },
-  hint: { color: "#666", marginTop: 6, lineHeight: 19, fontSize: 13 },
-  group: { fontSize: 14, fontWeight: "800", color: "#111", marginTop: 16, marginBottom: 2 },
+  card: { ...ui.card, padding: 16, marginBottom: 12 },
+  title: { fontFamily: fonts.bold, fontSize: 15.5, color: colors.ink },
+  hint: { fontFamily: fonts.regular, color: colors.muted, marginTop: 6, lineHeight: 19, fontSize: 13 },
+  group: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink, marginTop: 16, marginBottom: 2 },
   fieldRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8 },
-  label: { color: "#333", fontWeight: "600" },
-  small: { color: "#777", fontSize: 12, marginTop: 2, lineHeight: 17 },
+  label: { fontFamily: fonts.semibold, color: colors.ink2 },
+  small: { fontFamily: fonts.regular, color: colors.muted, fontSize: 12, marginTop: 2, lineHeight: 17 },
   input: {
     width: 100,
     borderWidth: 1,
-    borderColor: "#d0d4db",
-    borderRadius: 10,
+    borderColor: "rgba(23,33,27,0.12)",
+    borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 10,
     textAlign: "right",
-    color: "#111",
-    backgroundColor: "#fff",
+    color: colors.ink,
+    fontFamily: fonts.semibold,
+    backgroundColor: "#fbfaf6",
   },
-  example: { backgroundColor: "#f5f6f8", borderRadius: 12, padding: 12, marginTop: 8 },
-  exTitle: { fontWeight: "800", color: "#111" },
-  exLine: { color: "#444", marginTop: 3, fontSize: 13, lineHeight: 18 },
-  keep: { color: "#0a6b40", fontWeight: "800", marginTop: 5 },
-  loss: { color: "#b00020" },
-  button: { backgroundColor: "#111", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 14 },
-  buttonText: { color: "#fff", fontWeight: "800" },
-  reset: { color: "#1565c0", fontWeight: "700", textAlign: "center", marginTop: 10 },
+  example: { backgroundColor: colors.bg, borderRadius: 14, padding: 12, marginTop: 8 },
+  exTitle: { fontFamily: fonts.bold, color: colors.ink },
+  exLine: { fontFamily: fonts.regular, color: colors.ink2, marginTop: 3, fontSize: 13, lineHeight: 18 },
+  keep: { fontFamily: fonts.bold, color: colors.green, marginTop: 5 },
+  loss: { color: colors.danger },
+  button: { ...ui.primaryButton, height: 48, borderRadius: 24, marginTop: 14 },
+  buttonText: ui.primaryButtonText,
+  reset: { fontFamily: fonts.bold, color: colors.green, textAlign: "center", marginTop: 12 },
 });

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
+import { colors, fonts, radius, text, ui } from "../theme";
+
 import type {
   AdminBankHeld,
   AdminBankReview,
@@ -180,7 +182,7 @@ function RequestCard({
             {req.partyId} {"·"} asked {ago(req.requestedAtMs)}
           </Text>
         </View>
-        <View style={[styles.badge, { backgroundColor: req.partyType === "rider" ? "#1565c0" : "#6a1b9a" }]}>
+        <View style={[styles.badge, { backgroundColor: req.partyType === "rider" ? "#1f4f8a" : "#6a1b9a" }]}>
           <Text style={styles.badgeText}>{req.partyType.toUpperCase()}</Text>
         </View>
       </View>
@@ -248,7 +250,7 @@ function RequestCard({
             maxLength={60}
           />
           <Pressable
-            style={[styles.payButton, armed && { backgroundColor: "#0d5a1f" }, busy && { opacity: 0.5 }]}
+            style={[styles.payButton, armed && { backgroundColor: colors.greenPressed }, busy && { opacity: 0.5 }]}
             disabled={busy}
             onPress={pressPay}
           >
@@ -605,7 +607,7 @@ function FundingEditor({
                   {t.status === "credited" ? "added" : t.status === "flagged" ? "⚠ flagged — check Paystack" : "waiting for payment"}
                 </Text>
               </View>
-              <Text style={[styles.value, t.status === "flagged" && { color: "#b00020" }]}>{money(t.amount)}</Text>
+              <Text style={[styles.value, t.status === "flagged" && { color: colors.danger }]}>{money(t.amount)}</Text>
             </View>
           ))}
         </>
@@ -615,6 +617,7 @@ function FundingEditor({
 }
 
 export function AdminMoney({
+  section = "money",
   state,
   working,
   onPay,
@@ -625,6 +628,8 @@ export function AdminMoney({
   onSaveRewards,
   onBankAction,
 }: {
+  /** "money": balances, bank checks, withdrawals. "settings": rewards, funding, payout and commission settings. */
+  section?: "money" | "settings";
   state: AdminState;
   working: string | null;
   onBankAction: (action: BankAction, partyType: string, partyId: string, reason?: string) => void;
@@ -638,10 +643,52 @@ export function AdminMoney({
   const { wallets, commission } = state;
   const [showWallets, setShowWallets] = useState(false);
 
+  if (section === "settings") {
+    return (
+      <>
+        <Text style={styles.sectionTitle}>Commission and payouts</Text>
+        <CommissionEditor
+          key={JSON.stringify(commission.rates)}
+          commission={commission}
+          saving={working === "rates"}
+          onSave={onSaveRates}
+        />
+        <PayoutSettingsEditor
+          key={JSON.stringify(wallets.settings)}
+          settings={wallets.settings}
+          saving={working === "payoutSettings"}
+          onSave={onSaveSettings}
+        />
+
+        <Text style={styles.sectionTitle}>Rewards and referrals</Text>
+        {state.rewards ? (
+          <RewardsEditor
+            key={JSON.stringify(state.rewards.settings)}
+            rewards={state.rewards}
+            saving={working === "rewards"}
+            onSave={onSaveRewards}
+          />
+        ) : null}
+
+        <Text style={styles.sectionTitle}>Customer wallet funding</Text>
+        {wallets.funding ? (
+          <FundingEditor
+            key={JSON.stringify(wallets.funding)}
+            funding={wallets.funding}
+            customerFunds={wallets.customerFunds || 0}
+            recentTopups={wallets.recentTopups || []}
+            saving={working === "funding"}
+            onSave={onSaveFunding}
+          />
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <>
       <View style={styles.statsRow}>
-        <View style={[styles.stat, wallets.totalRequested > 0 && { backgroundColor: "#fff4e5" }]}>
+        <View style={[styles.stat, wallets.totalRequested > 0 && { backgroundColor: colors.goldSoft }]}>
           <Text style={styles.statNumber}>{money(wallets.totalRequested)}</Text>
           <Text style={styles.statLabel}>To send now</Text>
         </View>
@@ -675,7 +722,7 @@ export function AdminMoney({
       ) : null}
       {state.bankChecks && state.bankChecks.held.length > 0 ? (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>🔒 New bank accounts on 24-hour hold ({state.bankChecks.held.length})</Text>
+          <Text style={styles.cardTitle}>New bank accounts on 24-hour hold ({state.bankChecks.held.length})</Text>
           <Text style={styles.hint}>
             Withdrawals wait 24 hours after an account is added or changed. If a change looks strange, call them.
           </Text>
@@ -751,101 +798,88 @@ export function AdminMoney({
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>Rewards</Text>
-      {state.rewards ? (
-        <RewardsEditor
-          key={JSON.stringify(state.rewards.settings)}
-          rewards={state.rewards}
-          saving={working === "rewards"}
-          onSave={onSaveRewards}
-        />
-      ) : null}
-
-      <Text style={styles.sectionTitle}>Customer funds</Text>
-      {wallets.funding ? (
-        <FundingEditor
-          key={JSON.stringify(wallets.funding)}
-          funding={wallets.funding}
-          customerFunds={wallets.customerFunds || 0}
-          recentTopups={wallets.recentTopups || []}
-          saving={working === "funding"}
-          onSave={onSaveFunding}
-        />
-      ) : null}
-
-      <Text style={styles.sectionTitle}>Settings</Text>
-      <PayoutSettingsEditor
-        key={JSON.stringify(wallets.settings)}
-        settings={wallets.settings}
-        saving={working === "payoutSettings"}
-        onSave={onSaveSettings}
-      />
-
-      <CommissionEditor
-        key={JSON.stringify(commission.rates)}
-        commission={commission}
-        saving={working === "rates"}
-        onSave={onSaveRates}
-      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  warnCard: { borderWidth: 1, borderColor: "#f0b35b", backgroundColor: "#fffaf2" },
+  warnCard: { backgroundColor: "#fffaf0", borderWidth: 1, borderColor: "#f3dcae" },
   actionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
-  smallButton: { borderWidth: 1, borderColor: "#222", borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12 },
-  smallButtonText: { fontWeight: "700", fontSize: 13 },
-  dangerFilled: { backgroundColor: "#b00020", borderColor: "#b00020" },
-  greenFilled: { backgroundColor: "#1e7d32", borderColor: "#1e7d32" },
-  dangerOutline: { borderColor: "#b00020" },
-  heldRow: { borderTopWidth: 1, borderTopColor: "#eee", paddingVertical: 10, marginTop: 8 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: "800" },
-  sectionTitle: { fontSize: 14, fontWeight: "800", color: "#555", marginTop: 10, marginBottom: 8 },
-  muted: { color: "#666", marginTop: 3, fontSize: 13 },
-  hint: { color: "#888", fontSize: 12, marginTop: 6 },
-  value: { fontWeight: "700" },
-  item: { color: "#333", fontSize: 15 },
-  link: { color: "#1565c0", fontWeight: "700", marginTop: 2 },
-  amount: { fontSize: 28, fontWeight: "900" },
-  label: { fontSize: 12, fontWeight: "700", color: "#666", marginTop: 12 },
-  warnText: { color: "#b26a00", fontWeight: "700", marginTop: 10 },
-  errorText: { color: "#b00020", marginTop: 10 },
-  divider: { height: 1, backgroundColor: "#eee", marginVertical: 10 },
+  smallButton: {
+    height: 38,
+    justifyContent: "center",
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    backgroundColor: colors.greenSoft,
+  },
+  smallButtonText: { fontFamily: fonts.bold, fontSize: 13, color: colors.green },
+  dangerFilled: { backgroundColor: colors.danger },
+  greenFilled: { backgroundColor: colors.green },
+  dangerOutline: { backgroundColor: colors.dangerSoft },
+  heldRow: { borderTopWidth: 1, borderTopColor: colors.line, paddingVertical: 10, marginTop: 8 },
+  card: { ...ui.card, padding: 16, marginBottom: 12 },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 15.5, color: colors.ink },
+  sectionTitle: { ...text.label, marginTop: 12, marginBottom: 8, marginLeft: 2 },
+  muted: { fontFamily: fonts.regular, color: colors.muted, marginTop: 3, fontSize: 13, lineHeight: 18 },
+  hint: { fontFamily: fonts.regular, color: colors.muted, fontSize: 12, marginTop: 6, lineHeight: 17 },
+  value: { fontFamily: fonts.semibold, color: colors.ink },
+  item: { fontFamily: fonts.regular, color: colors.ink2, fontSize: 15 },
+  link: { fontFamily: fonts.bold, color: colors.green, marginTop: 2 },
+  amount: { ...text.priceLarge, fontSize: 28 },
+  label: { fontFamily: fonts.bold, fontSize: 12, color: colors.muted, marginTop: 12 },
+  warnText: { fontFamily: fonts.semibold, color: colors.goldText, marginTop: 10 },
+  errorText: { fontFamily: fonts.semibold, color: colors.danger, marginTop: 10 },
+  divider: { height: 1, backgroundColor: colors.line, marginVertical: 10 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   twoCol: { flexDirection: "row", gap: 10, alignItems: "flex-end" },
-  badge: { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5 },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  badge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  badgeText: { color: "#ffffff", fontSize: 11, fontFamily: fonts.bold },
   statsRow: { flexDirection: "row", gap: 8 },
-  stat: { flex: 1, backgroundColor: "#fff", borderRadius: 12, paddingVertical: 14, paddingHorizontal: 8, alignItems: "center" },
-  statNumber: { fontSize: 17, fontWeight: "900" },
-  statLabel: { color: "#666", fontSize: 12, marginTop: 2, textAlign: "center" },
-  bankBox: { backgroundColor: "#f5f6f8", borderRadius: 10, padding: 12, marginTop: 12 },
-  bankLine: { fontSize: 20, fontWeight: "900", letterSpacing: 1 },
+  stat: { flex: 1, ...ui.card, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 8, alignItems: "center" },
+  statNumber: { ...text.price, fontSize: 18 },
+  statLabel: { fontFamily: fonts.regular, color: colors.muted, fontSize: 12, marginTop: 2, textAlign: "center" },
+  bankBox: { backgroundColor: colors.bg, borderRadius: radius.sm, padding: 12, marginTop: 12 },
+  bankLine: { fontFamily: fonts.display, fontSize: 20, letterSpacing: 1, color: colors.ink },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { borderWidth: 1, borderColor: "#ccc", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
-  chipActive: { backgroundColor: "#222", borderColor: "#222" },
-  chipText: { fontSize: 13, color: "#444", fontWeight: "600" },
-  chipTextActive: { color: "#fff" },
-  input: { borderWidth: 1, borderColor: "#d0d4db", borderRadius: 10, padding: 12, backgroundColor: "#fff", marginTop: 10 },
-  payButton: { marginTop: 12, backgroundColor: "#1e7d32", paddingVertical: 14, borderRadius: 10, alignItems: "center" },
-  redButton: { marginTop: 12, backgroundColor: "#b00020", paddingVertical: 14, borderRadius: 10, alignItems: "center" },
-  darkButton: { marginTop: 14, backgroundColor: "#222", paddingVertical: 14, borderRadius: 10, alignItems: "center" },
-  outlineButton: { marginTop: 12, borderWidth: 1, borderColor: "#222", paddingVertical: 13, borderRadius: 10, alignItems: "center" },
-  outlineText: { fontWeight: "700" },
-  whiteText: { color: "#fff", fontWeight: "800" },
+  chip: {
+    height: 34,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(23,33,27,0.12)",
+    borderRadius: 17,
+    paddingHorizontal: 12,
+    backgroundColor: colors.card,
+  },
+  chipActive: { backgroundColor: colors.greenSoft, borderColor: colors.green },
+  chipText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink2 },
+  chipTextActive: { color: colors.green },
+  input: { ...ui.input, marginTop: 10 },
+  payButton: { ...ui.primaryButton, marginTop: 12, height: 48, borderRadius: 24 },
+  redButton: {
+    marginTop: 12,
+    backgroundColor: colors.danger,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  darkButton: { ...ui.primaryButton, marginTop: 14, height: 48, borderRadius: 24 },
+  outlineButton: { ...ui.secondaryButton, marginTop: 12, height: 48 },
+  outlineText: ui.secondaryButtonText,
+  whiteText: { color: "#ffffff", fontFamily: fonts.bold, fontSize: 15 },
   textButton: { alignItems: "center", paddingVertical: 10 },
-  rejectText: { color: "#b00020", fontWeight: "700" },
+  rejectText: { fontFamily: fonts.bold, color: colors.danger },
   rateBox: { flexDirection: "row", alignItems: "center", gap: 6 },
   rateInput: {
     borderWidth: 1,
-    borderColor: "#d0d4db",
-    borderRadius: 8,
+    borderColor: "rgba(23,33,27,0.12)",
+    borderRadius: 10,
     paddingVertical: 6,
     paddingHorizontal: 10,
     width: 64,
     textAlign: "right",
-    backgroundColor: "#fff",
+    backgroundColor: "#fbfaf6",
+    fontFamily: fonts.semibold,
+    color: colors.ink,
   },
 });
