@@ -28,6 +28,7 @@ import {
   MarketingApplication,
   MarketingApiError,
   MarketingState,
+  type MarketingTeam,
   marketingAction,
   type MarketingAction,
 } from "../lib/marketingApi";
@@ -58,6 +59,7 @@ export default function MarketingScreen() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [forbidden, setForbidden] = useState(false);
+  const [team, setTeam] = useState<MarketingTeam | null>(null);
 
   const run = useCallback(
     async (action: MarketingAction, extra: Record<string, unknown> = {}, label: string | null = null) => {
@@ -66,6 +68,7 @@ export default function MarketingScreen() {
       try {
         const r = await marketingAction(action, extra);
         cache.setFresh(r.marketing);
+        if (r.team) setTeam(r.team);
         if (r.message) setMessage(r.message);
         return true;
       } catch (e: any) {
@@ -129,7 +132,7 @@ export default function MarketingScreen() {
                 ["applications", `Applications${state && state.applications.length ? ` (${state.applications.length})` : ""}`],
                 ["shops", "Shops"],
                 ["riders", "Riders"],
-                ["codes", "Marketer codes"],
+                ["codes", "Team & codes"],
               ] as [Tab, string][]
             ).map(([t, text]) => (
               <Pressable key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
@@ -170,8 +173,12 @@ export default function MarketingScreen() {
             {tab === "codes" && (
               <Codes
                 state={state}
+                team={team}
+                isManager={user?.role === "marketing"}
                 busy={busy}
-                onCreate={(name, code) => run("createMarketerCode", { name, code: code || undefined }, "create")}
+                onCreate={(name, code, phone) => run("createMarketerCode", { name, code: code || undefined, phone }, "create")}
+                onCreateMine={(name, code, phone) => run("createMyCode", { name, code, phone }, "mine")}
+                onResetPin={(code) => run("resetMarketerPin", { code }, `pin-${code}`)}
                 onToggle={(code, active) => run("setMarketerCodeActive", { code, active }, `code-${code}`)}
               />
             )}
@@ -390,25 +397,108 @@ function Riders({ state }: { state: MarketingState }) {
 }
 
 // ---------- marketer codes ----------
+function naira(n: number) {
+  return `₦${Math.round(n || 0).toLocaleString()}`;
+}
+
+// The manager's own code (he earns on his own sign-ups and on his team).
+function MyCodeCard({
+  team,
+  busy,
+  onCreateMine,
+}: {
+  team: MarketingTeam | null;
+  busy: string | null;
+  onCreateMine: (name: string, code: string, phone: string) => Promise<boolean>;
+}) {
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [phone, setPhone] = useState("");
+  if (team && team.myCode && team.my) {
+    return (
+      <View style={[styles.card, { backgroundColor: "#0b4a2f" }]}>
+        <Text style={{ color: "#cfe0d5", fontWeight: "700" }}>Your pay, {team.monthName} so far</Text>
+        <Text style={{ color: "#fff", fontSize: 30, fontWeight: "800", marginTop: 4 }}>{naira(team.my.amount)}</Text>
+        <Text style={{ color: "#cfe0d5", marginTop: 4, lineHeight: 19 }}>
+          Your own sign-ups {naira(team.my.direct)} · your team {naira(team.my.team)}
+          {"\n"}Your code: {team.myCode}
+        </Text>
+        <Pressable style={[styles.secondaryButton, { borderColor: "#cfe0d5" }]} onPress={() => router.push("/marketer" as any)}>
+          <Text style={[styles.secondaryText, { color: "#fff" }]}>My earnings and bank</Text>
+        </Pressable>
+      </View>
+    );
+  }
+  const ok = name.trim().length >= 2 && code.length >= 3 && phone.replace(/\D/g, "").length >= 10;
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Your own code</Text>
+      <Text style={styles.muted}>
+        Make your own code first. Shops you sign up yourself use it, and codes you create after it become your team
+        (you earn a share of what they earn).
+      </Text>
+      <TextInput style={styles.input} placeholder="Your full name (as on your bank account)" placeholderTextColor="#888" value={name} onChangeText={setName} maxLength={60} />
+      <TextInput
+        style={styles.input}
+        placeholder="Your code, e.g. MUSA"
+        placeholderTextColor="#888"
+        autoCapitalize="characters"
+        value={code}
+        onChangeText={(t) => setCode(t.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+        maxLength={10}
+      />
+      <TextInput style={styles.input} placeholder="Your phone number" placeholderTextColor="#888" keyboardType="phone-pad" value={phone} onChangeText={setPhone} maxLength={16} />
+      <Pressable
+        style={[styles.primaryButton, (busy === "mine" || !ok) && { opacity: 0.5 }]}
+        disabled={busy === "mine" || !ok}
+        onPress={() => void onCreateMine(name.trim(), code, phone.trim())}
+      >
+        <Text style={styles.primaryText}>{busy === "mine" ? "Creating..." : "Create my code"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function Codes({
   state,
+  team,
+  isManager,
   busy,
   onCreate,
+  onCreateMine,
+  onResetPin,
   onToggle,
 }: {
   state: MarketingState;
+  team: MarketingTeam | null;
+  isManager: boolean;
   busy: string | null;
-  onCreate: (name: string, code: string) => Promise<boolean>;
+  onCreate: (name: string, code: string, phone: string) => Promise<boolean>;
+  onCreateMine: (name: string, code: string, phone: string) => Promise<boolean>;
+  onResetPin: (code: string) => Promise<boolean>;
   onToggle: (code: string, active: boolean) => Promise<boolean>;
 }) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [phone, setPhone] = useState("");
+  const [armedPin, setArmedPin] = useState<string | null>(null);
+  const teamByCode = Object.fromEntries((team?.team || []).map((t) => [t.code, t]));
+  const phoneOk = phone.replace(/\D/g, "").length >= 10;
   return (
     <>
+      {isManager ? <MyCodeCard team={team} busy={busy} onCreateMine={onCreateMine} /> : null}
+      {team?.settings ? (
+        <Text style={styles.hint}>
+          Pay rules: {team.settings.marketerPct}% of what a marketer's shops and riders earn CommunityMarket, for{" "}
+          {team.settings.months} months, once a shop has {team.settings.shopActiveOrders} orders (rider{" "}
+          {team.settings.riderActiveTrips} trips). You get {team.settings.managerTeamPct}% of what each team member earns.
+        </Text>
+      ) : null}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>New marketer code</Text>
         <Text style={styles.muted}>
-          Give each marketer a code. Shops and riders type it when they apply, so you can see who signed up whom.
+          Give each marketer a code. Shops and riders type it when they apply. You get a PIN to give the marketer, so
+          they can see their own pay in the app.
         </Text>
         <TextInput
           style={styles.input}
@@ -427,13 +517,23 @@ function Codes({
           onChangeText={(t) => setCode(t.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
           maxLength={10}
         />
+        <TextInput
+          style={styles.input}
+          placeholder="Marketer's phone number"
+          placeholderTextColor="#888"
+          keyboardType="phone-pad"
+          value={phone}
+          onChangeText={setPhone}
+          maxLength={16}
+        />
         <Pressable
-          style={[styles.primaryButton, (busy === "create" || name.trim().length < 2) && { opacity: 0.5 }]}
-          disabled={busy === "create" || name.trim().length < 2}
+          style={[styles.primaryButton, (busy === "create" || name.trim().length < 2 || !phoneOk) && { opacity: 0.5 }]}
+          disabled={busy === "create" || name.trim().length < 2 || !phoneOk}
           onPress={async () => {
-            if (await onCreate(name.trim(), code)) {
+            if (await onCreate(name.trim(), code, phone.trim())) {
               setName("");
               setCode("");
+              setPhone("");
             }
           }}
         >
@@ -458,6 +558,35 @@ function Codes({
           <Text style={styles.item}>
             {c.applications} application(s) · {c.approved} approved · {c.activeShops} shop(s) selling
           </Text>
+          {c.kind === "manager" ? <Text style={styles.hint}>Manager's own code</Text> : null}
+          {teamByCode[c.code] ? (
+            <>
+              <Text style={styles.item}>
+                Earned this month: {naira(teamByCode[c.code].earned)} · {teamByCode[c.code].counting} counting ·{" "}
+                {teamByCode[c.code].waiting} waiting
+              </Text>
+              <Text style={styles.hint}>
+                {teamByCode[c.code].linked
+                  ? "Linked in the app"
+                  : teamByCode[c.code].locked
+                    ? "Locked after wrong PINs: give a new PIN"
+                    : "Not linked yet: they need the PIN"}
+              </Text>
+              <Pressable
+                style={[styles.secondaryButton, busy === `pin-${c.code}` && { opacity: 0.5 }]}
+                disabled={busy !== null}
+                onPress={async () => {
+                  if (armedPin !== c.code) return setArmedPin(c.code);
+                  setArmedPin(null);
+                  await onResetPin(c.code);
+                }}
+              >
+                <Text style={styles.secondaryText}>
+                  {busy === `pin-${c.code}` ? "..." : armedPin === c.code ? "Tap again: new PIN (unlinks their account)" : "New PIN"}
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
           {!c.active ? <Text style={styles.hint}>Switched off: new applications can't use it.</Text> : null}
         </View>
       ))}
