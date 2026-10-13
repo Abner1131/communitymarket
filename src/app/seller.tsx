@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StaleNote } from "../components/StaleNote";
 import { useScreenCache } from "../lib/screenCache";
+import { useLiveRefresh } from "../lib/useLiveRefresh";
 import {
   Pressable,
   RefreshControl,
@@ -42,7 +43,7 @@ import {
 import { getCurrentUserLocation } from "../services/location";
 
 const NAIRA = "₦";
-const REFRESH_EVERY_MS = 20000;
+const REFRESH_EVERY_MS = 30000;
 
 const ORDER_STATUS: Record<string, { text: string; color: string }> = {
   paid: { text: "NEW · PAID", color: "#b26a00" },
@@ -576,12 +577,11 @@ export default function SellerScreen() {
   useEffect(() => {
     mounted.current = true;
     void run(null, "me");
-    const timer = setInterval(() => void run(null, "me"), REFRESH_EVERY_MS);
     return () => {
       mounted.current = false;
-      clearInterval(timer);
     };
   }, [run]);
+  useLiveRefresh(() => void run(null, "me"), REFRESH_EVERY_MS);
 
   async function replyToReport(orderId: string, text: string): Promise<string | null> {
     try {

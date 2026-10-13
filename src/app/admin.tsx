@@ -23,6 +23,7 @@ import { Image } from "expo-image";
 import { AdminLogs } from "../components/AdminLogs";
 import { AdminMoney } from "../components/AdminMoney";
 import { AdminPricing } from "../components/AdminPricing";
+import { useLiveRefresh } from "../lib/useLiveRefresh";
 import {
   adminAction,
   AdminApiError,
@@ -36,7 +37,8 @@ import {
 } from "../lib/adminApi";
 
 const NAIRA = "₦";
-const REFRESH_EVERY_MS = 20000;
+// Refresh only while the admin screen is open in front of you (see useLiveRefresh).
+const REFRESH_EVERY_MS = 60000;
 
 type Tab = "today" | "applications" | "orders" | "money" | "people" | "settings" | "records";
 
@@ -630,13 +632,12 @@ export default function AdminScreen() {
   useEffect(() => {
     mounted.current = true;
     void run(null, "overview");
-    const timer = setInterval(() => void run(null, "overview"), REFRESH_EVERY_MS);
     return () => {
       mounted.current = false;
-      clearInterval(timer);
       if (armTimer.current) clearTimeout(armTimer.current);
     };
   }, [run]);
+  useLiveRefresh(() => void run(null, "overview"), REFRESH_EVERY_MS);
 
   function arm(key: string) {
     setArmed(key);

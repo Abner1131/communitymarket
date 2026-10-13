@@ -10,6 +10,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StaleNote } from "../components/StaleNote";
 import { useScreenCache } from "../lib/screenCache";
+import { useLiveRefresh } from "../lib/useLiveRefresh";
 import {
   Alert,
   Linking,
@@ -202,9 +203,9 @@ export default function RiderScreen() {
     }
     setLoading(true);
     void run(null, "me", {}, true);
-    const timer = setInterval(() => void run(null, "me"), REFRESH_EVERY_MS);
-    return () => clearInterval(timer);
   }, [firebaseUser, run]);
+  // Keep new trips coming in, but only while this screen is open in front of the rider.
+  useLiveRefresh(() => void run(null, "me"), REFRESH_EVERY_MS, Boolean(firebaseUser));
 
   const rider = state?.rider;
   const trip = state?.trip;
