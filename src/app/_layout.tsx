@@ -1,3 +1,4 @@
+import { useFonts } from "expo-font";
 import { Stack, usePathname, useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Appearance, Platform } from "react-native";
@@ -5,6 +6,7 @@ import { Appearance, Platform } from "react-native";
 import { UpdateGate } from "../components/UpdateGate";
 import { PolicyGate } from "../components/PolicyGate";
 import { BrandIntro } from "../components/Brand";
+import { FONT_FILES } from "../theme";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
@@ -127,6 +129,9 @@ function AppNavigator() {
 }
 
 export default function RootLayout() {
+  // Brand fonts (load in a moment; until then the phone's own font shows).
+  useFonts(FONT_FILES);
+
   return (
     <AuthProvider>
       <RiderProvider>

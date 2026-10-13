@@ -32,6 +32,10 @@ export const BRAND = {
 
 const MARK = require("../../assets/images/brand/logo-mark.png");
 const MARK_STILL = require("../../assets/images/brand/logo-mark-dot.png");
+const MARK_TILE = require("../../assets/images/brand/logo-tile.png");
+// Versions with a green M, for loading animations on light screens.
+const MARK_LIGHT = require("../../assets/images/brand/logo-mark-light.png");
+const MARK_LIGHT_STILL = require("../../assets/images/brand/logo-mark-light-dot.png");
 const WORDMARK_DARK = require("../../assets/images/brand/wordmark-dark.png");
 const WORDMARK_LIGHT = require("../../assets/images/brand/wordmark-light.png");
 const WORDMARK_RATIO = 1085 / 114; // width / height of the wordmark pictures
@@ -64,10 +68,22 @@ export function useReduceMotion() {
   return reduce;
 }
 
-export function BrandMark({ size = 40, style }: { size?: number; style?: StyleProp<ViewStyle> }) {
+/**
+ * The still logo. On light screens (default) it sits on its green app-icon
+ * tile, so the cream M stays visible; on green screens use onGreen.
+ */
+export function BrandMark({
+  size = 40,
+  style,
+  onGreen = false,
+}: {
+  size?: number;
+  style?: StyleProp<ViewStyle>;
+  onGreen?: boolean;
+}) {
   return (
     <View style={style} accessible accessibilityRole="image" accessibilityLabel="CommunityMarket">
-      <Image source={MARK_STILL} style={{ width: size, height: size }} resizeMode="contain" />
+      <Image source={onGreen ? MARK_STILL : MARK_TILE} style={{ width: size, height: size }} resizeMode="contain" />
     </View>
   );
 }
@@ -84,7 +100,17 @@ export function BrandWordmark({ height = 22, light = false }: { height?: number;
 }
 
 // The rider dot, placed on the C; turning the box moves it along the road.
-function RiderDot({ size, spin, opacity }: { size: number; spin: Animated.Value; opacity: Animated.AnimatedInterpolation<number> | number }) {
+function RiderDot({
+  size,
+  spin,
+  opacity,
+  light = false,
+}: {
+  size: number;
+  spin: Animated.Value;
+  opacity: Animated.AnimatedInterpolation<number> | number;
+  light?: boolean;
+}) {
   const r = size * DOT_R;
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: [ROTATE_FROM, ROTATE_TO] });
   return (
@@ -97,19 +123,27 @@ function RiderDot({ size, spin, opacity }: { size: number; spin: Animated.Value;
           width: r * 2,
           height: r * 2,
           borderRadius: r,
-          backgroundColor: BRAND.cream,
+          backgroundColor: light ? BRAND.green : BRAND.cream,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <View style={{ width: r * 0.9, height: r * 0.9, borderRadius: r, backgroundColor: BRAND.green }} />
+        <View style={{ width: r * 0.9, height: r * 0.9, borderRadius: r, backgroundColor: light ? BRAND.cream : BRAND.green }} />
       </View>
     </Animated.View>
   );
 }
 
 /** Loading animation: the rider dot keeps travelling round the C. */
-export function BrandLoader({ size = 56, style }: { size?: number; style?: StyleProp<ViewStyle> }) {
+export function BrandLoader({
+  size = 56,
+  style,
+  onGreen = false,
+}: {
+  size?: number;
+  style?: StyleProp<ViewStyle>;
+  onGreen?: boolean;
+}) {
   const reduce = useReduceMotion();
   const spin = useRef(new Animated.Value(0)).current;
 
@@ -131,15 +165,15 @@ export function BrandLoader({ size = 56, style }: { size?: number; style?: Style
   if (reduce !== false) {
     return (
       <View style={box} accessibilityRole="progressbar" accessibilityLabel="Loading">
-        <Image source={MARK_STILL} style={{ width: size, height: size }} resizeMode="contain" />
+        <Image source={onGreen ? MARK_STILL : MARK_LIGHT_STILL} style={{ width: size, height: size }} resizeMode="contain" />
       </View>
     );
   }
   const opacity = spin.interpolate({ inputRange: [0, 0.1, 0.88, 1], outputRange: [0, 1, 1, 0] });
   return (
     <View style={box} accessibilityRole="progressbar" accessibilityLabel="Loading">
-      <Image source={MARK} style={{ width: size, height: size }} resizeMode="contain" />
-      <RiderDot size={size} spin={spin} opacity={opacity} />
+      <Image source={onGreen ? MARK : MARK_LIGHT} style={{ width: size, height: size }} resizeMode="contain" />
+      <RiderDot size={size} spin={spin} opacity={opacity} light={!onGreen} />
     </View>
   );
 }

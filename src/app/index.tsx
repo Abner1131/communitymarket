@@ -1,4 +1,3 @@
-
 import { router } from "expo-router";
 import { Image } from "expo-image";
 import { useEffect, useMemo, useState } from "react";
@@ -9,17 +8,22 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BrandMark, BrandWordmark } from "../components/Brand";
-
 import { HomeWalletCard } from "../components/HomeWalletCard";
+import { Icon, categoryIcon, type IconName } from "../components/Icon";
 import PoweredByGreenFusion from "../components/PoweredByGreenFusion";
+import { TAB_BAR_SPACE, TabBar } from "../components/TabBar";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { products } from "../data/products";
-import { emojiFor, subscribeCatalog } from "../lib/catalog";
+import { subscribeCatalog } from "../lib/catalog";
 import { hasOptions, optionSummary, priceRange } from "../lib/variants";
+import { colors, fonts, radius, shadow, text, ui } from "../theme";
+
 const categories = [
   "All",
   "Groceries",
@@ -35,95 +39,54 @@ const categories = [
 ];
 
 /*
- * ASCII-safe symbol definitions.
- * Unicode is represented by escape sequences so
- * the source file itself cannot become mojibake.
- */
-const UI = {
-  bullet: "\u2022",
-  naira: "\u20A6",
-
-  cart: "\u{1F6D2}",
-  person: "\u{1F464}",
-  products: "\u{1F4E6}",
-  wallet: "\u{1F4B0}",
-  card: "\u{1F4B3}",
-  shop: "\u{1F3EA}",
-  delivery: "\u{1F69A}",
-  search: "\u{1F50D}",
-
-  rice: "\u{1F35A}",
-  cookingOil: "\u{1F6E2}\uFE0F",
-  phone: "\u{1F4F1}",
-  earbuds: "\u{1F3A7}",
-  detergent: "\u{1F9F4}",
-  sneakers: "\u{1F45F}",
-  maize: "\u{1F33D}",
-  lotion: "\u{1F9F4}",
-
-  home: "\u2302",
-  back: "\u2190",
-  forward: "\u203A",
-  admin: "\u{1F6E1}\uFE0F",
-  withdraw: "\u2197",
-} as const;
-
-/*
  * Existing products.ts does not contain isActive.
  * This local type adds the marketplace status without
  * changing your existing products.ts structure.
  */
-type MarketplaceProduct =
-  (typeof products)[number] & {
-    isActive: boolean;
-  };
-
-/*
- * Product emojis are defined safely here instead of
- * relying on the currently corrupted emoji values in
- * src/data/products.ts.
- */
-const productEmojiById: Record<
-  string,
-  string
-> = {
-  "1": UI.rice,
-  "2": UI.cookingOil,
-  "3": UI.phone,
-  "4": UI.earbuds,
-  "5": UI.detergent,
-  "6": UI.sneakers,
-  "7": UI.maize,
-  "8": UI.lotion,
+type MarketplaceProduct = (typeof products)[number] & {
+  isActive: boolean;
 };
 
+// Soft photo-frame colours for products without a photo, by category.
+const TILE_TINTS: Record<string, { bg: string; icon: string }> = {
+  Groceries: { bg: "#f2e9d3", icon: "#9a7b3c" },
+  Food: { bg: "#f2e9d3", icon: "#9a7b3c" },
+  Agriculture: { bg: "#e6eedc", icon: "#56703a" },
+  Phones: { bg: "#e3ece4", icon: "#3f6b52" },
+  Electronics: { bg: "#e3ece4", icon: "#3f6b52" },
+  Fashion: { bg: "#efe4dc", icon: "#8a5a45" },
+  Beauty: { bg: "#f1e3e3", icon: "#8f4f5a" },
+  Health: { bg: "#f1e3e3", icon: "#8f4f5a" },
+  Household: { bg: "#e6e8ee", icon: "#4f5a70" },
+};
+const DEFAULT_TINT = { bg: "#eee9df", icon: "#6f6a5e" };
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+const naira = (n: number) => `₦${n.toLocaleString()}`;
+
 export default function HomeScreen() {
-  const [selectedCategory, setSelectedCategory] =
-    useState("All");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [search, setSearch] = useState("");
+  const [marketProducts, setMarketProducts] = useState<MarketplaceProduct[]>([]);
 
-  const [search, setSearch] =
-    useState("");
-
-  const [marketProducts, setMarketProducts] =
-    useState<MarketplaceProduct[]>([]);
-
-  const {
-    cartCount,
-    cartTotal,
-    addToCart,
-  } = useCart();
-
-  const { user } =
-    useAuth();
+  const { cartCount, cartTotal, addToCart } = useCart();
+  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const cardWidth = Math.floor((width - 40 - 12) / 2);
 
   /*
    * Live catalogue from the database: every customer sees the same
    * products, and sellers' changes appear instantly.
    */
-  const [catalogLoaded, setCatalogLoaded] =
-    useState(false);
-  const [catalogError, setCatalogError] =
-    useState("");
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [catalogError, setCatalogError] = useState("");
 
   useEffect(() => {
     return subscribeCatalog(
@@ -144,382 +107,130 @@ export default function HomeScreen() {
    * Only active products with stock available
    * are shown to customers.
    */
-  const filteredProducts =
-    useMemo(() => {
-      const normalizedSearch =
-        search
-          .trim()
-          .toLowerCase();
+  const filteredProducts = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
 
-      return marketProducts.filter(
-        (product) => {
-          if (
-            product.isActive ===
-              false ||
-            product.stock <= 0
-          ) {
-            return false;
-          }
+    return marketProducts.filter((product) => {
+      if (product.isActive === false || product.stock <= 0) {
+        return false;
+      }
 
-          const matchesCategory =
-            selectedCategory ===
-              "All" ||
-            product.category ===
-              selectedCategory;
+      const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
 
-          // Name, category, description and the search words in
-          // English, Hausa, Pidgin, Yoruba and Igbo.
-          const matchesSearch =
-            !normalizedSearch ||
-            product.name
-              .toLowerCase()
-              .includes(
-                normalizedSearch
-              ) ||
-            product.category
-              .toLowerCase()
-              .includes(
-                normalizedSearch
-              ) ||
-            (product.description || "")
-              .toLowerCase()
-              .includes(
-                normalizedSearch
-              ) ||
-            (product.searchWords || []).some(
-              (w) =>
-                w.includes(normalizedSearch) ||
-                (w.length >= 3 &&
-                  normalizedSearch.includes(w))
-            );
+      // Name, category, description and the search words in
+      // English, Hausa, Pidgin, Yoruba and Igbo.
+      const matchesSearch =
+        !normalizedSearch ||
+        product.name.toLowerCase().includes(normalizedSearch) ||
+        product.category.toLowerCase().includes(normalizedSearch) ||
+        (product.description || "").toLowerCase().includes(normalizedSearch) ||
+        (product.searchWords || []).some(
+          (w) => w.includes(normalizedSearch) || (w.length >= 3 && normalizedSearch.includes(w)),
+        );
 
-          return (
-            matchesCategory &&
-            matchesSearch
-          );
-        }
-      );
-    }, [
-      marketProducts,
-      selectedCategory,
-      search,
-    ]);
+      return matchesCategory && matchesSearch;
+    });
+  }, [marketProducts, selectedCategory, search]);
 
-  const canAccessDelivery =
-    user?.role === "rider" ||
-    user?.role === "admin";
-
-  const isSeller =
-    user?.role === "seller";
-
-  const isCustomer =
-    user?.role === "customer";
+  const canAccessDelivery = user?.role === "rider" || user?.role === "admin";
+  const isSeller = user?.role === "seller";
+  const isCustomer = user?.role === "customer";
+  const firstName = (user?.name || "").trim().split(/\s+/)[0];
 
   return (
-    <View
-      style={styles.container}
-    >
+    <View style={ui.screen}>
+      <View style={ui.glow} pointerEvents="none" />
+
       {/* HEADER */}
-      <View
-        style={styles.header}
-      >
-        <View
-          style={styles.headerLeft}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.logoRow} accessible accessibilityRole="header" accessibilityLabel="CommunityMarket">
+          <BrandMark size={30} />
+          <BrandWordmark height={18} />
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [ui.iconButton, pressed && styles.pressed]}
+          onPress={() => router.push("/account")}
+          accessibilityLabel="Account"
         >
-          <View
-            style={styles.logoRow}
-            accessible
-            accessibilityRole="header"
-            accessibilityLabel="CommunityMarket"
-          >
-            <BrandMark size={30} />
-            <BrandWordmark height={19} />
-          </View>
-
-          <Text
-            style={styles.subtitle}
-          >
-            Buy {UI.bullet} Sell{" "}
-            {UI.bullet} Connect{" "}
-            {UI.bullet} Grow
-          </Text>
-
-          {user && (
-            <Text
-              style={
-                styles.welcomeText
-              }
-            >
-              Welcome, {user.name}
-            </Text>
+          {firstName ? (
+            <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
+          ) : (
+            <Icon name="user" size={20} color={colors.ink} />
           )}
-        </View>
-
-        <View
-          style={
-            styles.headerActions
-          }
-        >
-          <Pressable
-            style={
-              styles.cartBadge
-            }
-            onPress={() =>
-              router.push("/cart")
-            }
-          >
-            <Text
-              style={
-                styles.cartBadgeText
-              }
-            >
-              {UI.cart} {cartCount}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={
-              styles.accountButton
-            }
-            onPress={() =>
-              router.push(
-                "/account"
-              )
-            }
-          >
-            <Text
-              style={
-                styles.accountButtonText
-              }
-            >
-              {UI.person}
-            </Text>
-          </Pressable>
-        </View>
+        </Pressable>
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.scrollContent
-        }
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* ACCOUNT INFO */}
-        {user && (
-          <View
-            style={
-              styles.accountBar
-            }
-          >
-            <View>
-              <Text
-                style={
-                  styles.accountName
-                }
-              >
-                {user.name}
-              </Text>
-
-              <Text
-                style={
-                  styles.accountPhone
-                }
-              >
-                {user.phone}
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.roleBadge
-              }
-            >
-              <Text
-                style={
-                  styles.roleBadgeText
-                }
-              >
-                {user.role.toUpperCase()}
-              </Text>
-            </View>
-          </View>
-        )}
+        {/* GREETING */}
+        <View style={styles.greeting}>
+          <Text style={text.small}>
+            {greeting()}
+            {firstName ? `, ${firstName}` : ""}
+          </Text>
+          <Text style={text.hero}>What do you need today?</Text>
+        </View>
 
         {/* SEARCH */}
-        <TextInput
-          style={styles.search}
-          placeholder={`${UI.search} Search products...`}
-          value={search}
-          onChangeText={
-            setSearch
-          }
-        />
+        <View style={styles.search}>
+          <Icon name="search" size={19} color={colors.muted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search rice, phones, fabric…"
+            placeholderTextColor={colors.faint}
+            value={search}
+            onChangeText={setSearch}
+            accessibilityLabel="Search products"
+            returnKeyType="search"
+          />
+          {search ? (
+            <Pressable onPress={() => setSearch("")} hitSlop={10} accessibilityLabel="Clear search">
+              <Icon name="x" size={18} color={colors.muted} />
+            </Pressable>
+          ) : null}
+        </View>
 
-        {/* ADMIN */}
+        {/* STAFF SHORTCUTS */}
         {user?.role === "admin" && (
-          <Pressable
-            style={[styles.riderButton, { borderLeftWidth: 5, borderLeftColor: "#b00020" }]}
+          <Shortcut
+            icon="shield"
+            tint={colors.dangerSoft}
+            iconColor={colors.danger}
+            title="Admin Dashboard"
+            subtitle="Applications, today's numbers, live trips"
             onPress={() => router.push("/admin" as any)}
-          >
-            <Text style={styles.riderIcon}>{UI.admin}</Text>
-            <View style={styles.riderInfo}>
-              <Text style={styles.riderTitle}>Admin Dashboard</Text>
-              <Text style={styles.riderSubtitle}>Applications, today's numbers, live trips</Text>
-            </View>
-            <Text style={styles.riderArrow}>{UI.forward}</Text>
-          </Pressable>
+          />
         )}
 
-        {/* RIDER / DELIVERY */}
         {canAccessDelivery && (
-          <Pressable
-            style={
-              styles.riderButton
-            }
-            onPress={() =>
-              router.push(
-                "/rider" as any
-              )
-            }
-          >
-            <Text
-              style={styles.riderIcon}
-            >
-              {UI.delivery}
-            </Text>
-
-            <View
-              style={styles.riderInfo}
-            >
-              <Text
-                style={styles.riderTitle}
-              >
-                Rider / Delivery
-              </Text>
-
-              <Text
-                style={
-                  styles.riderSubtitle
-                }
-              >
-                Open the delivery
-                dashboard
-              </Text>
-            </View>
-
-            <Text
-              style={styles.riderArrow}
-            >
-              {UI.forward}
-            </Text>
-          </Pressable>
+          <Shortcut
+            icon="bike"
+            title="Rider / Delivery"
+            subtitle="Open the delivery dashboard"
+            onPress={() => router.push("/rider" as any)}
+          />
         )}
 
-        {/* SELLER DASHBOARD */}
         {isSeller && (
           <>
-            <Pressable
-              style={
-                styles.roleActionCard
-              }
-              onPress={() =>
-                router.push(
-                  "/account"
-                )
-              }
-            >
-              <Text
-                style={
-                  styles.roleActionIcon
-                }
-              >
-                {UI.shop}
-              </Text>
-
-              <View
-                style={
-                  styles.roleActionInfo
-                }
-              >
-                <Text
-                  style={
-                    styles.roleActionTitle
-                  }
-                >
-                  Seller Dashboard
-                </Text>
-
-                <Text
-                  style={
-                    styles.roleActionSubtitle
-                  }
-                >
-                  Manage your seller
-                  profile and account
-                </Text>
-              </View>
-
-              <Text
-                style={
-                  styles.roleActionArrow
-                }
-              >
-                {UI.forward}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={
-                styles.roleActionCard
-              }
-              onPress={() =>
-                router.push(
-                  "/seller" as any
-                )
-              }
-            >
-              <Text
-                style={
-                  styles.roleActionIcon
-                }
-              >
-                {UI.products}
-              </Text>
-
-              <View
-                style={
-                  styles.roleActionInfo
-                }
-              >
-                <Text
-                  style={
-                    styles.roleActionTitle
-                  }
-                >
-                  My Products
-                </Text>
-
-                <Text
-                  style={
-                    styles.roleActionSubtitle
-                  }
-                >
-                  View your catalog
-                  products, prices
-                  and stock
-                </Text>
-              </View>
-
-              <Text
-                style={
-                  styles.roleActionArrow
-                }
-              >
-                {UI.forward}
-              </Text>
-            </Pressable>
+            <Shortcut
+              icon="store"
+              title="Seller Dashboard"
+              subtitle="Manage your seller profile and account"
+              onPress={() => router.push("/account")}
+            />
+            <Shortcut
+              icon="package"
+              tint={colors.goldSoft}
+              iconColor={colors.goldText}
+              title="My Products"
+              subtitle="View your catalog products, prices and stock"
+              onPress={() => router.push("/seller" as any)}
+            />
           </>
         )}
 
@@ -527,110 +238,64 @@ export default function HomeScreen() {
         <HomeWalletCard />
 
         {/* CATEGORIES */}
-        <Text
-          style={styles.title}
-        >
-          Categories
-        </Text>
-
         <ScrollView
           horizontal
-          showsHorizontalScrollIndicator={
-            false
-          }
-          style={
-            styles.categoryScroll
-          }
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryScroll}
+          contentContainerStyle={styles.categoryRow}
         >
-          {categories.map(
-            (category) => (
+          {categories.map((category) => {
+            const on = selectedCategory === category;
+            return (
               <Pressable
                 key={category}
-                onPress={() =>
-                  setSelectedCategory(
-                    category
-                  )
-                }
-                style={[
-                  styles.categoryButton,
-                  selectedCategory ===
-                    category &&
-                    styles.categoryButtonActive,
-                ]}
+                onPress={() => setSelectedCategory(category)}
+                style={styles.category}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={category}
               >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    selectedCategory ===
-                      category &&
-                      styles.categoryTextActive,
-                  ]}
-                >
-                  {category}
+                <View style={[styles.categoryTile, on && styles.categoryTileOn]}>
+                  <Icon name={categoryIcon(category)} size={24} color={on ? "#ffffff" : colors.ink} />
+                </View>
+                <Text style={[styles.categoryText, on && styles.categoryTextOn]} numberOfLines={1}>
+                  {category === "Agriculture" ? "Farm" : category}
                 </Text>
               </Pressable>
-            )
-          )}
+            );
+          })}
         </ScrollView>
 
         {/* PRODUCTS HEADER */}
-        <View
-          style={
-            styles.productHeader
-          }
-        >
-          <Text style={styles.title}>
-            {selectedCategory ===
-            "All"
-              ? "Popular Products"
-              : selectedCategory}
-          </Text>
-
-          <Text
-            style={
-              styles.productCount
-            }
-          >
-            {filteredProducts.length}{" "}
-            items
+        <View style={styles.productHeader}>
+          <Text style={text.section}>{selectedCategory === "All" ? "Popular products" : selectedCategory}</Text>
+          <Text style={text.small}>
+            {filteredProducts.length} {filteredProducts.length === 1 ? "item" : "items"}
           </Text>
         </View>
 
         {/* PRODUCTS */}
-        <View
-          style={styles.products}
-        >
-          {!catalogLoaded ? (
-            <Text style={{ color: "#777", padding: 12 }}>
-              Loading products...
-            </Text>
-          ) : catalogError ? (
-            <Text style={{ color: "#b00020", padding: 12 }}>
-              {catalogError}
-            </Text>
-          ) : filteredProducts.length === 0 ? (
-            <Text style={{ color: "#777", padding: 12 }}>
-              No products found.
-            </Text>
-          ) : null}
+        {!catalogLoaded ? (
+          <Text style={styles.note}>Loading products...</Text>
+        ) : catalogError ? (
+          <Text style={[styles.note, { color: colors.danger }]}>{catalogError}</Text>
+        ) : filteredProducts.length === 0 ? (
+          <Text style={styles.note}>No products found.</Text>
+        ) : null}
 
-          {filteredProducts.map(
-            (product) => (
-              <View
-                key={product.id}
-                style={
-                  styles.productCard
-                }
-              >
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: "/product",
-                      params: { id: String(product.id) },
-                    } as any)
-                  }
-                  accessibilityLabel={`Open ${product.name}`}
-                >
+        <View style={styles.products}>
+          {filteredProducts.map((product) => {
+            const tint = TILE_TINTS[product.category] || DEFAULT_TINT;
+            const range = priceRange(product);
+            const options = hasOptions(product);
+            const open = () =>
+              router.push({
+                pathname: "/product",
+                params: { id: String(product.id) },
+              } as any);
+            return (
+              <View key={product.id} style={[styles.productCard, { width: cardWidth }]}>
+                <Pressable onPress={open} accessibilityLabel={`Open ${product.name}`}>
                   {product.thumbUrl ? (
                     <Image
                       source={{ uri: product.thumbUrl }}
@@ -640,715 +305,252 @@ export default function HomeScreen() {
                       transition={150}
                     />
                   ) : (
-                    <Text
-                      style={
-                        styles.productEmoji
-                      }
-                    >
-                      {emojiFor(
-                        String(product.id),
-                        product.category
-                      )}
-                    </Text>
+                    <View style={[styles.productPhoto, styles.productTile, { backgroundColor: tint.bg }]}>
+                      <Icon name={categoryIcon(product.category)} size={44} color={tint.icon} />
+                    </View>
                   )}
 
-                  <Text
-                    style={
-                      styles.productName
-                    }
-                  >
-                    {product.name}
-                  </Text>
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {product.name}
+                    </Text>
+                    <Text style={styles.seller} numberOfLines={1}>
+                      {product.seller}
+                    </Text>
+                    {options ? (
+                      <Text style={styles.optionText} numberOfLines={1}>
+                        {optionSummary(product)}
+                      </Text>
+                    ) : null}
+                  </View>
                 </Pressable>
 
-                <Text
-                  style={styles.seller}
-                >
-                  {product.seller}
-                </Text>
-
-                <Text
-                  style={
-                    styles.productPrice
-                  }
-                >
-                  {hasOptions(product) && priceRange(product).min !== priceRange(product).max ? "from " : ""}
-                  {UI.naira}
-                  {priceRange(product).min.toLocaleString()}
-                </Text>
-
-                <Text
-                  style={
-                    styles.productStock
-                  }
-                >
-                  {hasOptions(product)
-                    ? `${optionSummary(product)} · ${product.stock} in stock`
-                    : `${product.stock} in stock`}
-                </Text>
-
-                <Pressable
-                  style={[
-                    styles.addButton,
-                    product.stock <=
-                      0 &&
-                      styles.addButtonDisabled,
-                  ]}
-                  onPress={() => {
-                    if (
-                      product.stock <=
-                      0
-                    ) {
-                      return;
-                    }
-
-                    // Sizes / colours are chosen on the product page.
-                    if (hasOptions(product)) {
-                      router.push({ pathname: "/product", params: { id: product.id } });
-                      return;
-                    }
-
-                    addToCart(
-                      product
-                    );
-                  }}
-                  disabled={
-                    product.stock <=
-                    0
-                  }
-                >
-                  <Text
-                    style={
-                      styles.addButtonText
-                    }
-                  >
-                    {product.stock >
-                    0
-                      ? hasOptions(product)
-                        ? `Choose ${((product.options || [])[0]?.name || "option").toLowerCase()}`
-                        : "+ Add to Cart"
-                      : "Out of Stock"}
+                <View style={styles.priceRow}>
+                  <Text style={styles.productPrice} numberOfLines={1}>
+                    {options && range.min !== range.max ? <Text style={styles.from}>from </Text> : null}
+                    {naira(range.min)}
                   </Text>
-                </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.addButton, pressed && { backgroundColor: colors.greenPressed }]}
+                    onPress={() => {
+                      // Sizes / colours are chosen on the product page.
+                      if (options) {
+                        open();
+                        return;
+                      }
+                      addToCart(product);
+                    }}
+                    accessibilityLabel={
+                      options
+                        ? `Choose ${((product.options || [])[0]?.name || "option").toLowerCase()} for ${product.name}`
+                        : `Add ${product.name} to cart`
+                    }
+                    hitSlop={6}
+                  >
+                    <Icon name={options ? "chevron-right" : "plus"} size={18} color="#ffffff" />
+                  </Pressable>
+                </View>
               </View>
-            )
-          )}
+            );
+          })}
         </View>
 
         {/* CART SUMMARY */}
         {cartCount > 0 && (
-          <View
-            style={
-              styles.cartSummary
-            }
-          >
-            <Text
-              style={
-                styles.cartTitle
-              }
-            >
-              {UI.cart} Your Cart
-            </Text>
-
-            <Text>
-              {cartCount} item(s)
-            </Text>
-
-            <Text
-              style={
-                styles.cartTotal
-              }
-            >
-              {UI.naira}
-              {cartTotal.toLocaleString()}
-            </Text>
-
-            <Pressable
-              style={
-                styles.checkoutButton
-              }
-              onPress={() =>
-                router.push(
-                  "/checkout"
-                )
-              }
-            >
-              <Text
-                style={
-                  styles.checkoutText
-                }
-              >
-                Review & Checkout
+          <View style={styles.cartSummary}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cartLabel}>
+                {cartCount} {cartCount === 1 ? "item" : "items"} in your cart
               </Text>
+              <Text style={styles.cartTotal}>{naira(cartTotal)}</Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.cartButton, pressed && { opacity: 0.85 }]}
+              onPress={() => router.push("/checkout")}
+            >
+              <Text style={styles.cartButtonText}>Review & checkout</Text>
             </Pressable>
           </View>
         )}
 
         {/* SELLER CTA FOR CUSTOMERS */}
         {isCustomer && (
-          <View
-            style={
-              styles.sellerBox
-            }
-          >
-            <Text
-              style={
-                styles.sellerTitle
-              }
-            >
-              {UI.shop} Sell on
-              CommunityMarket
-            </Text>
-
-            <Text
-              style={
-                styles.sellerDescription
-              }
-            >
-              List your products and
-              reach customers in your
-              community.
-            </Text>
-
+          <View style={styles.sellerBox}>
+            <View style={styles.sellerIcon}>
+              <Icon name="store" size={22} color={colors.green} />
+            </View>
+            <Text style={styles.sellerTitle}>Sell on CommunityMarket</Text>
+            <Text style={text.small}>List your products and reach customers in your community.</Text>
             <Pressable
-              style={
-                styles.sellerButton
-              }
-              onPress={() =>
-                router.push(
-                  "/account"
-                )
-              }
+              style={({ pressed }) => [styles.sellerButton, pressed && styles.pressed]}
+              onPress={() => router.push("/account")}
             >
-              <Text
-                style={
-                  styles.sellerButtonText
-                }
-              >
-                Become a Seller
-              </Text>
+              <Text style={styles.sellerButtonText}>Become a seller</Text>
             </Pressable>
           </View>
         )}
 
         <PoweredByGreenFusion />
-
-<View
-  style={{ height: 80 }}
-/>
+        <View style={{ height: TAB_BAR_SPACE }} />
       </ScrollView>
 
-      {/* BOTTOM NAVIGATION */}
-      <View
-        style={styles.bottomNav}
-      >
-        <Pressable
-          onPress={() =>
-            router.replace("/")
-          }
-        >
-          <Text
-            style={styles.navIcon}
-          >
-            {UI.home}
-          </Text>
-
-          <Text
-            style={styles.navText}
-          >
-            Home
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() =>
-            router.push("/cart")
-          }
-        >
-          <Text
-            style={styles.navIcon}
-          >
-            {UI.cart}
-          </Text>
-
-          <Text
-            style={styles.navText}
-          >
-            Cart
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() =>
-            router.push("/orders")
-          }
-        >
-          <Text
-            style={styles.navIcon}
-          >
-            {UI.products}
-          </Text>
-
-          <Text
-            style={styles.navText}
-          >
-            Orders
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() =>
-            router.push("/wallet")
-          }
-        >
-          <Text
-            style={styles.navIcon}
-          >
-            {UI.wallet}
-          </Text>
-
-          <Text
-            style={styles.navText}
-          >
-            Wallet
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() =>
-            router.push("/account")
-          }
-        >
-          <Text
-            style={styles.navIcon}
-          >
-            {UI.person}
-          </Text>
-
-          <Text
-            style={styles.navText}
-          >
-            Account
-          </Text>
-        </Pressable>
-      </View>
+      <TabBar active="home" />
     </View>
   );
 }
 
+function Shortcut({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  tint = colors.greenSoft,
+  iconColor = colors.green,
+}: {
+  icon: IconName;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  tint?: string;
+  iconColor?: string;
+}) {
+  return (
+    <Pressable style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]} onPress={onPress}>
+      <View style={[styles.shortcutIcon, { backgroundColor: tint }]}>
+        <Icon name={icon} size={21} color={iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={text.bodyStrong}>{title}</Text>
+        <Text style={text.small}>{subtitle}</Text>
+      </View>
+      <Icon name="chevron-right" size={20} color={colors.faint} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f6f8",
-  },
-
-  scrollContent: {
-    paddingBottom: 20,
-  },
-
   header: {
-    paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 15,
-    backgroundColor: "#fff",
+    paddingBottom: 10,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
   },
+  logoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  avatarText: { fontFamily: fonts.bold, fontSize: 16, color: colors.green },
+  pressed: { opacity: 0.7 },
 
-  headerLeft: {
-    flex: 1,
-    paddingRight: 12,
-  },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 8 },
+  greeting: { gap: 4, marginBottom: 16 },
 
-  headerActions: {
+  search: {
+    height: 52,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    ...shadow.card,
   },
+  searchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: colors.ink, paddingVertical: 0 },
 
-  logoRow: {
+  shortcut: {
+    ...ui.card,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
+    padding: 14,
+    marginBottom: 12,
   },
+  shortcutIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
 
-  subtitle: {
-    color: "#666",
-    marginTop: 4,
+  categoryScroll: { marginHorizontal: -20, marginTop: 4, marginBottom: 18 },
+  categoryRow: { paddingHorizontal: 20, gap: 10, paddingVertical: 6 },
+  category: { width: 66, alignItems: "center", gap: 7 },
+  categoryTile: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadow.card,
   },
+  categoryTileOn: { backgroundColor: colors.green, ...shadow.button },
+  categoryText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink2 },
+  categoryTextOn: { color: colors.ink },
 
-  welcomeText: {
-    color: "#444",
-    marginTop: 6,
-    fontSize: 13,
-    fontWeight: "600",
+  productHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
+  note: { ...text.small, paddingVertical: 12 },
 
-  cartBadge: {
-    backgroundColor: "#eeeeee",
-    padding: 10,
-    borderRadius: 20,
+  products: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  productCard: { ...ui.card, padding: 8, gap: 8 },
+  productPhoto: { width: "100%", height: 124, borderRadius: 14, backgroundColor: colors.chip },
+  productTile: { alignItems: "center", justifyContent: "center" },
+  productInfo: { paddingHorizontal: 4, paddingTop: 8, gap: 2 },
+  productName: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 18, color: colors.ink },
+  seller: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  optionText: { fontFamily: fonts.medium, fontSize: 12, color: colors.goldText },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingBottom: 4,
+    gap: 6,
   },
-
-  cartBadgeText: {
-    fontWeight: "700",
-  },
-
-  accountButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#eeeeee",
+  productPrice: { ...text.price, flexShrink: 1 },
+  from: { fontFamily: fonts.medium, fontSize: 12, color: colors.muted },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.green,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  accountButtonText: {
-    fontSize: 18,
-  },
-
-  accountBar: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    padding: 16,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  accountName: {
-    fontSize: 17,
-    fontWeight: "800",
-  },
-
-  accountPhone: {
-    marginTop: 4,
-    fontSize: 13,
-    color: "#777",
-  },
-
-  roleBadge: {
-    backgroundColor: "#222",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-
-  roleBadgeText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "800",
-  },
-
-  search: {
-    margin: 20,
-    marginBottom: 12,
-    padding: 15,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-  },
-
-  riderButton: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    padding: 16,
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    elevation: 2,
-  },
-
-  riderIcon: {
-    fontSize: 34,
-    marginRight: 12,
-  },
-
-  riderInfo: {
-    flex: 1,
-  },
-
-  riderTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-  },
-
-  riderSubtitle: {
-    marginTop: 4,
-    color: "#777",
-    fontSize: 12,
-  },
-
-  riderArrow: {
-    fontSize: 32,
-    color: "#2e7d32",
-    marginLeft: 8,
-  },
-
-  roleActionCard: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    padding: 16,
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    elevation: 2,
-  },
-
-  roleActionIcon: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-
-  roleActionInfo: {
-    flex: 1,
-  },
-
-  roleActionTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-  },
-
-  roleActionSubtitle: {
-    marginTop: 4,
-    color: "#777",
-    fontSize: 12,
-  },
-
-  roleActionArrow: {
-    fontSize: 32,
-    color: "#2e7d32",
-  },
-
-  wallet: {
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 18,
-    backgroundColor: "#222",
-  },
-
-  walletLabel: {
-    color: "#aaa",
-  },
-
-  walletAmount: {
-    color: "#fff",
-    fontSize: 30,
-    fontWeight: "800",
-    marginTop: 5,
-  },
-
-  walletButtons: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 18,
-  },
-
-  walletButton: {
-    backgroundColor: "#fff",
-    padding: 10,
-    borderRadius: 8,
-  },
-
-  title: {
-    fontSize: 20,
-    fontWeight: "800",
-    marginLeft: 20,
-    marginTop: 25,
-    marginBottom: 12,
-  },
-
-  categoryScroll: {
-    paddingLeft: 15,
-  },
-
-  categoryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    marginRight: 8,
-  },
-
-  categoryButtonActive: {
-    backgroundColor: "#222",
-  },
-
-  categoryText: {
-    fontWeight: "600",
-  },
-
-  categoryTextActive: {
-    color: "#fff",
-  },
-
-  productHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  productCount: {
-    marginRight: 20,
-    marginTop: 20,
-    color: "#777",
-  },
-
-  products: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 14,
-  },
-
-  productCard: {
-    width: "46%",
-    margin: "2%",
-    padding: 14,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-  },
-
-  productPhoto: {
-    width: "100%",
-    aspectRatio: 1,
-    borderRadius: 10,
-    marginBottom: 8,
-    backgroundColor: "#f2f2f2",
-  },
-
-  productEmoji: {
-    fontSize: 45,
-    textAlign: "center",
-    paddingVertical: 10,
-  },
-
-  productName: {
-    fontWeight: "700",
-    marginTop: 5,
-  },
-
-  seller: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 4,
-  },
-
-  productPrice: {
-    fontSize: 17,
-    fontWeight: "800",
-    marginTop: 8,
-  },
-
-  productStock: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 5,
-  },
-
-  addButton: {
-    marginTop: 10,
-    backgroundColor: "#222",
-    padding: 10,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-
-  addButtonDisabled: {
-    opacity: 0.45,
-  },
-
-  addButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-
   cartSummary: {
-    margin: 20,
-    padding: 20,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-  },
-
-  cartTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-  },
-
-  cartTotal: {
-    fontSize: 24,
-    fontWeight: "800",
-    marginTop: 8,
-  },
-
-  checkoutButton: {
-    marginTop: 15,
-    backgroundColor: "#222",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-
-  checkoutText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-
-  sellerBox: {
-    margin: 20,
-    padding: 20,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-  },
-
-  sellerTitle: {
-    fontSize: 19,
-    fontWeight: "800",
-  },
-
-  sellerDescription: {
-    color: "#666",
-    marginTop: 8,
-    lineHeight: 20,
-  },
-
-  sellerButton: {
-    marginTop: 15,
-    backgroundColor: "#222",
-    padding: 13,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-
-  sellerButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-
-  bottomNav: {
-    height: 70,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
+    marginTop: 20,
+    borderRadius: radius.xl,
+    backgroundColor: colors.green,
+    padding: 18,
     flexDirection: "row",
-    justifyContent: "space-around",
     alignItems: "center",
+    gap: 12,
+    ...shadow.button,
   },
+  cartLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.onGreenMuted },
+  cartTotal: { fontFamily: fonts.display, fontSize: 24, color: colors.gold, marginTop: 2 },
+  cartButton: { height: 44, borderRadius: 22, backgroundColor: colors.cream, paddingHorizontal: 16, justifyContent: "center" },
+  cartButtonText: { fontFamily: fonts.bold, fontSize: 14, color: colors.green },
 
-  navIcon: {
-    textAlign: "center",
-    fontSize: 20,
+  sellerBox: { ...ui.card, marginTop: 20, padding: 18, gap: 6 },
+  sellerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: colors.greenSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
   },
-
-  navText: {
-    fontSize: 11,
-    textAlign: "center",
-    marginTop: 3,
+  sellerTitle: { fontFamily: fonts.displayBold, fontSize: 18, color: colors.ink },
+  sellerButton: {
+    marginTop: 10,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  sellerButtonText: { fontFamily: fonts.bold, fontSize: 15, color: colors.green },
 });
-

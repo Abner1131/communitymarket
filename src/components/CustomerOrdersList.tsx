@@ -19,6 +19,8 @@ import {
   View,
 } from "react-native";
 
+import { TAB_BAR_SPACE, TabBar } from "./TabBar";
+
 import { BrandLoader } from "./Brand";
 
 import { auth, db } from "../lib/firebase";
@@ -356,27 +358,14 @@ export default function CustomerOrdersList() {
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      <View style={styles.bottomNav}>
-        {[
-          { icon: "\u{1F3E0}", text: "Home", go: () => router.replace("/") },
-          { icon: "\u{1F6D2}", text: "Cart", go: () => router.push("/cart") },
-          { icon: "\u{1F4E6}", text: "Orders", go: undefined },
-          { icon: "\u{1F4B0}", text: "Wallet", go: () => router.push("/wallet") },
-          { icon: "\u{1F464}", text: "Account", go: () => router.push("/account") },
-        ].map((tab) => (
-          <Pressable key={tab.text} onPress={tab.go}>
-            <Text style={styles.navIcon}>{tab.icon}</Text>
-            <Text style={styles.navText}>{tab.text}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <TabBar active="orders" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#f5f6f8" },
-  container: { padding: 20, paddingBottom: 100 },
+  container: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   loadingText: { marginTop: 10 },
   header: { marginBottom: 20 },
@@ -445,19 +434,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryButtonText: { color: "#fff", fontWeight: "700" },
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 70,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-  },
-  navIcon: { textAlign: "center", fontSize: 20 },
-  navText: { fontSize: 11, textAlign: "center", marginTop: 3 },
 });

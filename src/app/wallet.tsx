@@ -17,6 +17,8 @@ import {
   View,
 } from "react-native";
 
+import { TAB_BAR_SPACE, TabBar } from "../components/TabBar";
+
 import { BrandLoader } from "../components/Brand";
 
 import { EmailVerifyCard } from "../components/EmailVerifyCard";
@@ -447,27 +449,14 @@ export default function WalletScreen() {
         )}
       </ScrollView>
 
-      <View style={styles.bottomNav}>
-        {[
-          { icon: "🏠", text: "Home", go: () => router.replace("/") },
-          { icon: "🛒", text: "Cart", go: () => router.push("/cart") },
-          { icon: "📦", text: "Orders", go: () => router.push("/orders") },
-          { icon: "💰", text: "Wallet", go: undefined },
-          { icon: "👤", text: "Account", go: () => router.push("/account") },
-        ].map((tab) => (
-          <Pressable key={tab.text} onPress={tab.go}>
-            <Text style={styles.navIcon}>{tab.icon}</Text>
-            <Text style={styles.navText}>{tab.text}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <TabBar active="wallet" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#f5f6f8" },
-  container: { padding: 20, paddingBottom: 100 },
+  container: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   backText: { fontSize: 14, fontWeight: "700", marginBottom: 14 },
   title: { fontSize: 28, fontWeight: "800", marginBottom: 14 },
   balanceCard: { backgroundColor: "#222", borderRadius: 18, padding: 20, marginBottom: 14 },
@@ -505,19 +494,4 @@ const styles = StyleSheet.create({
   okText: { color: "#1e7d32", fontWeight: "700", marginTop: 10 },
   activityRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 7 },
   activityLabel: { fontSize: 14, color: "#222" },
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 70,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-  },
-  navIcon: { textAlign: "center", fontSize: 20 },
-  navText: { fontSize: 11, textAlign: "center", marginTop: 3 },
 });

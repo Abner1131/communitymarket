@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "../context/AuthContext";
 import { getMyWallet, type MyWallet } from "../lib/walletApi";
+import { colors, fonts, radius, shadow } from "../theme";
+import { Icon, type IconName } from "./Icon";
 
 const money = (n: number) => `₦${Math.round(n).toLocaleString()}`;
 
@@ -37,7 +39,8 @@ export function HomeWalletCard() {
 
   return (
     <View style={styles.wallet}>
-      <Pressable onPress={() => router.push("/wallet")}>
+      <View style={styles.ring} pointerEvents="none" />
+      <Pressable onPress={() => router.push("/wallet")} accessibilityLabel={`Wallet balance ${money(wallet.total)}`}>
         <Text style={styles.label}>Wallet balance</Text>
         <Text style={styles.amount}>{money(wallet.total)}</Text>
         <Text style={styles.sub}>
@@ -48,35 +51,61 @@ export function HomeWalletCard() {
           ]
             .filter(Boolean)
             .join(" · ")}
-          {wallet.rewards?.points ? `  ·  ⭐ ${wallet.rewards.points} points` : ""}
+          {wallet.rewards?.points ? `  ·  ${wallet.rewards.points} points` : ""}
         </Text>
       </Pressable>
 
       <View style={styles.buttons}>
         {wallet.funding.enabled ? (
-          <Pressable style={styles.button} onPress={() => router.push({ pathname: "/wallet", params: { fund: "1" } })}>
-            <Text style={styles.buttonText}>＋ Fund</Text>
-          </Pressable>
+          <WalletButton icon="plus" label="Fund" onPress={() => router.push({ pathname: "/wallet", params: { fund: "1" } })} />
         ) : null}
-        {isEarner ? (
-          <Pressable style={styles.button} onPress={() => router.push(earnerRoute as any)}>
-            <Text style={styles.buttonText}>↗ Withdraw</Text>
-          </Pressable>
-        ) : null}
-        <Pressable style={styles.button} onPress={() => router.push("/wallet")}>
-          <Text style={styles.buttonText}>☰ History</Text>
-        </Pressable>
+        {isEarner ? <WalletButton icon="arrow-up-right" label="Withdraw" onPress={() => router.push(earnerRoute as any)} /> : null}
+        <WalletButton icon="list" label="History" onPress={() => router.push("/wallet")} />
       </View>
     </View>
   );
 }
 
+function WalletButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  return (
+    <Pressable style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }]} onPress={onPress}>
+      <Icon name={icon} size={16} color={colors.cream} />
+      <Text style={styles.buttonText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  wallet: { marginHorizontal: 20, padding: 20, borderRadius: 18, backgroundColor: "#222" },
-  label: { color: "#aaa" },
-  amount: { color: "#fff", fontSize: 30, fontWeight: "800", marginTop: 5 },
-  sub: { color: "#bbb", fontSize: 12, marginTop: 4 },
+  wallet: {
+    marginBottom: 16,
+    padding: 20,
+    borderRadius: radius.xl,
+    backgroundColor: colors.green,
+    overflow: "hidden",
+    ...shadow.button,
+  },
+  ring: {
+    position: "absolute",
+    right: -44,
+    top: -44,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 18,
+    borderColor: "rgba(242,179,61,0.16)",
+  },
+  label: { fontFamily: fonts.medium, fontSize: 13, color: colors.onGreenMuted },
+  amount: { fontFamily: fonts.display, fontSize: 32, letterSpacing: -0.6, color: colors.gold, marginTop: 4 },
+  sub: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.onGreenMuted, marginTop: 4 },
   buttons: { flexDirection: "row", gap: 8, marginTop: 16, flexWrap: "wrap" },
-  button: { backgroundColor: "#fff", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8 },
-  buttonText: { fontWeight: "700", color: "#222" },
+  button: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  buttonText: { fontFamily: fonts.bold, fontSize: 13, color: colors.cream },
 });

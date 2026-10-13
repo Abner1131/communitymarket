@@ -12,6 +12,8 @@ import {
   View,
 } from "react-native";
 
+import { TAB_BAR_SPACE, TabBar } from "../components/TabBar";
+
 import { BrandLoader } from "../components/Brand";
 
 import { DeleteAccountCard } from "../components/DeleteAccountCard";
@@ -238,20 +240,7 @@ export default function AccountScreen() {
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      <View style={styles.bottomNav}>
-        {[
-          { icon: "\u{1F3E0}", text: "Home", go: () => router.replace("/") },
-          { icon: "\u{1F6D2}", text: "Cart", go: () => router.push("/cart") },
-          { icon: "\u{1F4E6}", text: "Orders", go: () => router.push("/orders") },
-          { icon: "\u{1F4B0}", text: "Wallet", go: () => router.push("/wallet") },
-          { icon: "\u{1F464}", text: "Account", go: undefined },
-        ].map((tab) => (
-          <Pressable key={tab.text} onPress={tab.go}>
-            <Text style={styles.navIcon}>{tab.icon}</Text>
-            <Text style={styles.navText}>{tab.text}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <TabBar active="account" />
     </SafeAreaView>
   );
 }
@@ -259,7 +248,7 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#f5f6f8" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 20, paddingBottom: 100 },
+  container: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   backText: { fontWeight: "700", marginBottom: 14 },
   title: { fontSize: 28, fontWeight: "800", marginBottom: 16 },
   card: { backgroundColor: "#fff", borderRadius: 16, padding: 18, marginBottom: 14 },
@@ -315,19 +304,4 @@ const styles = StyleSheet.create({
     borderColor: "#b00020",
   },
   signOutText: { color: "#b00020", fontWeight: "800" },
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 70,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-  },
-  navIcon: { textAlign: "center", fontSize: 20 },
-  navText: { fontSize: 11, textAlign: "center", marginTop: 3 },
 });
