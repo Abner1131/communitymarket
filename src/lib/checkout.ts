@@ -37,9 +37,13 @@ export async function submitCheckout(params: {
   }
   return data;
 }
+// The delivery fee in parts: delivery itself, service fee, small-order fee.
+export type DeliveryParts = { delivery: number; service: number; smallOrder: number };
+
 export type CheckoutQuote = {
   subtotal: number;
-  deliveryFee: number;
+  deliveryFee: number; // all parts together
+  deliveryParts?: DeliveryParts;
   total: number;
   distanceKm: number; // shop(s) -> customer, as the rider rides
   shops: { name: string; location: { latitude: number; longitude: number } }[];

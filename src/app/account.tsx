@@ -22,6 +22,7 @@ const ROLE_COLOR: Record<string, string> = {
   seller: "#6a1b9a",
   rider: "#1565c0",
   admin: "#b00020",
+  marketing: "#0a7d4f",
 };
 
 export default function AccountScreen() {
@@ -140,6 +141,19 @@ export default function AccountScreen() {
               onPress={() => router.push("/admin" as any)}
             >
               <Text style={styles.primaryButtonText}>Open Admin Dashboard</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* MARKETING (limited staff access) */}
+        {(user.role === "marketing" || user.role === "admin") && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Marketing</Text>
+            <Text style={styles.description}>
+              Growth numbers, applications, shops, riders and marketer codes.
+            </Text>
+            <Pressable style={styles.primaryButton} onPress={() => router.push("/marketing" as any)}>
+              <Text style={styles.primaryButtonText}>Open Marketing Dashboard</Text>
             </Pressable>
           </View>
         )}

@@ -108,7 +108,10 @@ export default function CheckoutScreen() {
   const distanceKm = quote?.distanceKm ?? 0;
   const deliveryFee = quote?.deliveryFee ?? 0;
   const shopLocation = quote?.shops[0]?.location ?? marketplaceLocation;
-  const feeText = quoteLoading ? "Calculating..." : quote ? `₦${deliveryFee.toLocaleString()}` : "—";
+  // Delivery alone; service and small-order fees show as their own lines.
+  const parts = quote?.deliveryParts;
+  const deliveryOnly = parts ? parts.delivery : deliveryFee;
+  const feeText = quoteLoading ? "Calculating..." : quote ? `₦${deliveryOnly.toLocaleString()}` : "—";
 
   const grandTotal = quote ? quote.total : cartTotal + deliveryFee;
 
@@ -381,6 +384,18 @@ export default function CheckoutScreen() {
               {customerLocation ? feeText : "Set location"}
             </Text>
           </View>
+          {parts && parts.service > 0 ? (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Service fee</Text>
+              <Text style={styles.summaryValue}>₦{parts.service.toLocaleString()}</Text>
+            </View>
+          ) : null}
+          {parts && parts.smallOrder > 0 ? (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Small-order fee</Text>
+              <Text style={styles.summaryValue}>₦{parts.smallOrder.toLocaleString()}</Text>
+            </View>
+          ) : null}
           <View style={styles.divider} />
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>

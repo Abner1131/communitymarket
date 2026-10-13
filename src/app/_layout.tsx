@@ -29,6 +29,7 @@ const ROLE_ROUTES: { prefix: string; roles: string[] }[] = [
   { prefix: "/rider", roles: ["rider", "admin"] },
   { prefix: "/seller", roles: ["seller", "admin"] },
   { prefix: "/admin", roles: ["admin"] },
+  { prefix: "/marketing", roles: ["marketing", "admin"] },
 ];
 
 function AuthGate() {
@@ -67,12 +68,14 @@ function AuthGate() {
     const justSignedIn = before === null || (before !== undefined && before !== uid);
     if (justSignedIn || onAuthScreen) {
       const intent = takeSignInIntent();
-      if (intent === "admin" && user.role !== "admin") {
-        setSignInNotice("This account does not have admin rights. Use the normal sign-in.");
+      const staff = user.role === "admin" || user.role === "marketing";
+      if (intent === "admin" && !staff) {
+        setSignInNotice("This account does not have admin or marketing access. Use the normal sign-in.");
         void signOut();
         return;
       }
-      startFresh(intent === "admin" ? "/admin" : "/");
+      // Marketing staff land on their own dashboard.
+      startFresh(intent === "admin" ? (user.role === "marketing" ? "/marketing" : "/admin") : "/");
       return;
     }
 

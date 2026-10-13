@@ -12,6 +12,8 @@ export type AdminApplication = {
   businessAddress: string | null;
   termsAcceptedAtMs?: number | null;
   termsVersion?: string | null;
+  marketerCode?: string | null; // signed up by which marketer
+  marketingNotes?: { text: string; atMs: number; by: string | null }[];
   note: string | null;
   createdAtMs: number | null;
 };
@@ -253,8 +255,45 @@ export type AdminPaidWithdrawal = {
   paidAtMs: number;
 };
 
+// Delivery prices and rider pay (Admin -> Money -> Delivery prices).
+export type PricingSettings = {
+  bike: { baseFee: number; perKm: number; bigOrderExtra: number };
+  keke: { baseFee: number; perKm: number; bigOrderExtra: number };
+  freeKm: number;
+  roadFactor: number;
+  bigOrderFrom: number;
+  serviceFee: number;
+  smallOrderBelow: number;
+  smallOrderFee: number;
+  riderPay: { base: number; perKm: number; perExtraStop: number };
+};
+
+export type PricingExample = {
+  label: string;
+  orders: number;
+  vehicle: string;
+  km: number;
+  roadKm: number;
+  goods: number;
+  chargeEach: { delivery: number; service: number; smallOrder: number; total: number };
+  customersPay: number;
+  riderGets: number;
+  commission: number;
+  paystack: number;
+  youKeep: number;
+};
+
+export type AdminPricing = {
+  settings: PricingSettings;
+  defaults: PricingSettings;
+  preview: PricingExample[];
+  previewCommissionPercent: number;
+  paystack: { percent: number; flat: number; flatFrom: number; cap: number };
+};
+
 export type AdminState = {
   generatedAtMs: number;
+  staff?: { uid: string; email: string | null; name: string | null; role: "marketing" }[];
   rewards: AdminRewards;
   today: {
     orders: number;
@@ -292,6 +331,7 @@ export type AdminState = {
     recentPaid: AdminPaidWithdrawal[];
   };
   commission: { categories: string[]; maxRate: number; rates: Record<string, number> };
+  pricing?: AdminPricing;
   delivery?: AdminDelivery;
   ai?: AdminAi;
   reports?: { open: AdminReport[]; recent: AdminReport[] };
@@ -304,6 +344,8 @@ export type AdminState = {
 export type AdminAction =
   | "overview"
   | "approve"
+  | "setMarketingAccess"
+  | "setPricingSettings"
   | "reject"
   | "cancelOrder"
   | "retryDispatch"

@@ -53,7 +53,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ROLES: UserRole[] = ["customer", "seller", "rider", "admin"];
+const ROLES: UserRole[] = ["customer", "seller", "rider", "admin", "marketing"];
 
 // Name and phone typed on the sign-up screen, waiting for the new account's
 // profile to be created. (Firebase reports the new login before signUp()

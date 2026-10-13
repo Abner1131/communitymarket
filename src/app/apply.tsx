@@ -2,6 +2,8 @@ import { router } from "expo-router";
 import {
   addDoc,
   collection,
+  doc,
+  getDoc,
   onSnapshot,
   query,
   serverTimestamp,
@@ -52,6 +54,8 @@ export default function ApplyScreen() {
   const [businessName, setBusinessName] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
   const [note, setNote] = useState("");
+  // Optional code of the marketer who helped them sign up (e.g. MUSA01).
+  const [marketerCode, setMarketerCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -103,6 +107,23 @@ export default function ApplyScreen() {
       setMessage("Enter your shop name and address.");
       return;
     }
+    const code = marketerCode.trim().toUpperCase();
+    if (code) {
+      if (!/^[A-Z0-9]{3,10}$/.test(code)) {
+        setMessage("The marketer code is 3 to 10 letters or numbers. Leave it empty if you don't have one.");
+        return;
+      }
+      try {
+        const snap = await getDoc(doc(db, "marketerCodes", code));
+        if (!snap.exists() || snap.data().active !== true) {
+          setMessage(`Marketer code ${code} was not found. Check it with your marketer, or leave it empty.`);
+          return;
+        }
+      } catch {
+        setMessage("Could not check the marketer code. Check your internet and try again.");
+        return;
+      }
+    }
     if (!agreed) {
       setMessage(`Tick the box to agree to the ${role === "seller" ? "seller" : "rider"} rules in our Terms of Use.`);
       return;
@@ -123,8 +144,10 @@ export default function ApplyScreen() {
         createdAt: serverTimestamp(),
         // The tick box: which rules they agreed to, and when (Google's clock).
         termsAccepted: { version: POLICIES_VERSION, at: serverTimestamp() },
+        ...(code ? { marketerCode: code } : {}),
       });
       setNote("");
+      setMarketerCode("");
     } catch (e: any) {
       setMessage(e?.message || "Could not send your application.");
     } finally {
@@ -251,6 +274,16 @@ export default function ApplyScreen() {
                   placeholder="Experience, area you cover, etc."
                   value={note}
                   onChangeText={setNote}
+                />
+
+                <Text style={styles.label}>Marketer code (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. MUSA01, if a marketer helped you"
+                  autoCapitalize="characters"
+                  value={marketerCode}
+                  onChangeText={(t) => setMarketerCode(t.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                  maxLength={10}
                 />
 
                 <Text style={styles.muted}>

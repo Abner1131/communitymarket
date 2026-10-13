@@ -1,4 +1,4 @@
-﻿import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,7 +17,8 @@ import DeliveryCodeCard, { shouldShowDeliveryCode } from "../components/Delivery
 
 type OrderData = {
   subtotal: number;
-  deliveryFee: number;
+  deliveryFee: number; // delivery + service fee + small-order fee
+  deliveryParts?: { delivery: number; service: number; smallOrder: number };
   total: number;
   status: string;
   vehicle: string;
@@ -171,8 +172,22 @@ export default function PaymentScreen() {
             <Text style={styles.label}>
               Delivery ({order.vehicle}, {order.distanceKm.toFixed(1)} km)
             </Text>
-            <Text style={styles.value}>NGN {order.deliveryFee.toLocaleString()}</Text>
+            <Text style={styles.value}>
+              NGN {(order.deliveryParts ? order.deliveryParts.delivery : order.deliveryFee).toLocaleString()}
+            </Text>
           </View>
+          {order.deliveryParts && order.deliveryParts.service > 0 ? (
+            <View style={styles.row}>
+              <Text style={styles.label}>Service fee</Text>
+              <Text style={styles.value}>NGN {order.deliveryParts.service.toLocaleString()}</Text>
+            </View>
+          ) : null}
+          {order.deliveryParts && order.deliveryParts.smallOrder > 0 ? (
+            <View style={styles.row}>
+              <Text style={styles.label}>Small-order fee</Text>
+              <Text style={styles.value}>NGN {order.deliveryParts.smallOrder.toLocaleString()}</Text>
+            </View>
+          ) : null}
           <View style={styles.divider} />
           <View style={styles.row}>
             <Text style={styles.totalLabel}>Total</Text>

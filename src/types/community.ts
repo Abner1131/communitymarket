@@ -2,7 +2,8 @@ export type UserRole =
   | "customer"
   | "seller"
   | "rider"
-  | "admin";
+  | "admin"
+  | "marketing"; // limited staff access: the Marketing dashboard only
 
 export type VehicleType =
   | "bike"

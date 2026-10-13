@@ -18,6 +18,7 @@ import { Image } from "expo-image";
 
 import { AdminLogs } from "../components/AdminLogs";
 import { AdminMoney } from "../components/AdminMoney";
+import { AdminPricing } from "../components/AdminPricing";
 import {
   adminAction,
   AdminApiError,
@@ -147,6 +148,14 @@ function ApplicationCard({
         </>
       )}
       {app.note ? <Text style={styles.item}>Note: {app.note}</Text> : null}
+      {app.marketerCode ? <Text style={styles.item}>Marketer code: {app.marketerCode}</Text> : null}
+      {(app.marketingNotes || []).map((n, i) => (
+        <Text key={i} style={[styles.item, { fontStyle: "italic" }]}>
+          Marketing: {"\u201C"}
+          {n.text}
+          {"\u201D"} {"\u2014"} {n.by || "Marketing"}, {ago(n.atMs)}
+        </Text>
+      ))}
       <Text style={styles.hint}>Applied {ago(app.createdAtMs)}</Text>
       <Text style={styles.hint}>
         {app.termsAcceptedAtMs
@@ -497,6 +506,84 @@ function AiCard({
 
 // ---------- screen ----------
 
+// Admin -> Live: who has marketing access, give or remove it by email.
+function TeamCard({
+  staff,
+  working,
+  armed,
+  arm,
+  onGive,
+  onRemove,
+}: {
+  staff: { uid: string; email: string | null; name: string | null }[];
+  working: string | null;
+  armed: string | null;
+  arm: (key: string) => void;
+  onGive: (email: string) => void;
+  onRemove: (email: string) => void;
+}) {
+  const [email, setEmail] = useState("");
+  const clean = email.trim().toLowerCase();
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Team: marketing access</Text>
+      <Text style={styles.hint}>
+        Marketing sees applications, shops, riders and marketer codes. Never money, bank details, settings or the log.
+      </Text>
+      {staff.length === 0 ? <Text style={styles.item}>No one has marketing access.</Text> : null}
+      {staff.map((p) => {
+        const key = `team-remove-${p.email}`;
+        return (
+          <View key={p.uid} style={{ marginTop: 10 }}>
+            <Text style={styles.item}>
+              {p.name || "-"} · {p.email}
+            </Text>
+            <Pressable
+              style={[styles.smallButton, { alignSelf: "flex-start", marginTop: 6 }]}
+              disabled={working === key || !p.email}
+              onPress={() => {
+                if (armed !== key) return arm(key);
+                if (p.email) onRemove(p.email);
+              }}
+            >
+              <Text style={styles.smallButtonText}>
+                {working === key ? "..." : armed === key ? "Tap again to remove" : "Remove access"}
+              </Text>
+            </Pressable>
+          </View>
+        );
+      })}
+      <Text style={[styles.hint, { marginTop: 12 }]}>
+        Give access: they first create a normal account in the app with this email.
+      </Text>
+      <TextInput
+        style={[styles.input, { marginTop: 8 }]}
+        placeholder="their@email.com"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <Pressable
+        style={[styles.smallButton, { alignSelf: "flex-start", marginTop: 8 }, (!clean.includes("@") || working === "team-give") && { opacity: 0.5 }]}
+        disabled={!clean.includes("@") || working === "team-give"}
+        onPress={() => {
+          if (armed !== "team-give") return arm("team-give");
+          onGive(clean);
+          setEmail("");
+        }}
+      >
+        <Text style={styles.smallButtonText}>
+          {working === "team-give" ? "..." : armed === "team-give" ? `Tap again: give ${clean} marketing access` : "Give marketing access"}
+        </Text>
+      </Pressable>
+      <Pressable style={{ marginTop: 12 }} onPress={() => router.push("/marketing" as any)}>
+        <Text style={[styles.item, { fontWeight: "800" }]}>Open the Marketing dashboard {"\u203A"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function AdminScreen() {
   const [state, setState] = useState<AdminState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -826,6 +913,15 @@ export default function AdminScreen() {
               </View>
             ) : null}
 
+            <TeamCard
+              staff={state.staff || []}
+              working={working}
+              armed={armed}
+              arm={arm}
+              onGive={(email) => run("team-give", "setMarketingAccess", { email, on: true })}
+              onRemove={(email) => run(`team-remove-${email}`, "setMarketingAccess", { email, on: false })}
+            />
+
             {state.backup ? (
               <View style={[styles.card, !state.backup.configured || !state.backup.lastOk ? styles.warnCard : null]}>
                 <Text style={styles.cardTitle}>🗄 Daily backup</Text>
@@ -1085,6 +1181,13 @@ export default function AdminScreen() {
         )}
 
         {/* ---------- MONEY ---------- */}
+        {tab === "money" && state.pricing ? (
+          <AdminPricing
+            pricing={state.pricing}
+            working={working === "pricing"}
+            onSave={(settings) => void run("pricing", "setPricingSettings", { settings })}
+          />
+        ) : null}
         {tab === "money" && state.wallets && state.commission ? (
           <AdminMoney
             state={state}

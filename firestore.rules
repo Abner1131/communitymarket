@@ -73,8 +73,13 @@ service cloud.firestore {
                        request.resource.data.keys().hasOnly([
                          "uid", "name", "email", "phone", "requestedRole", "vehicle",
                          "businessName", "businessAddress", "businessType", "note",
-                         "status", "createdAt", "termsAccepted"
+                         "status", "createdAt", "termsAccepted", "marketerCode"
                        ]) &&
+                       // Optional marketer code: must be a real, switched-on code.
+                       (request.resource.data.get("marketerCode", null) == null ||
+                        (isShortText(request.resource.data.marketerCode, 10) &&
+                         exists(/databases/$(database)/documents/marketerCodes/$(request.resource.data.marketerCode)) &&
+                         get(/databases/$(database)/documents/marketerCodes/$(request.resource.data.marketerCode)).data.active == true)) &&
                        isAcceptance(request.resource.data.termsAccepted) &&
                        request.resource.data.uid == request.auth.uid &&
                        request.resource.data.status == "pending" &&
@@ -87,6 +92,14 @@ service cloud.firestore {
       allow read: if isSignedIn() &&
                      (resource.data.uid == request.auth.uid || isAdmin());
       allow update, delete: if false; // server only (admin approves/rejects)
+    }
+
+    // ---------- marketer codes: checked on the apply screen ----------
+    // Anyone signed in may look up ONE code (to confirm it is valid);
+    // listing all codes and every write is server only.
+    match /marketerCodes/{code} {
+      allow get: if isSignedIn();
+      allow list, write: if false;
     }
 
     // ---------- products: public catalogue, server writes ----------
