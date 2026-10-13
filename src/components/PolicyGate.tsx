@@ -10,6 +10,10 @@ import { router, usePathname } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { colors, fonts, radius, shadow, text, ui } from "../theme";
+import { BrandMark } from "./Brand";
+import { Icon } from "./Icon";
+
 import { useAuth } from "../context/AuthContext";
 import { POLICIES_UPDATED, POLICIES_VERSION } from "../data/policies";
 
@@ -44,7 +48,7 @@ export function PolicyGate() {
   const link = (tab: string, label: string) => (
     <Pressable style={styles.linkRow} onPress={() => router.push(`/policies?tab=${tab}` as any)}>
       <Text style={styles.linkText}>{label}</Text>
-      <Text style={styles.linkArrow}>{"›"}</Text>
+      <Icon name="chevron-right" size={18} color={colors.faint} />
     </Pressable>
   );
 
@@ -52,6 +56,7 @@ export function PolicyGate() {
     <View style={styles.overlay}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.card}>
+          <BrandMark size={52} style={{ marginBottom: 16 }} />
           <Text style={styles.title}>
             {firstTime ? "Our policies" : "We've updated our policies"}
           </Text>
@@ -77,7 +82,7 @@ export function PolicyGate() {
             onPress={agree}
           >
             {busy ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#ffffff" />
             ) : (
               <Text style={styles.primaryButtonText}>I agree</Text>
             )}
@@ -99,36 +104,29 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#f5f6f8",
+    backgroundColor: colors.bg,
     zIndex: 1000,
     elevation: 1000,
   },
   container: { flexGrow: 1, justifyContent: "center", padding: 20, paddingTop: 60 },
-  card: { backgroundColor: "#fff", borderRadius: 18, padding: 22 },
-  title: { fontSize: 24, fontWeight: "800", color: "#111", marginBottom: 10 },
-  body: { fontSize: 15, lineHeight: 22, color: "#444", marginBottom: 16 },
+  card: { ...ui.card, ...shadow.raised, padding: 22, borderRadius: radius.xl },
+  title: { ...text.title, fontSize: 24, marginBottom: 10 },
+  body: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: colors.ink2, marginBottom: 16 },
   linkRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#f5f6f8",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    backgroundColor: colors.bg,
+    borderRadius: radius.md,
+    height: 52,
+    paddingHorizontal: 16,
     marginBottom: 8,
   },
-  linkText: { fontSize: 15, fontWeight: "700", color: "#111" },
-  linkArrow: { fontSize: 22, color: "#888", fontWeight: "700" },
-  small: { fontSize: 12.5, color: "#666", lineHeight: 18, marginTop: 10 },
-  error: { color: "#b00020", marginTop: 12 },
-  primaryButton: {
-    backgroundColor: "#111",
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  linkText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
+  small: { ...text.small, fontSize: 12.5, marginTop: 10 },
+  error: { fontFamily: fonts.semibold, color: colors.danger, marginTop: 12 },
+  primaryButton: { ...ui.primaryButton, marginTop: 16 },
+  primaryButtonText: ui.primaryButtonText,
   signOut: { alignItems: "center", paddingVertical: 14, marginTop: 4 },
-  signOutText: { color: "#888", fontWeight: "700" },
+  signOutText: { fontFamily: fonts.semibold, color: colors.faint },
 });

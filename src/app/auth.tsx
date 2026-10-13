@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,7 +11,11 @@ import {
   View,
 } from "react-native";
 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { BrandMark, BrandWordmark } from "../components/Brand";
+import { Icon } from "../components/Icon";
+import { colors, fonts, radius, shadow, text, ui } from "../theme";
 import { PasswordInput } from "../components/PasswordInput";
 
 import { friendlyAuthError, useAuth } from "../context/AuthContext";
@@ -23,6 +26,7 @@ import { applyInviteCode } from "../lib/walletApi";
 // Navigation after sign-in is handled by the AuthGate in _layout.tsx.
 export default function AuthScreen() {
   const { signIn, signUp, resetPassword } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<"signin" | "signup" | "admin">("signin");
   const [name, setName] = useState("");
@@ -93,21 +97,28 @@ export default function AuthScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={ui.screen}>
+      <View style={[ui.glow, { height: 420 }]} pointerEvents="none" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.container, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 }]}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.brandBox} accessible accessibilityRole="header" accessibilityLabel="CommunityMarket">
-            <BrandMark size={84} />
-            <BrandWordmark height={28} />
+            <BrandMark size={76} style={styles.mark} />
+            <BrandWordmark height={27} />
           </View>
-          <Text style={styles.tagline}>Shop local. Delivered fast.</Text>
+          <Text style={styles.tagline}>Your market, at your door.</Text>
 
           {mode === "admin" ? (
             <View style={styles.adminBanner}>
-              <Text style={styles.adminTitle}>🔒 Admin sign in</Text>
+              <View style={styles.adminTitleRow}>
+                <Icon name="lock" size={17} color={colors.danger} />
+                <Text style={styles.adminTitle}>Staff sign in</Text>
+              </View>
               <Text style={styles.adminText}>For CommunityMarket staff only. Every sign-in is recorded.</Text>
             </View>
           ) : null}
@@ -144,6 +155,7 @@ export default function AuthScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. Amina Bello"
+                  placeholderTextColor={colors.faint}
                   autoCapitalize="words"
                   value={name}
                   onChangeText={setName}
@@ -152,6 +164,7 @@ export default function AuthScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="08012345678"
+                  placeholderTextColor={colors.faint}
                   keyboardType="phone-pad"
                   value={phone}
                   onChangeText={setPhone}
@@ -160,6 +173,7 @@ export default function AuthScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="From a friend, e.g. AMINA4K2"
+                  placeholderTextColor={colors.faint}
                   autoCapitalize="characters"
                   autoCorrect={false}
                   value={inviteCode}
@@ -172,6 +186,7 @@ export default function AuthScreen() {
             <TextInput
               style={styles.input}
               placeholder="you@example.com"
+                  placeholderTextColor={colors.faint}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
@@ -181,7 +196,7 @@ export default function AuthScreen() {
 
             <Text style={styles.label}>Password</Text>
             <PasswordInput
-              style={styles.input}
+              style={styles.passwordBox}
               placeholder="At least 6 characters"
               value={password}
               onChangeText={setPassword}
@@ -192,11 +207,16 @@ export default function AuthScreen() {
             ) : null}
 
             <Pressable
-              style={[styles.primaryButton, busy && { opacity: 0.6 }]}
+              style={({ pressed }) => [
+                ui.primaryButton,
+                styles.primaryButton,
+                pressed && { backgroundColor: colors.greenPressed },
+                busy && { opacity: 0.6 },
+              ]}
               disabled={busy}
               onPress={handleSubmit}
             >
-              <Text style={styles.primaryButtonText}>
+              <Text style={ui.primaryButtonText}>
                 {busy ? "Please wait..." : mode === "signup" ? "Create account" : mode === "admin" ? "Sign in to Admin" : "Sign in"}
               </Text>
             </Pressable>
@@ -233,57 +253,45 @@ export default function AuthScreen() {
               setMode(mode === "admin" ? "signin" : "admin");
             }}
           >
-            <Text style={styles.adminLinkText}>{mode === "admin" ? "← Back to customer sign in" : "Admin sign in"}</Text>
+            <Text style={styles.adminLinkText}>{mode === "admin" ? "← Back to customer sign in" : "Staff sign in (admin and marketing)"}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f5f6f8" },
-  container: { padding: 24, paddingTop: 60, paddingBottom: 40 },
+  container: { paddingHorizontal: 24 },
   brandBox: { alignItems: "center", gap: 14 },
-  tagline: { color: "#666", textAlign: "center", marginTop: 6, marginBottom: 28 },
+  mark: { borderRadius: 22, ...shadow.button },
+  tagline: { ...text.small, fontSize: 15, textAlign: "center", marginTop: 8, marginBottom: 28 },
   tabs: {
     flexDirection: "row",
-    backgroundColor: "#e7e9ee",
-    borderRadius: 12,
+    backgroundColor: "rgba(23,33,27,0.06)",
+    borderRadius: radius.pill,
     padding: 4,
     marginBottom: 16,
   },
-  tab: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: "center" },
-  tabActive: { backgroundColor: "#fff" },
-  tabText: { fontWeight: "700", color: "#666" },
-  tabTextActive: { color: "#111" },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
-  label: { fontSize: 13, fontWeight: "700", color: "#444", marginTop: 12, marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d0d4db",
-    borderRadius: 10,
-    padding: 12,
-    backgroundColor: "#fff",
-    fontSize: 15,
-  },
-  message: { color: "#b00020", marginTop: 14 },
-  messageOk: { color: "#1e7d32" },
-  primaryButton: {
-    marginTop: 20,
-    backgroundColor: "#222",
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  link: { marginTop: 16, textAlign: "center", color: "#1565c0", fontWeight: "600" },
-  note: { marginTop: 16, color: "#666", textAlign: "center", lineHeight: 20, fontSize: 13 },
-  agree: { marginTop: 14, color: "#555", textAlign: "center", lineHeight: 19, fontSize: 12.5 },
-  agreeLink: { color: "#1565c0", fontWeight: "700", textDecorationLine: "underline" },
-  adminBanner: { backgroundColor: "#fdecea", borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: "#f3c2c8" },
-  adminTitle: { fontWeight: "900", color: "#b00020", fontSize: 16, textAlign: "center" },
-  adminText: { color: "#7a2a33", textAlign: "center", marginTop: 4, fontSize: 12 },
-  adminLink: { marginTop: 22, alignItems: "center", paddingVertical: 8 },
-  adminLinkText: { color: "#888", fontWeight: "700", fontSize: 13 },
+  tab: { flex: 1, height: 42, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
+  tabActive: { backgroundColor: colors.card, ...shadow.card },
+  tabText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.muted },
+  tabTextActive: { fontFamily: fonts.bold, color: colors.ink },
+  card: { ...ui.card, padding: 20 },
+  label: { ...ui.label },
+  input: { ...ui.input },
+  passwordBox: { ...ui.inputBox },
+  message: { fontFamily: fonts.semibold, color: colors.danger, marginTop: 14, lineHeight: 20 },
+  messageOk: { color: colors.green },
+  primaryButton: { marginTop: 20 },
+  link: { marginTop: 16, textAlign: "center", color: colors.green, fontFamily: fonts.bold },
+  note: { ...text.small, marginTop: 14, textAlign: "center", lineHeight: 19 },
+  agree: { ...text.small, fontSize: 12.5, marginTop: 14, textAlign: "center", lineHeight: 19 },
+  agreeLink: { color: colors.green, fontFamily: fonts.bold, textDecorationLine: "underline" },
+  adminBanner: { backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: 14, marginBottom: 16 },
+  adminTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  adminTitle: { fontFamily: fonts.bold, color: colors.danger, fontSize: 16 },
+  adminText: { fontFamily: fonts.regular, color: "#7a2a33", textAlign: "center", marginTop: 4, fontSize: 12.5 },
+  adminLink: { marginTop: 22, alignItems: "center", paddingVertical: 10 },
+  adminLinkText: { fontFamily: fonts.semibold, color: colors.faint, fontSize: 13 },
 });

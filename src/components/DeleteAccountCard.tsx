@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { colors, fonts, ui } from "../theme";
+
 import { checkDeletion, deleteMyAccount, type DeletionCheck } from "../lib/supportApi";
 
 const naira = (n: number) => `₦${Math.round(n).toLocaleString()}`;
@@ -82,7 +84,7 @@ export function DeleteAccountCard({ onDeleted }: { onDeleted: (eraseAfterMs: num
             onChangeText={setTyped}
             autoCapitalize="characters"
             placeholder="DELETE"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.faint}
           />
           <Pressable
             style={[styles.danger, (busy || typed.trim().toUpperCase() !== "DELETE") && { opacity: 0.5 }]}
@@ -103,17 +105,24 @@ export function DeleteAccountCard({ onDeleted }: { onDeleted: (eraseAfterMs: num
 
 const styles = StyleSheet.create({
   link: { alignItems: "center", paddingVertical: 14 },
-  linkText: { color: "#999", fontWeight: "700", textDecorationLine: "underline" },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginTop: 12, borderWidth: 1, borderColor: "#f3c2c8" },
-  title: { fontSize: 16, fontWeight: "800", color: "#b00020" },
-  text: { color: "#444", marginTop: 8, lineHeight: 21 },
-  blocker: { color: "#b26a00", fontWeight: "700", marginTop: 6 },
-  warn: { color: "#b00020", fontWeight: "700", marginTop: 10 },
-  label: { fontSize: 13, fontWeight: "700", color: "#444", marginTop: 14, marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: "#d0d4db", borderRadius: 10, padding: 12, backgroundColor: "#fff", color: "#111" },
-  danger: { marginTop: 12, backgroundColor: "#b00020", paddingVertical: 14, borderRadius: 10, alignItems: "center" },
-  dangerText: { color: "#fff", fontWeight: "800" },
+  linkText: { fontFamily: fonts.semibold, color: colors.faint, fontSize: 13, textDecorationLine: "underline" },
+  card: { ...ui.card, padding: 18, marginTop: 4, marginBottom: 14, borderWidth: 1, borderColor: "#f3c2c8" },
+  title: { fontFamily: fonts.bold, fontSize: 16, color: colors.danger },
+  text: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink2, marginTop: 8, lineHeight: 21 },
+  blocker: { fontFamily: fonts.bold, color: colors.goldText, marginTop: 6 },
+  warn: { fontFamily: fonts.bold, color: colors.danger, marginTop: 10 },
+  label: { ...ui.label, marginTop: 14 },
+  input: { ...ui.input },
+  danger: {
+    marginTop: 12,
+    backgroundColor: colors.danger,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dangerText: { color: "#ffffff", fontFamily: fonts.bold, fontSize: 15 },
   cancel: { marginTop: 10, alignItems: "center", paddingVertical: 10 },
-  cancelText: { fontWeight: "700", color: "#222" },
-  error: { color: "#b00020", marginTop: 10 },
+  cancelText: { fontFamily: fonts.bold, color: colors.ink },
+  error: { fontFamily: fonts.semibold, color: colors.danger, marginTop: 10 },
 });

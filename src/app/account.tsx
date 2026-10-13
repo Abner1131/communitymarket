@@ -4,7 +4,6 @@ import {
   Alert,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,17 +14,20 @@ import {
 import { TAB_BAR_SPACE, TabBar } from "../components/TabBar";
 
 import { BrandLoader } from "../components/Brand";
+import { Icon, type IconName } from "../components/Icon";
+import { ScreenHeader } from "../components/ui";
+import { colors, fonts, radius, text, ui } from "../theme";
 
 import { DeleteAccountCard } from "../components/DeleteAccountCard";
 import { EmailVerifyCard } from "../components/EmailVerifyCard";
 import { useAuth } from "../context/AuthContext";
 
-const ROLE_COLOR: Record<string, string> = {
-  customer: "#555",
-  seller: "#6a1b9a",
-  rider: "#1565c0",
-  admin: "#b00020",
-  marketing: "#0a7d4f",
+const ROLE_STYLE: Record<string, { label: string; bg: string; fg: string }> = {
+  customer: { label: "Customer", bg: colors.chip, fg: colors.ink2 },
+  seller: { label: "Seller", bg: "#efe6f4", fg: "#6a1b9a" },
+  rider: { label: "Rider", bg: "#e7eef8", fg: "#1f4f8a" },
+  admin: { label: "Admin", bg: colors.dangerSoft, fg: colors.danger },
+  marketing: { label: "Marketing", bg: colors.greenSoft, fg: colors.green },
 };
 
 export default function AccountScreen() {
@@ -38,9 +40,9 @@ export default function AccountScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <View style={[ui.screen, styles.centered]}>
         <BrandLoader />
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -73,14 +75,13 @@ export default function AccountScreen() {
     router.replace("/auth" as any);
   }
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Pressable onPress={() => router.replace("/")}>
-          <Text style={styles.backText}>{"←"} Home</Text>
-        </Pressable>
-        <Text style={styles.title}>Account</Text>
+  const role = ROLE_STYLE[user.role] || ROLE_STYLE.customer;
 
+  return (
+    <View style={ui.screen}>
+      <View style={ui.glow} pointerEvents="none" />
+      <ScreenHeader title="Account" onBack={() => router.replace("/")} />
+      <ScrollView contentContainerStyle={styles.container}>
         <EmailVerifyCard reason="Verify your email to keep your account safe, use invite codes and earn referral rewards." />
 
         {/* PROFILE */}
@@ -94,134 +95,120 @@ export default function AccountScreen() {
               <Text style={styles.muted}>{user.email}</Text>
               <Text style={styles.muted}>{user.phone || "No phone number yet"}</Text>
             </View>
-            <View style={[styles.roleBadge, { backgroundColor: ROLE_COLOR[user.role] || "#555" }]}>
-              <Text style={styles.roleBadgeText}>{user.role.toUpperCase()}</Text>
-            </View>
+          </View>
+          <View style={[styles.roleBadge, { backgroundColor: role.bg }]}>
+            <Text style={[styles.roleBadgeText, { color: role.fg }]}>{role.label}</Text>
           </View>
 
           {editing ? (
             <>
-              <Text style={styles.label}>Full name</Text>
-              <TextInput style={styles.input} value={name} onChangeText={setName} />
-              <Text style={styles.label}>Phone number</Text>
+              <Text style={ui.label}>Full name</Text>
+              <TextInput style={ui.input} value={name} onChangeText={setName} />
+              <Text style={ui.label}>Phone number</Text>
               <TextInput
-                style={styles.input}
+                style={ui.input}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 placeholder="08012345678"
+                placeholderTextColor={colors.faint}
               />
               {message ? <Text style={styles.error}>{message}</Text> : null}
               <View style={styles.buttonRow}>
-                <Pressable style={[styles.secondaryButton, { flex: 1 }]} onPress={() => setEditing(false)}>
-                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                <Pressable style={[ui.secondaryButton, { flex: 1 }]} onPress={() => setEditing(false)}>
+                  <Text style={ui.secondaryButtonText}>Cancel</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.primaryButton, { flex: 1, marginTop: 12 }]}
+                  style={({ pressed }) => [ui.primaryButton, { flex: 1, height: 50 }, pressed && { backgroundColor: colors.greenPressed }]}
                   disabled={saving}
                   onPress={save}
                 >
-                  <Text style={styles.primaryButtonText}>{saving ? "Saving..." : "Save"}</Text>
+                  <Text style={ui.primaryButtonText}>{saving ? "Saving..." : "Save"}</Text>
                 </Pressable>
               </View>
             </>
           ) : (
-            <Pressable style={styles.secondaryButton} onPress={startEdit}>
-              <Text style={styles.secondaryButtonText}>Edit profile</Text>
+            <Pressable style={({ pressed }) => [styles.editButton, pressed && { opacity: 0.7 }]} onPress={startEdit}>
+              <Icon name="pencil" size={16} color={colors.green} />
+              <Text style={styles.editText}>Edit profile</Text>
             </Pressable>
           )}
         </View>
 
-        {/* ADMIN */}
-        {user.role === "admin" && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Admin</Text>
-            <Text style={styles.description}>
-              Approve riders and sellers, see today's numbers and fix stuck orders.
-            </Text>
-            <Pressable
-              style={[styles.primaryButton, { backgroundColor: "#b00020" }]}
-              onPress={() => router.push("/admin" as any)}
-            >
-              <Text style={styles.primaryButtonText}>Open Admin Dashboard</Text>
-            </Pressable>
-          </View>
-        )}
+        {/* WORK DASHBOARDS (staff, sellers, riders) */}
+        {user.role === "admin" ||
+        user.role === "marketing" ||
+        user.role === "rider" ||
+        user.role === "seller" ? (
+          <>
+            <Text style={styles.groupTitle}>Work</Text>
+            <View style={styles.group}>
+              {user.role === "admin" ? (
+                <Row
+                  icon="shield"
+                  tint={colors.dangerSoft}
+                  iconColor={colors.danger}
+                  title="Admin Dashboard"
+                  subtitle="Approvals, live orders, money and settings"
+                  onPress={() => router.push("/admin" as any)}
+                />
+              ) : null}
+              {user.role === "marketing" || user.role === "admin" ? (
+                <Row
+                  icon="megaphone"
+                  title="Marketing Dashboard"
+                  subtitle="Growth, applications, shops, riders and codes"
+                  onPress={() => router.push("/marketing" as any)}
+                />
+              ) : null}
+              {user.role === "rider" ? (
+                <Row
+                  icon="bike"
+                  title="Rider Dashboard"
+                  subtitle="Go online, see your trip, confirm deliveries"
+                  onPress={() => router.push("/rider" as any)}
+                />
+              ) : null}
+              {user.role === "seller" ? (
+                <Row
+                  icon="store"
+                  title="Seller Dashboard"
+                  subtitle="Prepare paid orders and manage your products"
+                  onPress={() => router.push("/seller" as any)}
+                />
+              ) : null}
+            </View>
+          </>
+        ) : null}
 
-        {/* MARKETING (limited staff access) */}
-        {(user.role === "marketing" || user.role === "admin") && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Marketing</Text>
-            <Text style={styles.description}>
-              Growth numbers, applications, shops, riders and marketer codes.
-            </Text>
-            <Pressable style={styles.primaryButton} onPress={() => router.push("/marketing" as any)}>
-              <Text style={styles.primaryButtonText}>Open Marketing Dashboard</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* ORDERS (everyone can shop) */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>My shopping</Text>
-          <Text style={styles.description}>Track your orders and deliveries.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.push("/orders")}>
-            <Text style={styles.primaryButtonText}>View My Orders</Text>
-          </Pressable>
+        <Text style={styles.groupTitle}>Shopping</Text>
+        <View style={styles.group}>
+          <Row icon="package" title="My orders" subtitle="Track your orders and deliveries" onPress={() => router.push("/orders")} />
+          <Row icon="wallet" title="Wallet" subtitle="Balance, rewards and history" onPress={() => router.push("/wallet")} />
+          {user.role === "customer" ? (
+            <Row
+              icon="users"
+              tint={colors.goldSoft}
+              iconColor={colors.goldText}
+              title="Work with CommunityMarket"
+              subtitle="Apply to be a rider or a seller"
+              onPress={() => router.push("/apply" as any)}
+            />
+          ) : null}
         </View>
 
-        {/* CUSTOMER -> apply */}
-        {user.role === "customer" && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Work with CommunityMarket</Text>
-            <Text style={styles.description}>
-              Earn by delivering orders as a rider, or sell your products to customers near you.
-            </Text>
-            <Pressable style={styles.secondaryButton} onPress={() => router.push("/apply" as any)}>
-              <Text style={styles.secondaryButtonText}>Apply to be a rider or seller</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* RIDER */}
-        {(user.role === "rider" || user.role === "admin") && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Rider</Text>
-            <Text style={styles.description}>
-              Go online, see your trip, collect from sellers and confirm deliveries.
-            </Text>
-            <Pressable style={styles.primaryButton} onPress={() => router.push("/rider" as any)}>
-              <Text style={styles.primaryButtonText}>Open Rider Dashboard</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* SELLER */}
-        {(user.role === "seller" || user.role === "admin") && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Seller</Text>
-            <Text style={styles.description}>
-              Prepare paid orders for pickup and manage your products.
-            </Text>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={() => router.push("/seller" as any)}
-            >
-              <Text style={styles.primaryButtonText}>Open Seller Dashboard</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* POLICIES */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Policies</Text>
-          <Text style={styles.description}>Terms of Use, Privacy Policy, and Refund and Cancellation Policy.</Text>
-          <Pressable style={styles.secondaryButton} onPress={() => router.push("/policies" as any)}>
-            <Text style={styles.secondaryButtonText}>Read our policies</Text>
-          </Pressable>
+        <Text style={styles.groupTitle}>About</Text>
+        <View style={styles.group}>
+          <Row
+            icon="file"
+            title="Policies"
+            subtitle="Terms, Privacy, Refunds and Cancellation"
+            onPress={() => router.push("/policies" as any)}
+          />
         </View>
 
-        <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+        <Pressable style={({ pressed }) => [styles.signOutButton, pressed && { opacity: 0.7 }]} onPress={handleSignOut}>
+          <Icon name="logout" size={18} color={colors.danger} />
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
 
@@ -236,72 +223,89 @@ export default function AccountScreen() {
             }
           }}
         />
-
-        <View style={{ height: 30 }} />
       </ScrollView>
 
       <TabBar active="account" />
-    </SafeAreaView>
+    </View>
+  );
+}
+
+function Row({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  tint = colors.greenSoft,
+  iconColor = colors.green,
+}: {
+  icon: IconName;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  tint?: string;
+  iconColor?: string;
+}) {
+  return (
+    <Pressable style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.chip }]} onPress={onPress}>
+      <View style={[styles.rowIcon, { backgroundColor: tint }]}>
+        <Icon name={icon} size={19} color={iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={styles.rowSub}>{subtitle}</Text>
+      </View>
+      <Icon name="chevron-right" size={18} color={colors.faint} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f5f6f8" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  container: { padding: 20, paddingBottom: TAB_BAR_SPACE },
-  backText: { fontWeight: "700", marginBottom: 14 },
-  title: { fontSize: 28, fontWeight: "800", marginBottom: 16 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 18, marginBottom: 14 },
-  profileRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  centered: { alignItems: "center", justifyContent: "center" },
+  container: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: TAB_BAR_SPACE },
+  card: { ...ui.card, padding: 18, marginBottom: 6 },
+  profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#222",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.green,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { color: "#fff", fontSize: 22, fontWeight: "800" },
-  profileName: { fontSize: 18, fontWeight: "800" },
-  muted: { color: "#666", marginTop: 3 },
-  roleBadge: { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5, alignSelf: "flex-start" },
-  roleBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-  sectionTitle: { fontSize: 17, fontWeight: "800" },
-  description: { color: "#666", marginTop: 6, lineHeight: 20 },
-  label: { fontSize: 13, fontWeight: "700", color: "#444", marginTop: 12, marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d0d4db",
-    borderRadius: 10,
-    padding: 12,
-    backgroundColor: "#fff",
-  },
-  error: { color: "#b00020", marginTop: 10 },
-  buttonRow: { flexDirection: "row", gap: 10, alignItems: "flex-end" },
-  primaryButton: {
-    marginTop: 16,
-    backgroundColor: "#222",
-    paddingVertical: 14,
-    borderRadius: 10,
+  avatarText: { color: colors.gold, fontSize: 22, fontFamily: fonts.display },
+  profileName: { fontFamily: fonts.displayBold, fontSize: 19, color: colors.ink },
+  muted: { ...text.small, marginTop: 2 },
+  roleBadge: { alignSelf: "flex-start", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, marginTop: 14 },
+  roleBadgeText: { fontFamily: fonts.bold, fontSize: 12 },
+  editButton: {
+    marginTop: 14,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.greenSoft,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
-  primaryButtonText: { color: "#fff", fontWeight: "700" },
-  secondaryButton: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#222",
-    paddingVertical: 13,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  secondaryButtonText: { fontWeight: "700" },
+  editText: { fontFamily: fonts.bold, fontSize: 14, color: colors.green },
+  error: { fontFamily: fonts.semibold, color: colors.danger, marginTop: 10 },
+  buttonRow: { flexDirection: "row", gap: 10, marginTop: 16 },
+  groupTitle: { ...text.label, marginTop: 20, marginBottom: 8, marginLeft: 4 },
+  group: { ...ui.card, overflow: "hidden" },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 13 },
+  rowIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  rowTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
+  rowSub: { fontFamily: fonts.regular, fontSize: 12.5, color: colors.muted, marginTop: 1 },
   signOutButton: {
-    marginTop: 6,
-    paddingVertical: 14,
-    borderRadius: 10,
+    marginTop: 22,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.dangerSoft,
+    flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#b00020",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 14,
   },
-  signOutText: { color: "#b00020", fontWeight: "800" },
+  signOutText: { color: colors.danger, fontFamily: fonts.bold, fontSize: 15 },
 });

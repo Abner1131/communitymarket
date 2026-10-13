@@ -4,6 +4,8 @@
 
 import { StyleSheet, Text, View } from "react-native";
 
+import { colors, fonts } from "../theme";
+
 import { savedAgo } from "../lib/screenCache";
 
 export function StaleNote({
@@ -29,10 +31,10 @@ export function StaleNote({
 }
 
 const styles = StyleSheet.create({
-  box: { borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10, marginBottom: 10, alignSelf: "flex-start" },
-  updating: { backgroundColor: "#e8f0fe" },
-  offline: { backgroundColor: "#fff4e5" },
-  text: { fontSize: 12, fontWeight: "700" },
-  updatingText: { color: "#1a56b0" },
-  offlineText: { color: "#8a4b00" },
+  box: { borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12, marginBottom: 12, alignSelf: "flex-start" },
+  updating: { backgroundColor: colors.greenSoft },
+  offline: { backgroundColor: colors.goldSoft },
+  text: { fontSize: 12, fontFamily: fonts.bold },
+  updatingText: { color: colors.green },
+  offlineText: { color: colors.goldText },
 });

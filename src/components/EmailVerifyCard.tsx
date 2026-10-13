@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { auth } from "../lib/firebase";
+import { colors, fonts, radius } from "../theme";
+import { Icon } from "./Icon";
 
 // "Verify your email": invite codes and referral rewards need it (stops fake
 // accounts). onVerified runs after the user confirms it in their inbox.
@@ -75,7 +77,10 @@ export function EmailVerifyCard({ reason, onVerified }: { reason?: string; onVer
 
   return (
     <View style={styles.box}>
-      <Text style={styles.title}>📧 Verify your email</Text>
+      <View style={styles.titleRow}>
+        <Icon name="mail" size={18} color={colors.goldText} />
+        <Text style={styles.title}>Verify your email</Text>
+      </View>
       <Text style={styles.text}>{reason || "Verify your email to use invite codes and earn referral rewards."}</Text>
       <View style={styles.row}>
         <Pressable style={[styles.button, busy && { opacity: 0.6 }]} onPress={send} disabled={busy}>
@@ -91,13 +96,22 @@ export function EmailVerifyCard({ reason, onVerified }: { reason?: string; onVer
 }
 
 const styles = StyleSheet.create({
-  box: { backgroundColor: "#fff8e6", borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "#f0c36b" },
-  title: { fontWeight: "800", fontSize: 15, color: "#5c4300" },
-  text: { color: "#6b5a2e", marginTop: 4, fontSize: 13 },
+  box: { backgroundColor: colors.goldSoft, borderRadius: radius.lg, padding: 16, marginBottom: 14 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  title: { fontFamily: fonts.bold, fontSize: 15, color: colors.goldText },
+  text: { fontFamily: fonts.regular, color: "#6b5a2e", marginTop: 6, fontSize: 13, lineHeight: 19 },
   row: { flexDirection: "row", gap: 10, marginTop: 12 },
-  button: { flex: 1, backgroundColor: "#222", borderRadius: 10, paddingVertical: 11, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "800" },
-  outline: { flex: 1, borderWidth: 1, borderColor: "#222", borderRadius: 10, paddingVertical: 11, alignItems: "center" },
-  outlineText: { fontWeight: "800", color: "#222" },
-  message: { marginTop: 10, color: "#333", fontSize: 13 },
+  button: { flex: 1, height: 44, backgroundColor: colors.green, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  buttonText: { color: "#ffffff", fontFamily: fonts.bold, fontSize: 14 },
+  outline: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outlineText: { fontFamily: fonts.bold, fontSize: 14, color: colors.green },
+  message: { marginTop: 10, fontFamily: fonts.medium, color: colors.ink2, fontSize: 13, lineHeight: 19 },
 });

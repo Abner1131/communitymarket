@@ -4,6 +4,8 @@
 
 import { StyleSheet, Text, View } from "react-native";
 
+import { colors, fonts } from "../theme";
+
 type Block =
   | { kind: "heading"; text: string }
   | { kind: "para"; text: string }
@@ -121,14 +123,14 @@ export function PolicyText({ body }: { body: string }) {
 }
 
 const styles = StyleSheet.create({
-  heading: { fontSize: 16, fontWeight: "800", color: "#111", marginTop: 20, marginBottom: 6 },
-  para: { fontSize: 14, lineHeight: 21, color: "#333", marginBottom: 10 },
-  bold: { fontWeight: "800", color: "#111" },
-  itemRow: { flexDirection: "row", marginBottom: 7, paddingRight: 4 },
-  marker: { width: 22, fontSize: 14, lineHeight: 21, color: "#555", fontWeight: "700" },
-  itemText: { flex: 1, fontSize: 14, lineHeight: 21, color: "#333" },
-  rowCard: { backgroundColor: "#f5f6f8", borderRadius: 12, padding: 12, marginBottom: 8 },
-  rowTitle: { fontSize: 14, fontWeight: "800", color: "#111" },
-  rowLabel: { fontSize: 11, fontWeight: "700", color: "#888", textTransform: "uppercase" },
-  rowValue: { fontSize: 14, lineHeight: 20, color: "#333", marginTop: 1 },
+  heading: { fontFamily: fonts.displayBold, fontSize: 17, color: colors.ink, marginTop: 22, marginBottom: 8 },
+  para: { fontFamily: fonts.regular, fontSize: 14.5, lineHeight: 22, color: colors.ink2, marginBottom: 10 },
+  bold: { fontFamily: fonts.bold, color: colors.ink },
+  itemRow: { flexDirection: "row", marginBottom: 8, paddingRight: 4 },
+  marker: { width: 22, fontSize: 14.5, lineHeight: 22, color: colors.green, fontFamily: fonts.bold },
+  itemText: { flex: 1, fontFamily: fonts.regular, fontSize: 14.5, lineHeight: 22, color: colors.ink2 },
+  rowCard: { backgroundColor: colors.bg, borderRadius: 14, padding: 14, marginBottom: 8 },
+  rowTitle: { fontFamily: fonts.bold, fontSize: 14.5, color: colors.ink },
+  rowLabel: { fontFamily: fonts.bold, fontSize: 11, color: colors.muted, textTransform: "uppercase", letterSpacing: 0.4 },
+  rowValue: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.ink2, marginTop: 1 },
 });

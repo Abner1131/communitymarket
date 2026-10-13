@@ -118,7 +118,8 @@ export default function HomeScreen() {
     });
   }, [marketProducts, selectedCategory, search]);
 
-  const canAccessDelivery = user?.role === "rider" || user?.role === "admin";
+  // The admin manages riders from the Admin Dashboard, so only riders see this.
+  const canAccessDelivery = user?.role === "rider";
   const isSeller = user?.role === "seller";
   const isCustomer = user?.role === "customer";
   const firstName = (user?.name || "").trim().split(/\s+/)[0];

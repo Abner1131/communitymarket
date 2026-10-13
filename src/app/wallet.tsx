@@ -8,7 +8,6 @@ import {
   Linking,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   Share,
   StyleSheet,
@@ -20,6 +19,9 @@ import {
 import { TAB_BAR_SPACE, TabBar } from "../components/TabBar";
 
 import { BrandLoader } from "../components/Brand";
+import { Icon } from "../components/Icon";
+import { ScreenHeader } from "../components/ui";
+import { colors, fonts, radius, shadow, text, ui } from "../theme";
 
 import { EmailVerifyCard } from "../components/EmailVerifyCard";
 import { applyInviteCode, getMyWallet, redeemPoints, startTopup, type MyWallet } from "../lib/walletApi";
@@ -145,23 +147,14 @@ export default function WalletScreen() {
     }
   }
 
-  const header = (
-    <>
-      <Pressable onPress={() => router.replace("/")}>
-        <Text style={styles.backText}>{"←"} Home</Text>
-      </Pressable>
-      <Text style={styles.title}>Wallet</Text>
-    </>
-  );
-
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={ui.screen}>
+      <View style={ui.glow} pointerEvents="none" />
+      <ScreenHeader title="Wallet" onBack={() => router.replace("/")} />
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => void load()} />}
       >
-        {header}
-
         <StaleNote fromCache={walletCache.fromCache} failed={!!error} savedAtMs={walletCache.savedAtMs} />
 
         {loading && !wallet ? (
@@ -177,6 +170,7 @@ export default function WalletScreen() {
           <>
             {/* TOTAL */}
             <View style={styles.balanceCard}>
+              <View style={styles.ring} pointerEvents="none" />
               <Text style={styles.balanceLabel}>Total balance</Text>
               <Text style={styles.balanceAmount}>{money(wallet.total)}</Text>
               <Text style={styles.balanceSub}>
@@ -207,7 +201,10 @@ export default function WalletScreen() {
                     <View style={styles.divider} />
                     <View style={styles.rowBetween}>
                       <View style={{ flex: 1, paddingRight: 8 }}>
-                        <Text style={styles.value}>⭐ {wallet.rewards.points} points</Text>
+                        <View style={styles.pointsRow}>
+                          <Icon name="star" size={16} color={colors.goldDeep} />
+                          <Text style={styles.value}>{wallet.rewards.points} points</Text>
+                        </View>
                         <Text style={styles.hintSmall}>
                           1 point per {money(wallet.rewards.pointsRule.nairaPerPoint)} spent · 100 points ={" "}
                           {money(wallet.rewards.pointsRule.nairaPer100Points)}
@@ -296,6 +293,7 @@ export default function WalletScreen() {
                         autoCapitalize="characters"
                         autoCorrect={false}
                         placeholder="e.g. AMINA4K2"
+                        placeholderTextColor={colors.faint}
                       />
                       <Pressable
                         style={[styles.smallButton, { marginTop: 10 }, (rewardsBusy !== null || !codeInput.trim()) && { opacity: 0.5 }]}
@@ -324,7 +322,7 @@ export default function WalletScreen() {
                             <Text style={styles.hintSmall}>Expires {new Date(a.expiresAtMs).toLocaleDateString()}</Text>
                           ) : null}
                         </View>
-                        <Text style={[styles.value, { color: "#1e7d32" }]}>{money(a.amount)}</Text>
+                        <Text style={[styles.value, { color: colors.green }]}>{money(a.amount)}</Text>
                       </View>
                     ))}
                   </>
@@ -393,8 +391,9 @@ export default function WalletScreen() {
                   </Text>
                 </>
               ) : (
-                <Pressable style={styles.greenButton} onPress={() => setFunding(true)}>
-                  <Text style={styles.whiteText}>＋ Fund wallet</Text>
+                <Pressable style={[styles.greenButton, styles.iconButtonRow]} onPress={() => setFunding(true)}>
+                  <Icon name="plus" size={18} color="#ffffff" />
+                  <Text style={styles.whiteText}>Fund wallet</Text>
                 </Pressable>
               )}
             </View>
@@ -436,7 +435,7 @@ export default function WalletScreen() {
                         <Text style={styles.activityLabel}>{a.label}</Text>
                         <Text style={styles.hintSmall}>{a.atMs ? new Date(a.atMs).toLocaleString() : ""}</Text>
                       </View>
-                      <Text style={[styles.value, { color: minus ? "#222" : "#1e7d32" }]}>
+                      <Text style={[styles.value, { color: minus ? colors.ink : colors.green }]}>
                         {minus ? "−" : "+"}
                         {money(a.amount)}
                       </Text>
@@ -450,48 +449,108 @@ export default function WalletScreen() {
       </ScrollView>
 
       <TabBar active="wallet" />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f5f6f8" },
-  container: { padding: 20, paddingBottom: TAB_BAR_SPACE },
-  backText: { fontSize: 14, fontWeight: "700", marginBottom: 14 },
-  title: { fontSize: 28, fontWeight: "800", marginBottom: 14 },
-  balanceCard: { backgroundColor: "#222", borderRadius: 18, padding: 20, marginBottom: 14 },
-  balanceLabel: { color: "#aaa" },
-  balanceAmount: { color: "#fff", fontSize: 32, fontWeight: "900", marginTop: 4 },
-  balanceSub: { color: "#bbb", fontSize: 12, marginTop: 6 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: "800" },
-  muted: { color: "#666", marginTop: 3, fontSize: 13 },
-  hint: { color: "#888", fontSize: 12, marginTop: 10 },
-  hintSmall: { color: "#888", fontSize: 11, marginTop: 2 },
-  label: { fontSize: 13, fontWeight: "700", color: "#444", marginTop: 14, marginBottom: 8 },
-  value: { fontWeight: "700" },
-  bigValue: { fontSize: 20, fontWeight: "900" },
-  errorText: { color: "#b00020", marginTop: 8 },
+  container: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: TAB_BAR_SPACE },
+  balanceCard: {
+    backgroundColor: colors.green,
+    borderRadius: radius.xl,
+    padding: 22,
+    marginBottom: 14,
+    overflow: "hidden",
+    ...shadow.button,
+  },
+  ring: {
+    position: "absolute",
+    right: -44,
+    top: -44,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    borderWidth: 20,
+    borderColor: "rgba(242,179,61,0.16)",
+  },
+  balanceLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.onGreenMuted },
+  balanceAmount: { fontFamily: fonts.display, fontSize: 36, letterSpacing: -0.8, color: colors.gold, marginTop: 4 },
+  balanceSub: { fontFamily: fonts.regular, color: colors.onGreenMuted, fontSize: 12.5, lineHeight: 18, marginTop: 6 },
+  card: { ...ui.card, padding: 18, marginBottom: 12 },
+  cardTitle: { fontFamily: fonts.displayBold, fontSize: 17, color: colors.ink },
+  muted: { ...text.small, marginTop: 3 },
+  hint: { ...text.small, fontSize: 12, marginTop: 10, lineHeight: 17 },
+  hintSmall: { fontFamily: fonts.regular, color: colors.muted, fontSize: 12, marginTop: 2, lineHeight: 17 },
+  label: { ...ui.label, marginTop: 14, marginBottom: 8 },
+  value: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
+  pointsRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  bigValue: { ...text.price, fontSize: 20 },
+  errorText: { fontFamily: fonts.semibold, color: colors.danger, marginTop: 8 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   twoCol: { flexDirection: "row", gap: 10, alignItems: "flex-end" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { borderWidth: 1, borderColor: "#ccc", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
-  chipActive: { backgroundColor: "#222", borderColor: "#222" },
-  chipText: { fontSize: 13, color: "#444", fontWeight: "600" },
-  chipTextActive: { color: "#fff" },
-  input: { borderWidth: 1, borderColor: "#d0d4db", borderRadius: 10, padding: 12, backgroundColor: "#fff", marginTop: 10 },
-  pendingBox: { flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: "#fff4e5", borderRadius: 10, padding: 10, marginTop: 12 },
-  pendingText: { color: "#8a5200", flex: 1, fontWeight: "600" },
-  greenButton: { marginTop: 14, backgroundColor: "#1e7d32", paddingVertical: 14, borderRadius: 10, alignItems: "center" },
-  darkButton: { marginTop: 12, backgroundColor: "#222", paddingVertical: 13, borderRadius: 10, alignItems: "center" },
-  outlineButton: { marginTop: 14, borderWidth: 1, borderColor: "#222", paddingVertical: 13, borderRadius: 10, alignItems: "center" },
-  outlineText: { fontWeight: "700" },
-  whiteText: { color: "#fff", fontWeight: "800" },
-  divider: { height: 1, backgroundColor: "#eee", marginVertical: 12 },
-  smallButton: { borderWidth: 1, borderColor: "#222", borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 },
-  smallButtonText: { fontWeight: "700", fontSize: 13 },
-  codeText: { fontSize: 22, fontWeight: "900", letterSpacing: 2 },
-  okText: { color: "#1e7d32", fontWeight: "700", marginTop: 10 },
-  activityRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 7 },
-  activityLabel: { fontSize: 14, color: "#222" },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    height: 40,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(23,33,27,0.12)",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    backgroundColor: colors.card,
+  },
+  chipActive: { backgroundColor: colors.greenSoft, borderColor: colors.green, borderWidth: 1.5 },
+  chipText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink2 },
+  chipTextActive: { fontFamily: fonts.bold, color: colors.green },
+  input: { ...ui.input, marginTop: 10 },
+  pendingBox: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    backgroundColor: colors.goldSoft,
+    borderRadius: radius.sm,
+    padding: 12,
+    marginTop: 12,
+  },
+  pendingText: { fontFamily: fonts.semibold, color: colors.goldText, flex: 1, lineHeight: 19 },
+  greenButton: {
+    marginTop: 14,
+    backgroundColor: colors.green,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconButtonRow: { flexDirection: "row", gap: 8 },
+  darkButton: {
+    marginTop: 12,
+    backgroundColor: colors.green,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outlineButton: {
+    marginTop: 14,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outlineText: { fontFamily: fonts.bold, color: colors.green },
+  whiteText: { color: "#ffffff", fontFamily: fonts.bold, fontSize: 15 },
+  divider: { height: 1, backgroundColor: colors.line, marginVertical: 14 },
+  smallButton: {
+    height: 38,
+    justifyContent: "center",
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    backgroundColor: colors.greenSoft,
+  },
+  smallButtonText: { fontFamily: fonts.bold, fontSize: 13, color: colors.green },
+  codeText: { fontFamily: fonts.display, fontSize: 24, letterSpacing: 3, color: colors.ink },
+  okText: { fontFamily: fonts.bold, color: colors.green, marginTop: 10 },
+  activityRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 },
+  activityLabel: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
 });
