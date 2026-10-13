@@ -12,7 +12,6 @@ import { useScreenCache } from "../lib/screenCache";
 import { StaleNote } from "./StaleNote";
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,6 +21,9 @@ import {
 import { TAB_BAR_SPACE, TabBar } from "./TabBar";
 
 import { BrandLoader } from "./Brand";
+import { Icon } from "./Icon";
+import { ScreenHeader } from "./ui";
+import { colors, fonts, radius, text, ui } from "../theme";
 
 import { auth, db } from "../lib/firebase";
 import DeliveryCodeCard, { shouldShowDeliveryCode } from "./DeliveryCodeCard";
@@ -49,22 +51,24 @@ const REPORT_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 const NAIRA = "₦";
 
-const STATUS_LABELS: Record<string, { text: string; color: string }> = {
-  created: { text: "AWAITING PAYMENT", color: "#b26a00" },
-  paid: { text: "PAID", color: "#1e7d32" },
-  expired: { text: "EXPIRED", color: "#888888" },
-  cancelled: { text: "CANCELLED", color: "#b00020" },
-  dispatching: { text: "FINDING RIDER", color: "#1565c0" },
-  assigned: { text: "RIDER ASSIGNED", color: "#1565c0" },
-  picked_up: { text: "ON THE WAY", color: "#1565c0" },
-  delivered: { text: "DELIVERED", color: "#1e7d32" },
+const PROGRESS = { bg: "#e7eef8", fg: "#1f4f8a" };
+const STATUS_LABELS: Record<string, { text: string; bg: string; fg: string }> = {
+  created: { text: "Awaiting payment", bg: colors.goldSoft, fg: colors.goldText },
+  paid: { text: "Paid", bg: colors.greenSoft, fg: colors.green },
+  expired: { text: "Expired", bg: colors.chip, fg: colors.muted },
+  cancelled: { text: "Cancelled", bg: colors.dangerSoft, fg: colors.danger },
+  dispatching: { text: "Finding rider", ...PROGRESS },
+  assigned: { text: "Rider assigned", ...PROGRESS },
+  picked_up: { text: "On the way", ...PROGRESS },
+  delivered: { text: "Delivered", bg: colors.greenSoft, fg: colors.green },
 };
 
 function statusLabel(status: string) {
   return (
     STATUS_LABELS[status] ?? {
-      text: status.replace(/_/g, " ").toUpperCase(),
-      color: "#222222",
+      text: status.replace(/_/g, " "),
+      bg: colors.chip,
+      fg: colors.ink2,
     }
   );
 }
@@ -189,33 +193,32 @@ export default function CustomerOrdersList() {
 
   if ((!authChecked || loading) && !ordersCache.value) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <View style={[ui.screen, styles.centered]}>
         <BrandLoader />
         <Text style={styles.loadingText}>Loading your orders...</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={ui.screen}>
+      <View style={ui.glow} pointerEvents="none" />
+      <ScreenHeader
+        title="My orders"
+        subtitle={`${orders.length} ${orders.length === 1 ? "order" : "orders"}`}
+        onBack={() => router.replace("/")}
+      />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.replace("/")}>
-            <Text style={styles.backText}>{"←"} Home</Text>
-          </Pressable>
-          <Text style={styles.title}>My Orders</Text>
-          <Text style={styles.subtitle}>{orders.length} order(s)</Text>
-          <StaleNote fromCache={ordersCache.fromCache} failed={loadFailed} savedAtMs={ordersCache.savedAtMs} />
-          {firebaseUser ? (
-            <Text style={styles.signedIn}>
-              Signed in as {firebaseUser.email}
-              {"  \u00B7  "}
-              <Text style={styles.signOutLink} onPress={() => void signOut(auth)}>
-                Sign out
-              </Text>
+        <StaleNote fromCache={ordersCache.fromCache} failed={loadFailed} savedAtMs={ordersCache.savedAtMs} />
+        {firebaseUser ? (
+          <Text style={styles.signedIn}>
+            Signed in as {firebaseUser.email}
+            {"  \u00B7  "}
+            <Text style={styles.signOutLink} onPress={() => void signOut(auth)}>
+              Sign out
             </Text>
-          ) : null}
-        </View>
+          </Text>
+        ) : null}
 
         {!firebaseUser ? (
           <FirebaseSignInCard
@@ -229,16 +232,16 @@ export default function CustomerOrdersList() {
           </View>
         ) : orders.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>{"\u{1F4E6}"}</Text>
-            <Text style={styles.emptyTitle}>No Orders Yet</Text>
-            <Text style={styles.emptyText}>
-              Orders you place will appear here.
-            </Text>
+            <View style={styles.emptyIcon}>
+              <Icon name="package" size={30} color={colors.green} />
+            </View>
+            <Text style={styles.emptyTitle}>No orders yet</Text>
+            <Text style={styles.emptyText}>Orders you place will appear here.</Text>
             <Pressable
-              style={styles.primaryButton}
+              style={({ pressed }) => [ui.primaryButton, styles.fullButton, pressed && { backgroundColor: colors.greenPressed }]}
               onPress={() => router.replace("/")}
             >
-              <Text style={styles.primaryButtonText}>Continue Shopping</Text>
+              <Text style={ui.primaryButtonText}>Start shopping</Text>
             </Pressable>
           </View>
         ) : (
@@ -247,7 +250,7 @@ export default function CustomerOrdersList() {
             return (
               <Pressable
                 key={order.id}
-                style={styles.orderCard}
+                style={({ pressed }) => [styles.orderCard, pressed && { opacity: 0.85 }]}
                 onPress={() =>
                   router.push({
                     pathname: "/payment",
@@ -256,20 +259,19 @@ export default function CustomerOrdersList() {
                 }
               >
                 <View style={styles.orderHeader}>
-                  <View style={{ flex: 1, paddingRight: 10 }}>
+                  <View style={styles.orderIcon}>
+                    <Icon name="package" size={20} color={colors.green} />
+                  </View>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.orderId} numberOfLines={1}>
                       #{order.id.slice(0, 8).toUpperCase()}
                     </Text>
                     <Text style={styles.orderDate}>
-                      {order.createdAt
-                        ? order.createdAt.toLocaleString()
-                        : "Just now"}
+                      {order.createdAt ? order.createdAt.toLocaleString() : "Just now"}
                     </Text>
                   </View>
-                  <View
-                    style={[styles.statusBadge, { backgroundColor: label.color }]}
-                  >
-                    <Text style={styles.statusText}>{label.text}</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: label.bg }]}>
+                    <Text style={[styles.statusText, { color: label.fg }]}>{label.text}</Text>
                   </View>
                 </View>
 
@@ -278,37 +280,33 @@ export default function CustomerOrdersList() {
                 <View style={styles.row}>
                   <Text style={styles.label}>Items</Text>
                   <Text style={styles.value}>
-                    {order.itemCount} item(s)
-                    {order.sellerCount > 1
-                      ? ` from ${order.sellerCount} sellers`
-                      : ""}
+                    {order.itemCount} {order.itemCount === 1 ? "item" : "items"}
+                    {order.sellerCount > 1 ? ` from ${order.sellerCount} sellers` : ""}
                   </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Delivery</Text>
                   <Text style={styles.value}>
-                    {order.vehicle.toUpperCase()} {"·"} {NAIRA}
+                    {order.vehicle ? order.vehicle.charAt(0).toUpperCase() + order.vehicle.slice(1) : ""} {"·"} {NAIRA}
                     {order.deliveryFee.toLocaleString()}
                   </Text>
                 </View>
-                <View style={styles.row}>
+                {order.riderName && ["assigned", "picked_up", "delivered"].includes(order.status) && (
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Rider</Text>
+                    <Text style={styles.value}>
+                      {order.riderName}
+                      {order.riderVehicle ? ` (${order.riderVehicle})` : ""}
+                    </Text>
+                  </View>
+                )}
+                <View style={[styles.row, { marginTop: 10 }]}>
                   <Text style={styles.label}>Total</Text>
                   <Text style={styles.total}>
                     {NAIRA}
                     {order.total.toLocaleString()}
                   </Text>
                 </View>
-
-                {order.riderName &&
-                  ["assigned", "picked_up", "delivered"].includes(order.status) && (
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Rider</Text>
-                      <Text style={styles.value}>
-                        {order.riderName}
-                        {order.riderVehicle ? ` (${order.riderVehicle})` : ""}
-                      </Text>
-                    </View>
-                  )}
 
                 {shouldShowDeliveryCode(order.status, order.deliveryCode) && (
                   <DeliveryCodeCard code={order.deliveryCode} status={order.status} compact />
@@ -319,119 +317,103 @@ export default function CustomerOrdersList() {
                     style={[
                       styles.issueBox,
                       order.issue.status === "refunded"
-                        ? { backgroundColor: "#e8f5e9" }
+                        ? { backgroundColor: colors.greenSoft }
                         : order.issue.status === "rejected"
-                          ? { backgroundColor: "#fdecea" }
-                          : { backgroundColor: "#fff8e1" },
+                          ? { backgroundColor: colors.dangerSoft }
+                          : { backgroundColor: colors.goldSoft },
                     ]}
                     onPress={() => router.push({ pathname: "/report", params: { orderId: order.id } } as any)}
                   >
                     <Text style={styles.issueText}>
                       {order.issue.status === "refunded"
-                        ? `✓ Problem settled: ${NAIRA}${(order.issue.amount || 0).toLocaleString()} refunded to your wallet`
+                        ? `Problem settled: ${NAIRA}${(order.issue.amount || 0).toLocaleString()} refunded to your wallet`
                         : order.issue.status === "rejected"
                           ? "Problem report not accepted · tap for details"
-                          : "Problem reported — we're checking · tap for details"}
+                          : "Problem reported, we're checking · tap for details"}
                     </Text>
                   </Pressable>
                 ) : order.status === "delivered" &&
                   order.deliveredAtMs !== null &&
                   Date.now() - order.deliveredAtMs < REPORT_WINDOW_MS ? (
                   <Pressable
-                    style={styles.reportButton}
+                    style={({ pressed }) => [styles.reportButton, pressed && { opacity: 0.7 }]}
                     onPress={() => router.push({ pathname: "/report", params: { orderId: order.id } } as any)}
                   >
+                    <Icon name="alert" size={16} color={colors.danger} />
                     <Text style={styles.reportButtonText}>Report a problem</Text>
                   </Pressable>
                 ) : null}
 
                 {order.status === "created" && (
-                  <Text style={styles.hint}>
-                    Tap to complete payment
-                  </Text>
+                  <View style={styles.hintRow}>
+                    <Text style={styles.hint}>Tap to complete payment</Text>
+                    <Icon name="chevron-right" size={16} color={colors.goldText} />
+                  </View>
                 )}
               </Pressable>
             );
           })
         )}
 
-        <View style={{ height: 30 }} />
+        <View style={{ height: 10 }} />
       </ScrollView>
 
       <TabBar active="orders" />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f5f6f8" },
-  container: { padding: 20, paddingBottom: TAB_BAR_SPACE },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  loadingText: { marginTop: 10 },
-  header: { marginBottom: 20 },
-  backText: { fontWeight: "700", marginBottom: 14 },
-  title: { fontSize: 28, fontWeight: "800" },
-  subtitle: { color: "#777", marginTop: 5 },
-  signedIn: { color: "#777", marginTop: 6, fontSize: 12 },
-  signOutLink: { color: "#1565c0", fontWeight: "700" },
-  emptyCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
+  container: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: TAB_BAR_SPACE },
+  centered: { alignItems: "center", justifyContent: "center" },
+  loadingText: { ...text.small, marginTop: 10 },
+  signedIn: { ...text.small, fontSize: 12, marginBottom: 14 },
+  signOutLink: { fontFamily: fonts.bold, color: colors.green },
+  emptyCard: { ...ui.card, padding: 24, alignItems: "center" },
+  emptyIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 22,
+    backgroundColor: colors.greenSoft,
     alignItems: "center",
-  },
-  emptyIcon: { fontSize: 50, marginBottom: 12 },
-  emptyTitle: { fontSize: 20, fontWeight: "800", textAlign: "center" },
-  emptyText: {
-    color: "#666",
-    textAlign: "center",
-    lineHeight: 21,
-    marginTop: 8,
-  },
-  orderCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 18,
+    justifyContent: "center",
     marginBottom: 14,
   },
-  orderHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  orderId: { fontSize: 16, fontWeight: "800" },
-  orderDate: { color: "#777", fontSize: 11, marginTop: 4 },
-  statusBadge: { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 6 },
-  statusText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-  divider: { height: 1, backgroundColor: "#eee", marginVertical: 14 },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  emptyTitle: { ...text.title, fontSize: 20, textAlign: "center" },
+  emptyText: { ...text.small, fontSize: 14, textAlign: "center", lineHeight: 21, marginTop: 8 },
+  fullButton: { marginTop: 18, alignSelf: "stretch" },
+  orderCard: { ...ui.card, padding: 16, marginBottom: 12 },
+  orderHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  orderIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.greenSoft,
     alignItems: "center",
-    marginTop: 6,
+    justifyContent: "center",
   },
-  label: { fontSize: 12, color: "#777", fontWeight: "700" },
-  value: { fontSize: 14, fontWeight: "600" },
-  total: { fontSize: 19, fontWeight: "900" },
-  hint: { marginTop: 12, color: "#b26a00", fontWeight: "700", fontSize: 12 },
-  issueBox: { marginTop: 12, borderRadius: 10, padding: 10 },
-  issueText: { fontWeight: "700", fontSize: 13, color: "#333" },
+  orderId: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
+  orderDate: { fontFamily: fonts.regular, color: colors.muted, fontSize: 12, marginTop: 2 },
+  statusBadge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  statusText: { fontFamily: fonts.bold, fontSize: 12 },
+  divider: { height: 1, backgroundColor: colors.line, marginVertical: 12 },
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6 },
+  label: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
+  value: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
+  total: { ...text.price, fontSize: 19 },
+  hintRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 12 },
+  hint: { fontFamily: fonts.bold, color: colors.goldText, fontSize: 13 },
+  issueBox: { marginTop: 12, borderRadius: radius.sm, padding: 12 },
+  issueText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink2 },
   reportButton: {
     marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#b00020",
-    borderRadius: 10,
-    paddingVertical: 9,
+    flexDirection: "row",
+    gap: 6,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.dangerSoft,
     alignItems: "center",
+    justifyContent: "center",
   },
-  reportButtonText: { color: "#b00020", fontWeight: "800" },
-  primaryButton: {
-    marginTop: 16,
-    width: "100%",
-    backgroundColor: "#222",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  primaryButtonText: { color: "#fff", fontWeight: "700" },
+  reportButtonText: { fontFamily: fonts.bold, fontSize: 14, color: colors.danger },
 });

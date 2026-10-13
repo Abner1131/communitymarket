@@ -98,6 +98,38 @@ export const ui = {
     ...shadow.button,
   } as ViewStyle,
   primaryButtonText: { fontFamily: fonts.bold, fontSize: 16, color: "#ffffff" } as TextStyle,
+  label: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink2, marginTop: 12, marginBottom: 7 } as TextStyle,
+  input: {
+    minHeight: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(23,33,27,0.10)",
+    backgroundColor: "#fbfaf6",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    color: colors.ink,
+  } as TextStyle,
+  // The box around a password field (the text inside is styled by PasswordInput).
+  inputBox: {
+    minHeight: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(23,33,27,0.10)",
+    backgroundColor: "#fbfaf6",
+    paddingLeft: 14,
+  } as ViewStyle,
+  secondaryButton: {
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  } as ViewStyle,
+  secondaryButtonText: { fontFamily: fonts.bold, fontSize: 15, color: colors.green } as TextStyle,
   iconButton: {
     width: 44,
     height: 44,
@@ -109,3 +141,20 @@ export const ui = {
     justifyContent: "center",
   } as ViewStyle,
 };
+
+// Soft photo-frame colours for products without a photo, by category.
+const TILE_TINTS: Record<string, { bg: string; icon: string }> = {
+  Groceries: { bg: "#f2e9d3", icon: "#9a7b3c" },
+  Food: { bg: "#f2e9d3", icon: "#9a7b3c" },
+  Agriculture: { bg: "#e6eedc", icon: "#56703a" },
+  Phones: { bg: "#e3ece4", icon: "#3f6b52" },
+  Electronics: { bg: "#e3ece4", icon: "#3f6b52" },
+  Fashion: { bg: "#efe4dc", icon: "#8a5a45" },
+  Beauty: { bg: "#f1e3e3", icon: "#8f4f5a" },
+  Health: { bg: "#f1e3e3", icon: "#8f4f5a" },
+  Household: { bg: "#e6e8ee", icon: "#4f5a70" },
+};
+
+export function categoryTint(category: string) {
+  return TILE_TINTS[category] || { bg: "#eee9df", icon: "#6f6a5e" };
+}

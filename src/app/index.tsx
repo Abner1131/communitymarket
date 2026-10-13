@@ -22,7 +22,7 @@ import { useCart } from "../context/CartContext";
 import { products } from "../data/products";
 import { subscribeCatalog } from "../lib/catalog";
 import { hasOptions, optionSummary, priceRange } from "../lib/variants";
-import { colors, fonts, radius, shadow, text, ui } from "../theme";
+import { categoryTint, colors, fonts, radius, shadow, text, ui } from "../theme";
 
 const categories = [
   "All",
@@ -46,20 +46,6 @@ const categories = [
 type MarketplaceProduct = (typeof products)[number] & {
   isActive: boolean;
 };
-
-// Soft photo-frame colours for products without a photo, by category.
-const TILE_TINTS: Record<string, { bg: string; icon: string }> = {
-  Groceries: { bg: "#f2e9d3", icon: "#9a7b3c" },
-  Food: { bg: "#f2e9d3", icon: "#9a7b3c" },
-  Agriculture: { bg: "#e6eedc", icon: "#56703a" },
-  Phones: { bg: "#e3ece4", icon: "#3f6b52" },
-  Electronics: { bg: "#e3ece4", icon: "#3f6b52" },
-  Fashion: { bg: "#efe4dc", icon: "#8a5a45" },
-  Beauty: { bg: "#f1e3e3", icon: "#8f4f5a" },
-  Health: { bg: "#f1e3e3", icon: "#8f4f5a" },
-  Household: { bg: "#e6e8ee", icon: "#4f5a70" },
-};
-const DEFAULT_TINT = { bg: "#eee9df", icon: "#6f6a5e" };
 
 function greeting() {
   const h = new Date().getHours();
@@ -285,7 +271,7 @@ export default function HomeScreen() {
 
         <View style={styles.products}>
           {filteredProducts.map((product) => {
-            const tint = TILE_TINTS[product.category] || DEFAULT_TINT;
+            const tint = categoryTint(product.category);
             const range = priceRange(product);
             const options = hasOptions(product);
             const open = () =>

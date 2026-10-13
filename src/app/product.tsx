@@ -4,7 +4,6 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +13,11 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { BrandLoader } from "../components/Brand";
+import { Icon, categoryIcon } from "../components/Icon";
+import { categoryTint, colors, fonts, radius, shadow, text, ui } from "../theme";
 
 import { useCart } from "../context/CartContext";
 import type { Product } from "../data/products";
@@ -50,6 +53,7 @@ export default function ProductScreen() {
   const { width } = useWindowDimensions();
   const pageWidth = Math.min(width, MAX_WIDTH);
   const { addToCart, items } = useCart();
+  const insets = useSafeAreaInsets();
   const [product, setProduct] = useState<ProductPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [missing, setMissing] = useState(false);
@@ -142,20 +146,14 @@ export default function ProductScreen() {
   const photos = product?.photos ?? [];
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.topBar}>
-        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} hitSlop={10}>
-          <Text style={styles.back}>{"←"} Back</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push("/cart")} hitSlop={10}>
-          <Text style={styles.back}>🛒 Cart{items.length ? ` (${items.length})` : ""}</Text>
-        </Pressable>
-      </View>
-
+    <View style={ui.screen}>
       {loading ? (
-        <BrandLoader style={{ marginTop: 60 }} />
+        <BrandLoader style={{ marginTop: insets.top + 120 }} />
       ) : missing || !product ? (
         <View style={styles.center}>
+          <View style={styles.missingIcon}>
+            <Icon name="package" size={28} color={colors.muted} />
+          </View>
           <Text style={styles.missingTitle}>This product is not available</Text>
           <Text style={styles.muted}>The seller may have hidden it or it sold out.</Text>
           <Pressable style={styles.button} onPress={() => router.replace("/")}>
@@ -163,7 +161,7 @@ export default function ProductScreen() {
           </Pressable>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: 110 }}>
+        <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: 130 + insets.bottom }}>
           <View style={{ width: pageWidth }}>
             {photos.length ? (
               <>
@@ -180,7 +178,7 @@ export default function ProductScreen() {
                       key={p.id}
                       source={{ uri: p.url }}
                       placeholder={{ uri: p.thumbUrl }}
-                      style={{ width: pageWidth, height: pageWidth, backgroundColor: "#fff" }}
+                      style={{ width: pageWidth, height: pageWidth, backgroundColor: "#ffffff" }}
                       contentFit="contain"
                       cachePolicy="memory-disk"
                       transition={150}
@@ -197,20 +195,27 @@ export default function ProductScreen() {
                 ) : null}
               </>
             ) : (
-              <View style={[styles.emojiBox, { height: pageWidth * 0.7 }]}>
-                <Text style={styles.emoji}>{product.emoji}</Text>
+              <View
+                style={[styles.emojiBox, { height: pageWidth * 0.82, backgroundColor: categoryTint(product.category).bg }]}
+              >
+                <Icon name={categoryIcon(product.category)} size={110} color={categoryTint(product.category).icon} />
               </View>
             )}
 
             <View style={styles.body}>
-              <Text style={styles.category}>{product.category}</Text>
+              <View style={styles.categoryChip}>
+                <Icon name={categoryIcon(product.category)} size={14} color={colors.green} />
+                <Text style={styles.category}>{product.category}</Text>
+              </View>
               <Text style={styles.name}>{product.name}</Text>
               <Text style={styles.price}>
                 {showFrom ? "from " : ""}
                 {NAIRA}
                 {shownPrice.toLocaleString()}
               </Text>
-              <Text style={styles.muted}>
+              <View style={styles.sellerRow}>
+                <Icon name="store" size={16} color={colors.muted} />
+                <Text style={[styles.muted, { marginTop: 0, flex: 1 }]}>
                 Sold by {product.seller} {"·"}{" "}
                 {stockNow > 0
                   ? variant
@@ -219,7 +224,8 @@ export default function ProductScreen() {
                   : variant
                     ? `${variantLabel(product, variant)} is sold out`
                     : "Out of stock"}
-              </Text>
+                </Text>
+              </View>
 
               {withOptions
                 ? options.map((o, i) => (
@@ -281,7 +287,7 @@ export default function ProductScreen() {
       )}
 
       {product && !missing ? (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: 14 + Math.max(insets.bottom, 10) }]}>
           <View style={{ flex: 1 }}>
             <Text style={styles.bottomPrice}>
               {showFrom ? "from " : ""}
@@ -292,7 +298,13 @@ export default function ProductScreen() {
             {inCart ? <Text style={styles.muted}>{inCart} in your cart</Text> : null}
           </View>
           <Pressable
-            style={[styles.button, styles.addButton, stockNow <= 0 && { opacity: 0.4 }]}
+            style={({ pressed }) => [
+              styles.button,
+              styles.addButton,
+              added && styles.addedButton,
+              pressed && { backgroundColor: colors.greenPressed },
+              stockNow <= 0 && { opacity: 0.4 },
+            ]}
             disabled={stockNow <= 0}
             onPress={() => void add()}
           >
@@ -300,52 +312,123 @@ export default function ProductScreen() {
               {stockNow <= 0
                 ? "Sold out"
                 : added
-                  ? "✓ Added"
+                  ? "Added ✓"
                   : withOptions && !variant && missingOption
                     ? `Choose ${missingOption.name.toLowerCase()}`
-                    : "+ Add to cart"}
+                    : "Add to cart"}
             </Text>
           </Pressable>
         </View>
       ) : null}
-    </SafeAreaView>
+
+      {/* Floating buttons over the photo */}
+      <View style={[styles.topBar, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <Pressable
+          style={({ pressed }) => [ui.iconButton, styles.floatButton, pressed && { opacity: 0.7 }]}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+          hitSlop={6}
+          accessibilityLabel="Back"
+        >
+          <Icon name="chevron-left" size={22} color={colors.ink} />
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [ui.iconButton, styles.floatButton, pressed && { opacity: 0.7 }]}
+          onPress={() => router.push("/cart")}
+          hitSlop={6}
+          accessibilityLabel={items.length ? `Cart, ${items.length} items` : "Cart"}
+        >
+          <Icon name="bag" size={20} color={colors.ink} />
+          {items.length ? (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{items.length}</Text>
+            </View>
+          ) : null}
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f5f6f8" },
   topBar: {
+    position: "absolute",
+    left: 16,
+    right: 16,
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
   },
-  back: { fontWeight: "700", fontSize: 15 },
+  floatButton: { backgroundColor: "rgba(255,255,255,0.92)", ...shadow.card },
+  cartBadge: {
+    position: "absolute",
+    top: 2,
+    right: 0,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#ffffff",
+  },
+  cartBadgeText: { color: "#ffffff", fontFamily: fonts.bold, fontSize: 10 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  missingTitle: { fontSize: 18, fontWeight: "800", marginBottom: 6, textAlign: "center" },
-  dots: { flexDirection: "row", justifyContent: "center", paddingVertical: 8, backgroundColor: "#fff" },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#ccc", marginHorizontal: 4 },
-  dotActive: { backgroundColor: "#222", width: 18 },
-  emojiBox: { backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  emoji: { fontSize: 110 },
-  body: { padding: 16 },
-  category: { color: "#1565c0", fontWeight: "800", fontSize: 12, textTransform: "uppercase" },
-  name: { fontSize: 22, fontWeight: "800", marginTop: 4 },
-  price: { fontSize: 24, fontWeight: "900", marginTop: 8 },
-  muted: { color: "#777", marginTop: 4 },
-  section: { fontSize: 15, fontWeight: "800", marginTop: 20, marginBottom: 6 },
-  text: { fontSize: 15, lineHeight: 22, color: "#333" },
-  specs: { backgroundColor: "#fff", borderRadius: 12, overflow: "hidden" },
+  missingIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.chip,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  missingTitle: { ...text.title, fontSize: 20, marginBottom: 6, textAlign: "center" },
+  dots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingTop: 10,
+    paddingBottom: 30,
+    backgroundColor: "#ffffff",
+  },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(23,33,27,0.22)", marginHorizontal: 3 },
+  dotActive: { backgroundColor: colors.ink, width: 18 },
+  emojiBox: { alignItems: "center", justifyContent: "center", paddingBottom: 20 },
+  body: {
+    padding: 20,
+    paddingTop: 24,
+    marginTop: -24,
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+  categoryChip: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.greenSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  category: { fontFamily: fonts.bold, color: colors.green, fontSize: 12 },
+  name: { ...text.hero, fontSize: 27, lineHeight: 31, marginTop: 10 },
+  price: { ...text.priceLarge, fontSize: 26, marginTop: 8 },
+  sellerRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
+  muted: { ...text.small, marginTop: 4 },
+  section: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, marginTop: 22, marginBottom: 10 },
+  text: { ...text.body, color: colors.ink2, lineHeight: 23 },
+  specs: { ...ui.card, overflow: "hidden" },
   specRow: {
     flexDirection: "row",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: colors.line,
   },
-  specLabel: { width: "40%", color: "#777", fontWeight: "700" },
-  specValue: { flex: 1, color: "#222" },
+  specLabel: { width: "40%", fontFamily: fonts.semibold, fontSize: 14, color: colors.muted },
+  specValue: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
   bottomBar: {
     position: "absolute",
     left: 0,
@@ -353,39 +436,35 @@ const styles = StyleSheet.create({
     bottom: 0,
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    paddingBottom: 22,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  bottomPrice: { fontSize: 20, fontWeight: "900" },
-  button: {
-    backgroundColor: "#222",
-    paddingVertical: 14,
+    gap: 14,
     paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 16,
+    paddingTop: 14,
+    backgroundColor: "rgba(246,243,236,0.97)",
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
-  addButton: { marginTop: 0, backgroundColor: "#1e7d32" },
+  bottomPrice: { ...text.priceLarge, fontSize: 22 },
+  button: { ...ui.primaryButton, marginTop: 18 },
+  addButton: { marginTop: 0, minWidth: 170, height: 54, borderRadius: 27 },
+  addedButton: { backgroundColor: colors.goldDeep },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
-    minWidth: 48,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+    minWidth: 52,
+    height: 44,
+    paddingHorizontal: 18,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#cfd3da",
-    backgroundColor: "#fff",
+    borderColor: "rgba(23,33,27,0.12)",
+    backgroundColor: colors.card,
     alignItems: "center",
+    justifyContent: "center",
   },
-  chipActive: { borderColor: "#1e7d32", backgroundColor: "#1e7d32" },
-  chipOut: { backgroundColor: "#f1f1f1", borderColor: "#e3e3e3" },
-  chipText: { fontWeight: "700", color: "#222" },
-  chipTextActive: { color: "#fff" },
-  chipTextOut: { color: "#aaa", textDecorationLine: "line-through" },
-  chosenValue: { fontWeight: "600", color: "#1e7d32" },
-  hintText: { color: "#b26a00", fontWeight: "700", marginTop: 10 },
-  buttonText: { color: "#fff", fontWeight: "800" },
+  chipActive: { borderColor: colors.green, borderWidth: 1.5, backgroundColor: colors.greenSoft },
+  chipOut: { backgroundColor: colors.chip, borderColor: "transparent" },
+  chipText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
+  chipTextActive: { fontFamily: fonts.bold, color: colors.green },
+  chipTextOut: { color: colors.faint, textDecorationLine: "line-through" },
+  chosenValue: { fontFamily: fonts.semibold, color: colors.green },
+  hintText: { fontFamily: fonts.bold, color: colors.goldText, marginTop: 12 },
+  buttonText: ui.primaryButtonText,
 });

@@ -7,6 +7,7 @@ import {
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { PasswordInput } from "./PasswordInput";
+import { colors, fonts, text, ui } from "../theme";
 
 import { auth } from "../lib/firebase";
 
@@ -71,23 +72,32 @@ export default function FirebaseSignInCard({
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor={colors.faint}
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
       />
       <PasswordInput
-        style={styles.input}
+        style={styles.passwordBox}
         placeholder="Password (6+ characters)"
         value={password}
         onChangeText={setPassword}
       />
       {message ? <Text style={styles.message}>{message}</Text> : null}
-      <Pressable style={styles.primaryButton} disabled={busy} onPress={() => go("signin")}>
-        <Text style={styles.primaryButtonText}>{busy ? "Please wait..." : "Sign in"}</Text>
+      <Pressable
+        style={({ pressed }) => [ui.primaryButton, styles.primaryButton, pressed && { backgroundColor: colors.greenPressed }]}
+        disabled={busy}
+        onPress={() => go("signin")}
+      >
+        <Text style={ui.primaryButtonText}>{busy ? "Please wait..." : "Sign in"}</Text>
       </Pressable>
-      <Pressable style={styles.secondaryButton} disabled={busy} onPress={() => go("create")}>
-        <Text style={styles.secondaryButtonText}>New here? Create account</Text>
+      <Pressable
+        style={({ pressed }) => [ui.secondaryButton, styles.secondaryButton, pressed && { opacity: 0.7 }]}
+        disabled={busy}
+        onPress={() => go("create")}
+      >
+        <Text style={ui.secondaryButtonText}>New here? Create account</Text>
       </Pressable>
       <Pressable disabled={busy} onPress={() => go("reset")}>
         <Text style={styles.link}>Forgot password?</Text>
@@ -97,34 +107,13 @@ export default function FirebaseSignInCard({
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
-  title: { fontSize: 20, fontWeight: "800" },
-  subtitle: { color: "#666", marginTop: 6, lineHeight: 20 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 12,
-    backgroundColor: "#fff",
-  },
-  message: { color: "#b00020", marginTop: 10 },
-  primaryButton: {
-    marginTop: 16,
-    backgroundColor: "#222",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  primaryButtonText: { color: "#fff", fontWeight: "700" },
-  secondaryButton: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: "#222",
-    paddingVertical: 13,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  secondaryButtonText: { fontWeight: "700" },
-  link: { marginTop: 14, textAlign: "center", color: "#1565c0", fontWeight: "600" },
+  card: { ...ui.card, padding: 20, marginBottom: 14 },
+  title: { ...text.title, fontSize: 20 },
+  subtitle: { ...text.small, fontSize: 14, marginTop: 6, lineHeight: 20 },
+  input: { ...ui.input, marginTop: 12 },
+  passwordBox: { ...ui.inputBox, marginTop: 12 },
+  message: { fontFamily: fonts.semibold, color: colors.danger, marginTop: 10 },
+  primaryButton: { marginTop: 16 },
+  secondaryButton: { marginTop: 10 },
+  link: { marginTop: 14, textAlign: "center", color: colors.green, fontFamily: fonts.bold },
 });

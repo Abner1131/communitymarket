@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from "react-native";
 
+import { colors, fonts } from "../theme";
+import { Icon } from "./Icon";
+
 // Password box with a Show / Hide button, readable in light and dark phone themes.
 export function PasswordInput({
   style,
@@ -15,7 +18,7 @@ export function PasswordInput({
         secureTextEntry={!visible}
         autoCapitalize="none"
         autoCorrect={false}
-        placeholderTextColor="#8a8f98"
+        placeholderTextColor={colors.faint}
       />
       <Pressable
         onPress={() => setVisible(!visible)}
@@ -24,7 +27,8 @@ export function PasswordInput({
         accessibilityLabel={visible ? "Hide password" : "Show password"}
         style={styles.eye}
       >
-        <Text style={styles.eyeText}>{visible ? "🙈 Hide" : "👁 Show"}</Text>
+        <Icon name="eye" size={16} color={visible ? colors.faint : colors.green} />
+        <Text style={styles.eyeText}>{visible ? "Hide" : "Show"}</Text>
       </Pressable>
     </View>
   );
@@ -32,7 +36,7 @@ export function PasswordInput({
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 0, paddingRight: 6 },
-  input: { flex: 1, color: "#111", paddingVertical: 12, fontSize: 15 },
-  eye: { paddingHorizontal: 8, paddingVertical: 8 },
-  eyeText: { color: "#1565c0", fontWeight: "700", fontSize: 13 },
+  input: { flex: 1, color: colors.ink, paddingVertical: 12, fontSize: 15, fontFamily: fonts.regular },
+  eye: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 8 },
+  eyeText: { color: colors.green, fontFamily: fonts.bold, fontSize: 13 },
 });

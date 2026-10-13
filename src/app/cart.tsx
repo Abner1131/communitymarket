@@ -1,277 +1,164 @@
 import { router } from "expo-router";
 import { Image } from "expo-image";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Icon, categoryIcon } from "../components/Icon";
+import { TAB_BAR_SPACE, TabBar } from "../components/TabBar";
 import { lineKey, linePrice, useCart } from "../context/CartContext";
+import { categoryTint, colors, fonts, radius, text, ui } from "../theme";
+
+const naira = (n: number) => `₦${n.toLocaleString()}`;
 
 export default function CartScreen() {
   const { items, cartCount, cartTotal } = useCart();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🛒 My Cart</Text>
+    <View style={ui.screen}>
+      <View style={ui.glow} pointerEvents="none" />
 
-        <Text style={styles.itemCount}>
-          {cartCount} item(s)
+      {/* HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Text style={text.title}>My cart</Text>
+        <Text style={text.small}>
+          {cartCount} {cartCount === 1 ? "item" : "items"}
         </Text>
       </View>
 
       {items.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>🛒</Text>
-
-          <Text style={styles.emptyTitle}>
-            Your cart is empty
-          </Text>
-
-          <Text style={styles.emptyText}>
-            Add products from the marketplace to get started.
-          </Text>
-
+          <View style={styles.emptyIcon}>
+            <Icon name="bag" size={30} color={colors.green} />
+          </View>
+          <Text style={styles.emptyTitle}>Your cart is empty</Text>
+          <Text style={styles.emptyText}>Add products from the marketplace to get started.</Text>
           <Pressable
-            style={styles.shopButton}
+            style={({ pressed }) => [ui.primaryButton, styles.shopButton, pressed && { backgroundColor: colors.greenPressed }]}
             onPress={() => router.replace("/")}
           >
-            <Text style={styles.shopButtonText}>
-              Continue Shopping
-            </Text>
+            <Text style={ui.primaryButtonText}>Continue shopping</Text>
           </Pressable>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
           {/* CART ITEMS */}
-          {items.map((item) => (
-            <View key={lineKey(item)} style={styles.cartItem}>
-              {item.product.thumbUrl ? (
-                <Image
-                  source={{ uri: item.product.thumbUrl }}
-                  style={{ width: 56, height: 56, borderRadius: 10, marginRight: 12 }}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                />
-              ) : (
-                <Text style={styles.productEmoji}>
-                  {item.product.emoji}
-                </Text>
-              )}
+          <View style={styles.itemsCard}>
+            {items.map((item, index) => {
+              const tint = categoryTint(item.product.category);
+              return (
+                <View key={lineKey(item)} style={[styles.cartItem, index > 0 && styles.divider]}>
+                  {item.product.thumbUrl ? (
+                    <Image
+                      source={{ uri: item.product.thumbUrl }}
+                      style={styles.thumb}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <View style={[styles.thumb, styles.thumbTile, { backgroundColor: tint.bg }]}>
+                      <Icon name={categoryIcon(item.product.category)} size={26} color={tint.icon} />
+                    </View>
+                  )}
 
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>
-                  {item.product.name}
-                </Text>
-                {item.variant ? <Text style={styles.variantText}>{item.variant.label}</Text> : null}
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {item.product.name}
+                    </Text>
+                    {item.variant ? <Text style={styles.variantText}>{item.variant.label}</Text> : null}
+                    <Text style={styles.seller} numberOfLines={1}>
+                      {item.product.seller}
+                    </Text>
+                    <Text style={styles.quantity}>
+                      {naira(linePrice(item))} × {item.quantity}
+                    </Text>
+                  </View>
 
-                <Text style={styles.seller}>
-                  {item.product.seller}
-                </Text>
-
-                <Text style={styles.price}>
-                  ₦{linePrice(item).toLocaleString()}
-                </Text>
-
-                <Text style={styles.quantity}>
-                  Quantity: {item.quantity}
-                </Text>
-              </View>
-
-              <Text style={styles.itemTotal}>
-                ₦{(
-                  linePrice(item) * item.quantity
-                ).toLocaleString()}
-              </Text>
-            </View>
-          ))}
+                  <Text style={styles.itemTotal}>{naira(linePrice(item) * item.quantity)}</Text>
+                </View>
+              );
+            })}
+          </View>
 
           {/* TOTAL */}
           <View style={styles.summary}>
-            <Text style={styles.summaryTitle}>
-              Cart Total
-            </Text>
-
-            <Text style={styles.total}>
-              ₦{cartTotal.toLocaleString()}
-            </Text>
+            <View style={styles.totalRow}>
+              <Text style={styles.summaryTitle}>Cart total</Text>
+              <Text style={styles.total}>{naira(cartTotal)}</Text>
+            </View>
+            <Text style={text.small}>Delivery is worked out at checkout.</Text>
 
             <Pressable
-              style={styles.checkoutButton}
+              style={({ pressed }) => [ui.primaryButton, styles.checkoutButton, pressed && { backgroundColor: colors.greenPressed }]}
               onPress={() => router.push("/checkout")}
             >
-              <Text style={styles.checkoutText}>
-                Review & Checkout
-              </Text>
+              <Text style={ui.primaryButtonText}>Review & checkout</Text>
             </Pressable>
 
             <Pressable
-              style={styles.continueButton}
+              style={({ pressed }) => [styles.continueButton, pressed && { opacity: 0.7 }]}
               onPress={() => router.replace("/")}
             >
-              <Text style={styles.continueText}>
-                Continue Shopping
-              </Text>
+              <Text style={styles.continueText}>Continue shopping</Text>
             </Pressable>
           </View>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: TAB_BAR_SPACE }} />
         </ScrollView>
       )}
+
+      <TabBar active="cart" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  variantText: { color: "#1e7d32", fontWeight: "700", fontSize: 13, marginTop: 2 },
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f6f8",
-  },
-
   header: {
-    paddingTop: 55,
     paddingHorizontal: 20,
-    paddingBottom: 18,
-    backgroundColor: "#fff",
+    paddingBottom: 14,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "baseline",
   },
+  list: { paddingHorizontal: 20, paddingTop: 4 },
 
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-  },
+  itemsCard: { ...ui.card, paddingHorizontal: 14 },
+  cartItem: { flexDirection: "row", alignItems: "center", paddingVertical: 14, gap: 12 },
+  divider: { borderTopWidth: 1, borderTopColor: colors.line },
+  thumb: { width: 60, height: 60, borderRadius: 14 },
+  thumbTile: { alignItems: "center", justifyContent: "center" },
+  productInfo: { flex: 1, gap: 2 },
+  productName: { fontFamily: fonts.semibold, fontSize: 15, lineHeight: 19, color: colors.ink },
+  variantText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.green },
+  seller: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  quantity: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink2, marginTop: 2 },
+  itemTotal: { ...text.price, fontSize: 16 },
 
-  itemCount: {
-    color: "#666",
-  },
-
-  cartItem: {
-    marginHorizontal: 16,
-    marginTop: 15,
-    padding: 15,
-    backgroundColor: "#fff",
-    borderRadius: 15,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  productEmoji: {
-    fontSize: 45,
-    width: 65,
-    textAlign: "center",
-  },
-
-  productInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-
-  productName: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  seller: {
-    color: "#777",
-    fontSize: 12,
-    marginTop: 3,
-  },
-
-  price: {
-    fontWeight: "700",
-    marginTop: 5,
-  },
-
-  quantity: {
-    color: "#666",
-    fontSize: 12,
-    marginTop: 5,
-  },
-
-  itemTotal: {
-    fontWeight: "800",
-    fontSize: 15,
-  },
-
-  summary: {
-    margin: 16,
-    padding: 20,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-  },
-
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-
-  total: {
-    fontSize: 25,
-    fontWeight: "800",
-    marginTop: 5,
-  },
-
-  checkoutButton: {
-    marginTop: 18,
-    backgroundColor: "#222",
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-
-  checkoutText: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 16,
-  },
-
+  summary: { ...ui.card, marginTop: 14, padding: 18, gap: 4 },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  summaryTitle: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
+  total: { ...text.priceLarge },
+  checkoutButton: { marginTop: 16 },
   continueButton: {
     marginTop: 10,
-    padding: 14,
-    borderRadius: 10,
-    backgroundColor: "#eee",
+    height: 48,
+    borderRadius: radius.pill,
     alignItems: "center",
-  },
-
-  continueText: {
-    fontWeight: "700",
-  },
-
-  empty: {
-    flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 35,
+    backgroundColor: colors.chip,
   },
+  continueText: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
 
+  empty: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 35, paddingBottom: 80 },
   emptyIcon: {
-    fontSize: 60,
+    width: 76,
+    height: 76,
+    borderRadius: 24,
+    backgroundColor: colors.greenSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    marginTop: 15,
-  },
-
-  emptyText: {
-    textAlign: "center",
-    color: "#777",
-    marginTop: 8,
-    lineHeight: 20,
-  },
-
-  shopButton: {
-    marginTop: 20,
-    backgroundColor: "#222",
-    paddingHorizontal: 20,
-    paddingVertical: 13,
-    borderRadius: 10,
-  },
-
-  shopButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
+  emptyTitle: { ...text.title, marginTop: 18 },
+  emptyText: { ...text.small, fontSize: 14, textAlign: "center", marginTop: 8, lineHeight: 20 },
+  shopButton: { marginTop: 22, alignSelf: "stretch" },
 });

@@ -8,7 +8,13 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Image } from "expo-image";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import DeliveryMap from "../components/DeliveryMap";
+import { Icon, categoryIcon } from "../components/Icon";
+import { Notice, ScreenHeader, SectionCard, SummaryRow } from "../components/ui";
+import { categoryTint, colors, fonts, radius, text, ui } from "../theme";
 import { lineKey, linePrice, useCart } from "../context/CartContext";
 import { useCheckout } from "../context/CheckoutContext";
 import { sellers } from "../data/sellers";
@@ -33,6 +39,7 @@ export default function CheckoutScreen() {
   } = useCart();
 
   const { saveCheckoutDraft } = useCheckout();
+  const insets = useSafeAreaInsets();
 
   // Payment needs a signed-in account (the server checks it).
   const [firebaseUser, setFirebaseUser] =
@@ -193,91 +200,91 @@ export default function CheckoutScreen() {
 
   if (items.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyEmoji}>🛒</Text>
+      <View style={[ui.screen, styles.emptyContainer]}>
+        <View style={styles.emptyIcon}>
+          <Icon name="bag" size={30} color={colors.green} />
+        </View>
         <Text style={styles.emptyTitle}>Your cart is empty</Text>
         <Text style={styles.emptyText}>Add products before checking out.</Text>
-        <Pressable style={styles.primaryButton} onPress={() => router.replace("/")}>
-          <Text style={styles.primaryButtonText}>Continue Shopping</Text>
+        <Pressable
+          style={({ pressed }) => [ui.primaryButton, { alignSelf: "stretch" }, pressed && { backgroundColor: colors.greenPressed }]}
+          onPress={() => router.replace("/")}
+        >
+          <Text style={ui.primaryButtonText}>Continue shopping</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.backButton}>← Back</Text>
-          </Pressable>
-          <Text style={styles.title}>Checkout</Text>
-          <Text style={styles.subtitle}>{cartCount} item(s)</Text>
-        </View>
+    <View style={ui.screen}>
+      <View style={ui.glow} pointerEvents="none" />
+      <ScreenHeader title="Checkout" subtitle={`${cartCount} ${cartCount === 1 ? "item" : "items"}`} />
 
-        {errorMessage ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorTitle}>⚠️ Please check</Text>
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          </View>
-        ) : null}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {errorMessage ? <Notice tone="error" title="Please check" text={errorMessage} /> : null}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👤 Customer Information</Text>
-          <Text style={styles.label}>Full Name</Text>
+        <SectionCard icon="user" title="Your details">
+          <Text style={[ui.label, { marginTop: 0 }]}>Full name</Text>
           <TextInput
-            style={styles.input}
+            style={ui.input}
             placeholder="Enter your full name"
+            placeholderTextColor={colors.faint}
             value={customerName}
             onChangeText={setCustomerName}
             autoCapitalize="words"
           />
-          <Text style={styles.label}>Phone Number</Text>
+          <Text style={ui.label}>Phone number</Text>
           <TextInput
-            style={styles.input}
+            style={ui.input}
             placeholder="08012345678"
+            placeholderTextColor={colors.faint}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
           />
-          <Text style={styles.label}>Delivery Address</Text>
+          <Text style={ui.label}>Delivery address</Text>
           <TextInput
-            style={[styles.input, styles.addressInput]}
+            style={[ui.input, styles.addressInput]}
             placeholder="House number, street, landmark..."
+            placeholderTextColor={colors.faint}
             value={address}
             onChangeText={setAddress}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
           />
-        </View>
+        </SectionCard>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📍 Delivery Location</Text>
+        <SectionCard icon="map-pin" title="Delivery location">
           <Pressable
-            style={[styles.locationButton, loadingLocation && styles.locationButtonDisabled]}
+            style={({ pressed }) => [
+              styles.locationButton,
+              customerLocation && styles.locationButtonDone,
+              loadingLocation && styles.locationButtonDisabled,
+              pressed && { opacity: 0.85 },
+            ]}
             onPress={handleGetLocation}
             disabled={loadingLocation}
           >
-            <Text style={styles.locationButtonText}>
-              {loadingLocation ? "📍 Detecting location..." : "📍 Use My Current Location"}
+            <Icon name={customerLocation ? "check" : "navigation"} size={18} color={customerLocation ? colors.green : "#ffffff"} />
+            <Text style={[styles.locationButtonText, customerLocation && { color: colors.green }]}>
+              {loadingLocation
+                ? "Finding your location..."
+                : customerLocation
+                  ? "Location found. Tap to refresh"
+                  : "Use my current location"}
             </Text>
           </Pressable>
 
           {customerLocation && (
             <>
-              <Text style={styles.locationSuccess}>✓ GPS location detected</Text>
-              <Text style={styles.coordinates}>
-                Latitude: {customerLocation.latitude.toFixed(6)}
-              </Text>
-              <Text style={styles.coordinates}>
-                Longitude: {customerLocation.longitude.toFixed(6)}
-              </Text>
               <View style={styles.mapContainer}>
-                <DeliveryMap
-                  customerLocation={customerLocation}
-                  marketplaceLocation={shopLocation}
-                />
+                <DeliveryMap customerLocation={customerLocation} marketplaceLocation={shopLocation} />
               </View>
               <View style={styles.distanceCard}>
                 <Text style={styles.distanceLabel}>
@@ -287,121 +294,128 @@ export default function CheckoutScreen() {
                   {quoteLoading ? "..." : quote ? `${distanceKm.toFixed(1)} km` : "—"}
                 </Text>
               </View>
-              {quoteError ? <Text style={styles.errorText}>{quoteError}</Text> : null}
+              <Text style={styles.coordinates}>
+                GPS {customerLocation.latitude.toFixed(5)}, {customerLocation.longitude.toFixed(5)}
+              </Text>
+              {quoteError ? <Notice tone="error" text={quoteError} style={{ marginTop: 12, marginBottom: 0 }} /> : null}
             </>
           )}
-        </View>
+        </SectionCard>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🚚 Delivery Vehicle</Text>
-          <Text style={styles.vehicleHint}>Choose the appropriate vehicle for your order.</Text>
+        <SectionCard icon="bike" title="Delivery vehicle">
           <View style={styles.vehicleRow}>
-            <Pressable
-              style={[styles.vehicleCard, selectedVehicle === "bike" && styles.vehicleSelected]}
-              onPress={() => setSelectedVehicle("bike")}
-            >
-              <Text style={styles.vehicleEmoji}>🏍️</Text>
-              <Text style={styles.vehicleName}>Bike</Text>
-              <Text style={styles.vehicleDescription}>Small & fast</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.vehicleCard, selectedVehicle === "keke" && styles.vehicleSelected]}
-              onPress={() => setSelectedVehicle("keke")}
-            >
-              <Text style={styles.vehicleEmoji}>🛺</Text>
-              <Text style={styles.vehicleName}>Keke</Text>
-              <Text style={styles.vehicleDescription}>Larger orders</Text>
-            </Pressable>
+            {(
+              [
+                { key: "bike", icon: "bike", name: "Bike", note: "Small & fast" },
+                { key: "keke", icon: "truck", name: "Keke", note: "Larger orders" },
+              ] as const
+            ).map((v) => {
+              const on = selectedVehicle === v.key;
+              return (
+                <Pressable
+                  key={v.key}
+                  style={[styles.vehicleCard, on && styles.vehicleSelected]}
+                  onPress={() => setSelectedVehicle(v.key)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                >
+                  <View style={styles.vehicleTop}>
+                    <Icon name={v.icon} size={26} color={on ? colors.green : colors.ink2} />
+                    {on ? (
+                      <View style={styles.vehicleCheck}>
+                        <Icon name="check" size={12} color="#ffffff" />
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.vehicleName}>{v.name}</Text>
+                  <Text style={styles.vehicleDescription}>{v.note}</Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           {customerLocation && (
             <View style={styles.deliveryEstimate}>
-              <Text style={styles.estimateLabel}>Estimated Delivery</Text>
+              <Text style={styles.estimateLabel}>Delivery</Text>
               <Text style={styles.estimateValue}>{feeText}</Text>
             </View>
           )}
-        </View>
+        </SectionCard>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🛍️ Order Items</Text>
-          {items.map((item) => {
+        <SectionCard icon="bag" title="Your items">
+          {items.map((item, index) => {
             const itemTotal = linePrice(item) * item.quantity;
             const key = lineKey(item);
+            const tint = categoryTint(item.product.category);
             return (
-              <View key={key} style={styles.productCard}>
+              <View key={key} style={[styles.productCard, index > 0 && styles.productDivider]}>
                 <View style={styles.productTop}>
-                  <Text style={styles.productEmoji}>{item.product.emoji}</Text>
+                  {item.product.thumbUrl ? (
+                    <Image
+                      source={{ uri: item.product.thumbUrl }}
+                      style={styles.thumb}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <View style={[styles.thumb, styles.thumbTile, { backgroundColor: tint.bg }]}>
+                      <Icon name={categoryIcon(item.product.category)} size={24} color={tint.icon} />
+                    </View>
+                  )}
                   <View style={styles.productInfo}>
-                    <Text style={styles.productName}>{item.product.name}</Text>
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {item.product.name}
+                    </Text>
                     {item.variant ? <Text style={styles.variantText}>{item.variant.label}</Text> : null}
-                    <Text style={styles.seller}>Seller: {item.product.seller}</Text>
-                    <Text style={styles.productPrice}>
-                      ₦{linePrice(item).toLocaleString()} each
+                    <Text style={styles.seller} numberOfLines={1}>
+                      {item.product.seller} · ₦{linePrice(item).toLocaleString()} each
                     </Text>
                   </View>
                   <Text style={styles.itemTotal}>₦{itemTotal.toLocaleString()}</Text>
                 </View>
 
                 <View style={styles.quantityRow}>
-                  <Text style={styles.quantityLabel}>Quantity</Text>
+                  <Pressable
+                    style={({ pressed }) => [styles.removeButton, pressed && { opacity: 0.7 }]}
+                    onPress={() => removeFromCart(key)}
+                    accessibilityLabel={`Remove ${item.product.name}`}
+                  >
+                    <Icon name="trash" size={16} color={colors.danger} />
+                    <Text style={styles.removeText}>Remove</Text>
+                  </Pressable>
                   <View style={styles.quantityControls}>
                     <Pressable
-                      style={styles.quantityButton}
+                      style={({ pressed }) => [styles.quantityButton, pressed && { opacity: 0.6 }]}
                       onPress={() => decreaseQuantity(key)}
+                      accessibilityLabel="One less"
                     >
-                      <Text style={styles.quantityButtonText}>−</Text>
+                      <Icon name="minus" size={16} color={colors.ink} />
                     </Pressable>
                     <Text style={styles.quantity}>{item.quantity}</Text>
                     <Pressable
-                      style={styles.quantityButton}
+                      style={({ pressed }) => [styles.quantityButton, pressed && { opacity: 0.6 }]}
                       onPress={() => increaseQuantity(key)}
+                      accessibilityLabel="One more"
                     >
-                      <Text style={styles.quantityButtonText}>+</Text>
+                      <Icon name="plus" size={16} color={colors.ink} />
                     </Pressable>
                   </View>
                 </View>
-
-                <Pressable
-                  style={styles.removeButton}
-                  onPress={() => removeFromCart(key)}
-                >
-                  <Text style={styles.removeText}>🗑 Remove Item</Text>
-                </Pressable>
               </View>
             );
           })}
-        </View>
+        </SectionCard>
 
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Order Summary</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>₦{cartTotal.toLocaleString()}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Delivery</Text>
-            <Text style={styles.summaryValue}>
-              {customerLocation ? feeText : "Set location"}
-            </Text>
-          </View>
-          {parts && parts.service > 0 ? (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Service fee</Text>
-              <Text style={styles.summaryValue}>₦{parts.service.toLocaleString()}</Text>
-            </View>
-          ) : null}
+        <SectionCard icon="receipt" title="Order summary">
+          <SummaryRow label="Subtotal" value={`₦${cartTotal.toLocaleString()}`} />
+          <SummaryRow label="Delivery" value={customerLocation ? feeText : "Set location"} />
+          {parts && parts.service > 0 ? <SummaryRow label="Service fee" value={`₦${parts.service.toLocaleString()}`} /> : null}
           {parts && parts.smallOrder > 0 ? (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Small-order fee</Text>
-              <Text style={styles.summaryValue}>₦{parts.smallOrder.toLocaleString()}</Text>
-            </View>
+            <SummaryRow label="Small-order fee" value={`₦${parts.smallOrder.toLocaleString()}`} />
           ) : null}
           <View style={styles.divider} />
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>₦{grandTotal.toLocaleString()}</Text>
-          </View>
-        </View>
+          <SummaryRow label="Total" value={`₦${grandTotal.toLocaleString()}`} strong />
+        </SectionCard>
 
         {!firebaseUser ? (
           <FirebaseSignInCard
@@ -409,183 +423,147 @@ export default function CheckoutScreen() {
             subtitle="Your order and payment receipt are saved to this account."
           />
         ) : (
-        <Pressable
-          style={[styles.paymentButton, processingPayment && styles.paymentButtonDisabled]}
-          onPress={handlePayment}
-          disabled={processingPayment}
-        >
-          <Text style={styles.paymentButtonText}>
-            {processingPayment ? "⏳ Opening Payment..." : "💳 Proceed to Payment"}
-          </Text>
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              ui.primaryButton,
+              styles.paymentButton,
+              pressed && { backgroundColor: colors.greenPressed },
+              processingPayment && styles.paymentButtonDisabled,
+            ]}
+            onPress={handlePayment}
+            disabled={processingPayment}
+          >
+            <Text style={ui.primaryButtonText}>
+              {processingPayment ? "Opening payment..." : quote ? `Pay ₦${grandTotal.toLocaleString()}` : "Proceed to payment"}
+            </Text>
+          </Pressable>
         )}
 
-        <Pressable style={styles.continueButton} onPress={() => router.replace("/")}>
-          <Text style={styles.continueButtonText}>Continue Shopping</Text>
+        <Pressable style={({ pressed }) => [styles.continueButton, pressed && { opacity: 0.7 }]} onPress={() => router.replace("/")}>
+          <Text style={styles.continueButtonText}>Continue shopping</Text>
         </Pressable>
 
-        <Text style={styles.securityText}>🔒 Secure checkout</Text>
+        <View style={styles.securityRow}>
+          <Icon name="lock" size={13} color={colors.muted} />
+          <Text style={styles.securityText}>Secure payment by Paystack</Text>
+        </View>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  variantText: { color: "#1e7d32", fontWeight: "700", fontSize: 13, marginTop: 2 },
-  container: { flex: 1, backgroundColor: "#f4f5f7" },
-  content: { padding: 20, paddingTop: 55, paddingBottom: 80 },
-  header: { marginBottom: 20 },
-  backButton: { fontSize: 16, fontWeight: "700", marginBottom: 15 },
-  title: { fontSize: 30, fontWeight: "800" },
-  subtitle: { color: "#666", marginTop: 5 },
-  errorBox: {
-    backgroundColor: "#fff1f1",
-    borderWidth: 1,
-    borderColor: "#e57373",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-  },
-  errorTitle: { fontWeight: "800", color: "#c62828", marginBottom: 5 },
-  errorText: { color: "#8e2020", lineHeight: 20 },
-  section: { backgroundColor: "#fff", borderRadius: 16, padding: 18, marginBottom: 16 },
-  sectionTitle: { fontSize: 19, fontWeight: "800", marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: "700", marginBottom: 7, marginTop: 10 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    backgroundColor: "#fafafa",
-  },
-  addressInput: { minHeight: 100 },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
+  addressInput: { minHeight: 96 },
   locationButton: {
-    backgroundColor: "#111",
-    paddingVertical: 14,
-    borderRadius: 11,
+    flexDirection: "row",
+    gap: 8,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.green,
     alignItems: "center",
+    justifyContent: "center",
   },
+  locationButtonDone: { backgroundColor: colors.greenSoft },
   locationButtonDisabled: { opacity: 0.6 },
-  locationButtonText: { color: "#fff", fontWeight: "800" },
-  locationSuccess: { color: "#2e7d32", fontWeight: "700", marginTop: 12 },
-  coordinates: { color: "#777", fontSize: 12, marginTop: 3 },
-  mapContainer: { height: 240, marginTop: 15, borderRadius: 14, overflow: "hidden" },
+  locationButtonText: { fontFamily: fonts.bold, fontSize: 15, color: "#ffffff" },
+  coordinates: { fontFamily: fonts.regular, color: colors.faint, fontSize: 12, marginTop: 8 },
+  mapContainer: { height: 220, marginTop: 14, borderRadius: radius.md, overflow: "hidden" },
   distanceCard: {
     flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 10,
+    backgroundColor: colors.chip,
+    borderRadius: radius.sm,
     padding: 13,
     marginTop: 12,
   },
-  distanceLabel: { fontWeight: "700" },
-  distanceValue: { fontWeight: "900" },
-  vehicleHint: { color: "#666", marginBottom: 14 },
-  vehicleRow: { flexDirection: "row", gap: 12 },
+  distanceLabel: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink2 },
+  distanceValue: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink },
+  vehicleRow: { flexDirection: "row", gap: 10 },
   vehicleCard: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 13,
-    padding: 15,
-    alignItems: "center",
+    borderColor: "rgba(23,33,27,0.10)",
+    borderRadius: radius.md,
+    padding: 14,
+    gap: 4,
+    backgroundColor: colors.card,
   },
-  vehicleSelected: { borderWidth: 2, borderColor: "#111", backgroundColor: "#f5f5f5" },
-  vehicleEmoji: { fontSize: 35 },
-  vehicleName: { fontSize: 17, fontWeight: "800", marginTop: 5 },
-  vehicleDescription: { fontSize: 12, color: "#777", marginTop: 3 },
+  vehicleSelected: { borderWidth: 1.5, borderColor: colors.green, backgroundColor: "#f6faf7" },
+  vehicleTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  vehicleCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  vehicleName: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
+  vehicleDescription: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   deliveryEstimate: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "baseline",
     marginTop: 16,
-    paddingTop: 15,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
+    borderTopColor: colors.line,
   },
-  estimateLabel: { fontWeight: "700" },
-  estimateValue: { fontSize: 18, fontWeight: "900" },
-  productCard: {
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-  },
-  productTop: { flexDirection: "row", alignItems: "center" },
-  productEmoji: { fontSize: 36, marginRight: 12 },
-  productInfo: { flex: 1 },
-  productName: { fontSize: 16, fontWeight: "800" },
-  seller: { fontSize: 12, color: "#777", marginTop: 3 },
-  productPrice: { fontSize: 13, color: "#555", marginTop: 4 },
-  itemTotal: { fontWeight: "800" },
-  quantityRow: {
+  estimateLabel: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink2 },
+  estimateValue: { ...text.price, fontSize: 18 },
+  productCard: { paddingVertical: 12 },
+  productDivider: { borderTopWidth: 1, borderTopColor: colors.line },
+  productTop: { flexDirection: "row", alignItems: "center", gap: 12 },
+  thumb: { width: 52, height: 52, borderRadius: 13 },
+  thumbTile: { alignItems: "center", justifyContent: "center" },
+  productInfo: { flex: 1, gap: 2 },
+  productName: { fontFamily: fonts.semibold, fontSize: 15, lineHeight: 19, color: colors.ink },
+  variantText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.green },
+  seller: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  itemTotal: { ...text.price, fontSize: 15 },
+  quantityRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12 },
+  quantityControls: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 16,
+    backgroundColor: colors.chip,
+    borderRadius: 22,
+    padding: 3,
   },
-  quantityLabel: { fontWeight: "700" },
-  quantityControls: { flexDirection: "row", alignItems: "center" },
   quantityButton: {
     width: 38,
     height: 38,
-    borderRadius: 9,
-    backgroundColor: "#eee",
+    borderRadius: 19,
+    backgroundColor: colors.card,
     justifyContent: "center",
     alignItems: "center",
   },
-  quantityButtonText: { fontSize: 22, fontWeight: "800" },
-  quantity: { minWidth: 40, textAlign: "center", fontWeight: "800" },
-  removeButton: {
-    marginTop: 14,
-    paddingVertical: 9,
-    alignItems: "center",
-    borderRadius: 9,
-    backgroundColor: "#fff1f1",
-  },
-  removeText: { color: "#c62828", fontWeight: "700" },
-  summaryCard: { backgroundColor: "#fff", borderRadius: 16, padding: 18, marginBottom: 16 },
-  summaryTitle: { fontSize: 19, fontWeight: "800", marginBottom: 15 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  summaryLabel: { color: "#555" },
-  summaryValue: { fontWeight: "700" },
-  divider: { height: 1, backgroundColor: "#e5e5e5", marginVertical: 10 },
-  totalRow: { flexDirection: "row", justifyContent: "space-between" },
-  totalLabel: { fontSize: 19, fontWeight: "800" },
-  totalValue: { fontSize: 23, fontWeight: "900" },
-  paymentButton: {
-    backgroundColor: "#111",
-    borderRadius: 13,
-    paddingVertical: 17,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    minHeight: 56,
-  },
+  quantity: { minWidth: 36, textAlign: "center", fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
+  removeButton: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 10, paddingRight: 10 },
+  removeText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.danger },
+  divider: { height: 1, backgroundColor: colors.line, marginTop: 2, marginBottom: 12 },
+  paymentButton: { height: 56, borderRadius: 28, marginTop: 4 },
   paymentButtonDisabled: { opacity: 0.6 },
-  paymentButtonText: { color: "#fff", fontSize: 16, fontWeight: "800", textAlign: "center" },
   continueButton: {
-    borderWidth: 1,
-    borderColor: "#111",
-    borderRadius: 13,
-    paddingVertical: 15,
+    marginTop: 10,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.chip,
     alignItems: "center",
-  },
-  continueButtonText: { fontWeight: "800" },
-  securityText: { textAlign: "center", color: "#777", fontSize: 12, marginTop: 15 },
-  emptyContainer: {
-    flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    padding: 30,
-    backgroundColor: "#f4f5f7",
   },
-  emptyEmoji: { fontSize: 60 },
-  emptyTitle: { fontSize: 24, fontWeight: "800", marginTop: 15 },
-  emptyText: { color: "#666", marginVertical: 15, textAlign: "center" },
-  primaryButton: { backgroundColor: "#111", paddingHorizontal: 25, paddingVertical: 14, borderRadius: 12 },
-  primaryButtonText: { color: "#fff", fontWeight: "800" },
+  continueButtonText: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
+  securityRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 16 },
+  securityText: { fontFamily: fonts.regular, color: colors.muted, fontSize: 12 },
+  emptyContainer: { justifyContent: "center", alignItems: "center", padding: 30 },
+  emptyIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 24,
+    backgroundColor: colors.greenSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyTitle: { ...text.title, marginTop: 18 },
+  emptyText: { ...text.small, fontSize: 14, marginTop: 8, marginBottom: 22, textAlign: "center" },
 });

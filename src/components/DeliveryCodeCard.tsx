@@ -1,5 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { colors, fonts, radius } from "../theme";
+import { Icon } from "./Icon";
+
 // Statuses where the order is paid but not yet handed over.
 const SHOW_FOR = ["paid", "dispatching", "assigned", "picked_up"];
 
@@ -21,9 +24,12 @@ export default function DeliveryCodeCard({
   const onTheWay = status === "picked_up";
   return (
     <View style={[styles.card, onTheWay && styles.cardActive, compact && styles.cardCompact]}>
-      <Text style={styles.label}>
-        {onTheWay ? "🛵 Your rider is on the way" : "Delivery code"}
-      </Text>
+      <View style={styles.labelRow}>
+        <Icon name={onTheWay ? "bike" : "key"} size={15} color={onTheWay ? colors.green : colors.goldText} />
+        <Text style={[styles.label, onTheWay && { color: colors.green }]}>
+          {onTheWay ? "Your rider is on the way" : "Delivery code"}
+        </Text>
+      </View>
       <Text
         style={[styles.code, compact && styles.codeCompact]}
         accessibilityLabel={`Delivery code ${code.split("").join(" ")}`}
@@ -42,17 +48,16 @@ export default function DeliveryCodeCard({
 const styles = StyleSheet.create({
   card: {
     marginTop: 14,
-    backgroundColor: "#eef6ff",
-    borderColor: "#90b8e6",
-    borderWidth: 1,
-    borderRadius: 14,
+    backgroundColor: colors.goldSoft,
+    borderRadius: radius.lg,
     padding: 16,
     alignItems: "center",
   },
-  cardActive: { backgroundColor: "#e8f5e9", borderColor: "#66bb6a" },
-  cardCompact: { padding: 12, marginTop: 12 },
-  label: { fontSize: 12, fontWeight: "800", color: "#37474f", textTransform: "uppercase", letterSpacing: 0.5 },
-  code: { fontSize: 38, fontWeight: "900", letterSpacing: 6, color: "#111", marginVertical: 6 },
-  codeCompact: { fontSize: 30, letterSpacing: 5 },
-  help: { fontSize: 12, color: "#555", textAlign: "center", lineHeight: 17 },
+  cardActive: { backgroundColor: colors.greenSoft },
+  cardCompact: { padding: 14, marginTop: 12 },
+  labelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  label: { fontFamily: fonts.bold, fontSize: 12, color: colors.goldText, textTransform: "uppercase", letterSpacing: 0.6 },
+  code: { fontFamily: fonts.display, fontSize: 40, letterSpacing: 8, color: colors.ink, marginVertical: 6 },
+  codeCompact: { fontSize: 32, letterSpacing: 6 },
+  help: { fontFamily: fonts.regular, fontSize: 12, color: colors.ink2, textAlign: "center", lineHeight: 17 },
 });
