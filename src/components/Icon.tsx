@@ -3,10 +3,17 @@
 
 import { Image, type ImageStyle, type StyleProp } from "react-native";
 
+import { categoryDef } from "../data/categories";
 import { colors } from "../theme";
 
 const ICONS = {
   home: require("../../assets/images/icons/home.png"),
+  apple: require("../../assets/images/icons/apple.png"),
+  beef: require("../../assets/images/icons/beef.png"),
+  baby: require("../../assets/images/icons/baby.png"),
+  hammer: require("../../assets/images/icons/hammer.png"),
+  car: require("../../assets/images/icons/car.png"),
+  "book-open": require("../../assets/images/icons/book-open.png"),
   package: require("../../assets/images/icons/package.png"),
   bag: require("../../assets/images/icons/bag.png"),
   wallet: require("../../assets/images/icons/wallet.png"),
@@ -91,30 +98,7 @@ export function Icon({
   );
 }
 
-// Icon for each product category.
+// Icon for each product category (see src/data/categories.ts).
 export function categoryIcon(category: string): IconName {
-  switch (category) {
-    case "All":
-      return "grid";
-    case "Groceries":
-      return "basket";
-    case "Phones":
-      return "smartphone";
-    case "Electronics":
-      return "tv";
-    case "Fashion":
-      return "shirt";
-    case "Household":
-      return "sofa";
-    case "Agriculture":
-      return "sprout";
-    case "Beauty":
-      return "sparkles";
-    case "Food":
-      return "utensils";
-    case "Health":
-      return "heart-pulse";
-    default:
-      return "more";
-  }
+  return category === "All" ? "grid" : (categoryDef(category)?.icon ?? "more");
 }

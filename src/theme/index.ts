@@ -3,6 +3,8 @@
 
 import type { TextStyle, ViewStyle } from "react-native";
 
+import { categoryDef } from "../data/categories";
+
 export const colors = {
   green: "#0b4a2f",
   greenPressed: "#083a25",
@@ -143,18 +145,6 @@ export const ui = {
 };
 
 // Soft photo-frame colours for products without a photo, by category.
-const TILE_TINTS: Record<string, { bg: string; icon: string }> = {
-  Groceries: { bg: "#f2e9d3", icon: "#9a7b3c" },
-  Food: { bg: "#f2e9d3", icon: "#9a7b3c" },
-  Agriculture: { bg: "#e6eedc", icon: "#56703a" },
-  Phones: { bg: "#e3ece4", icon: "#3f6b52" },
-  Electronics: { bg: "#e3ece4", icon: "#3f6b52" },
-  Fashion: { bg: "#efe4dc", icon: "#8a5a45" },
-  Beauty: { bg: "#f1e3e3", icon: "#8f4f5a" },
-  Health: { bg: "#f1e3e3", icon: "#8f4f5a" },
-  Household: { bg: "#e6e8ee", icon: "#4f5a70" },
-};
-
 export function categoryTint(category: string) {
-  return TILE_TINTS[category] || { bg: "#eee9df", icon: "#6f6a5e" };
+  return categoryDef(category)?.tint ?? { bg: "#eee9df", icon: "#6f6a5e" };
 }

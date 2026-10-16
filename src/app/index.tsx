@@ -1,5 +1,4 @@
 import { router } from "expo-router";
-import { Image } from "expo-image";
 import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
@@ -14,29 +13,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BrandMark, BrandWordmark } from "../components/Brand";
 import { HomeWalletCard } from "../components/HomeWalletCard";
-import { Icon, categoryIcon, type IconName } from "../components/Icon";
+import { ProductCard } from "../components/ProductCard";
+import { Icon, type IconName } from "../components/Icon";
 import PoweredByGreenFusion from "../components/PoweredByGreenFusion";
 import { TAB_BAR_SPACE, TabBar } from "../components/TabBar";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { CATEGORY_DEFS } from "../data/categories";
 import { products } from "../data/products";
 import { subscribeCatalog } from "../lib/catalog";
-import { hasOptions, optionSummary, priceRange } from "../lib/variants";
-import { categoryTint, colors, fonts, radius, shadow, text, ui } from "../theme";
-
-const categories = [
-  "All",
-  "Groceries",
-  "Phones",
-  "Electronics",
-  "Fashion",
-  "Household",
-  "Agriculture",
-  "Beauty",
-  "Food",
-  "Health",
-  "Other",
-];
+import { colors, fonts, radius, shadow, text, ui } from "../theme";
 
 /*
  * Existing products.ts does not contain isActive.
@@ -57,15 +43,15 @@ function greeting() {
 const naira = (n: number) => `₦${n.toLocaleString()}`;
 
 export default function HomeScreen() {
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [marketProducts, setMarketProducts] = useState<MarketplaceProduct[]>([]);
 
-  const { cartCount, cartTotal, addToCart } = useCart();
+  const { cartCount, cartTotal } = useCart();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const cardWidth = Math.floor((width - 40 - 12) / 2);
+  const catWidth = Math.floor((width - 40 - 3 * 8) / 4);
 
   /*
    * Live catalogue from the database: every customer sees the same
@@ -101,8 +87,6 @@ export default function HomeScreen() {
         return false;
       }
 
-      const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
-
       // Name, category, description and the search words in
       // English, Hausa, Pidgin, Yoruba and Igbo.
       const matchesSearch =
@@ -114,9 +98,9 @@ export default function HomeScreen() {
           (w) => w.includes(normalizedSearch) || (w.length >= 3 && normalizedSearch.includes(w)),
         );
 
-      return matchesCategory && matchesSearch;
+      return matchesSearch;
     });
-  }, [marketProducts, selectedCategory, search]);
+  }, [marketProducts, search]);
 
   // The admin manages riders from the Admin Dashboard, so only riders see this.
   const canAccessDelivery = user?.role === "rider";
@@ -224,38 +208,36 @@ export default function HomeScreen() {
         {/* WALLET */}
         <HomeWalletCard />
 
-        {/* CATEGORIES */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryScroll}
-          contentContainerStyle={styles.categoryRow}
-        >
-          {categories.map((category) => {
-            const on = selectedCategory === category;
-            return (
-              <Pressable
-                key={category}
-                onPress={() => setSelectedCategory(category)}
-                style={styles.category}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={category}
-              >
-                <View style={[styles.categoryTile, on && styles.categoryTileOn]}>
-                  <Icon name={categoryIcon(category)} size={24} color={on ? "#ffffff" : colors.ink} />
-                </View>
-                <Text style={[styles.categoryText, on && styles.categoryTextOn]} numberOfLines={1}>
-                  {category === "Agriculture" ? "Farm" : category}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {/* CATEGORIES: tap one to open its page (hidden while searching) */}
+        {search.trim() ? null : (
+          <>
+            <View style={styles.productHeader}>
+              <Text style={text.section}>Shop by category</Text>
+            </View>
+            <View style={styles.catGrid}>
+              {CATEGORY_DEFS.map((def) => (
+                <Pressable
+                  key={def.key}
+                  style={({ pressed }) => [styles.catItem, { width: catWidth }, pressed && { opacity: 0.7 }]}
+                  onPress={() => router.push({ pathname: "/category", params: { name: def.key } } as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel={def.label}
+                >
+                  <View style={[styles.catTile, { backgroundColor: def.tint.bg }]}>
+                    <Icon name={def.icon} size={26} color={def.tint.icon} />
+                  </View>
+                  <Text style={styles.catLabel} numberOfLines={2}>
+                    {def.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
 
         {/* PRODUCTS HEADER */}
         <View style={styles.productHeader}>
-          <Text style={text.section}>{selectedCategory === "All" ? "Popular products" : selectedCategory}</Text>
+          <Text style={text.section}>{search.trim() ? "Results" : "Popular products"}</Text>
           <Text style={text.small}>
             {filteredProducts.length} {filteredProducts.length === 1 ? "item" : "items"}
           </Text>
@@ -271,84 +253,9 @@ export default function HomeScreen() {
         ) : null}
 
         <View style={styles.products}>
-          {filteredProducts.map((product) => {
-            const tint = categoryTint(product.category);
-            const range = priceRange(product);
-            const options = hasOptions(product);
-            const closed = product.madeToOrder === true && product.shopOpen === false;
-            const open = () =>
-              router.push({
-                pathname: "/product",
-                params: { id: String(product.id) },
-              } as any);
-            return (
-              <View key={product.id} style={[styles.productCard, { width: cardWidth }]}>
-                <Pressable onPress={open} accessibilityLabel={`Open ${product.name}`}>
-                  {product.thumbUrl ? (
-                    <Image
-                      source={{ uri: product.thumbUrl }}
-                      style={styles.productPhoto}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                      transition={150}
-                    />
-                  ) : (
-                    <View style={[styles.productPhoto, styles.productTile, { backgroundColor: tint.bg }]}>
-                      <Icon name={categoryIcon(product.category)} size={44} color={tint.icon} />
-                    </View>
-                  )}
-
-                  <View style={styles.productInfo}>
-                    <Text style={styles.productName} numberOfLines={2}>
-                      {product.name}
-                    </Text>
-                    <Text style={styles.seller} numberOfLines={1}>
-                      {product.seller}
-                    </Text>
-                    {options ? (
-                      <Text style={styles.optionText} numberOfLines={1}>
-                        {optionSummary(product)}
-                      </Text>
-                    ) : null}
-                    {product.madeToOrder ? (
-                      <Text style={[styles.optionText, closed && { color: colors.danger }]} numberOfLines={1}>
-                        {closed ? "Closed right now" : product.prepTime ? `Ready in ${product.prepTime}` : "Cooked to order"}
-                      </Text>
-                    ) : null}
-                  </View>
-                </Pressable>
-
-                <View style={styles.priceRow}>
-                  <Text style={styles.productPrice} numberOfLines={1}>
-                    {options && range.min !== range.max ? <Text style={styles.from}>from </Text> : null}
-                    {naira(range.min)}
-                  </Text>
-                  <Pressable
-                    style={({ pressed }) => [styles.addButton, pressed && { backgroundColor: colors.greenPressed }]}
-                    onPress={() => {
-                      // Sizes / colours are chosen on the product page. A closed
-                      // restaurant can't be added to the cart: show the page instead.
-                      if (options || closed) {
-                        open();
-                        return;
-                      }
-                      addToCart(product);
-                    }}
-                    accessibilityLabel={
-                      options
-                        ? `Choose ${((product.options || [])[0]?.name || "option").toLowerCase()} for ${product.name}`
-                        : closed
-                          ? `${product.name}: restaurant is closed`
-                          : `Add ${product.name} to cart`
-                    }
-                    hitSlop={6}
-                  >
-                    <Icon name={options || closed ? "chevron-right" : "plus"} size={18} color="#ffffff" />
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })}
+          {filteredProducts.map((product) => (
+            <ProductCard key={product.id} product={product} width={cardWidth} />
+          ))}
         </View>
 
         {/* CART SUMMARY */}
@@ -462,21 +369,10 @@ const styles = StyleSheet.create({
   },
   shortcutIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
 
-  categoryScroll: { marginHorizontal: -20, marginTop: 4, marginBottom: 18 },
-  categoryRow: { paddingHorizontal: 20, gap: 10, paddingVertical: 6 },
-  category: { width: 66, alignItems: "center", gap: 7 },
-  categoryTile: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: colors.card,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadow.card,
-  },
-  categoryTileOn: { backgroundColor: colors.green, ...shadow.button },
-  categoryText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink2 },
-  categoryTextOn: { color: colors.ink },
+  catGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
+  catItem: { alignItems: "center", gap: 6, paddingVertical: 4 },
+  catTile: { width: 58, height: 58, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  catLabel: { fontFamily: fonts.semibold, fontSize: 11, lineHeight: 14, color: colors.ink2, textAlign: "center" },
 
   productHeader: {
     flexDirection: "row",

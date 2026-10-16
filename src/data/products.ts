@@ -2,6 +2,7 @@ export type Product = {
   id: string;
   name: string;
   category: string;
+  subcategory?: string; // group inside the category (optional)
   price: number;
   emoji: string;
   description: string;

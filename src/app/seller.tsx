@@ -27,6 +27,7 @@ import {
   ProductOptionsEditor,
   type DraftOptions,
 } from "../components/ProductOptionsEditor";
+import { categoryLabel, categorySubs } from "../data/categories";
 import { RestaurantCard, type ShopInfo } from "../components/RestaurantCard";
 import { WalletCard } from "../components/WalletCard";
 import { pickProductPhoto, type PickedPhoto } from "../lib/photoPick";
@@ -58,6 +59,7 @@ type Draft = {
   productId: string | null;
   name: string;
   category: string;
+  subcategory: string; // group inside the category ("" = none)
   price: string;
   stock: string;
   description: string;
@@ -75,6 +77,7 @@ const EMPTY_DRAFT: Draft = {
   productId: null,
   name: "",
   category: "Groceries",
+  subcategory: "",
   price: "",
   stock: "",
   description: "",
@@ -406,18 +409,36 @@ function ProductForm({
               <Pressable
                 key={c}
                 style={[styles.chip, draft.category === c && styles.chipActive]}
-                onPress={() => onChange({ ...draft, category: c })}
+                onPress={() => onChange({ ...draft, category: c, subcategory: c === draft.category ? draft.subcategory : "" })}
               >
-                <Text style={[styles.chipText, draft.category === c && styles.chipTextActive]}>{c}</Text>
+                <Text style={[styles.chipText, draft.category === c && styles.chipTextActive]}>{categoryLabel(c)}</Text>
               </Pressable>
             ))}
           </View>
         </>
       )}
 
+      {categorySubs(dish ? "Food" : draft.category).length > 0 ? (
+        <>
+          <Text style={styles.label}>Group (optional)</Text>
+          <View style={styles.chips}>
+            {categorySubs(dish ? "Food" : draft.category).map((g) => (
+              <Pressable
+                key={g}
+                style={[styles.chip, draft.subcategory === g && styles.chipActive]}
+                onPress={() => onChange({ ...draft, subcategory: draft.subcategory === g ? "" : g })}
+              >
+                <Text style={[styles.chipText, draft.subcategory === g && styles.chipTextActive]}>{g}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.hint}>Customers can find your product faster inside its group.</Text>
+        </>
+      ) : null}
+
       {rates[dish ? "Food" : draft.category] !== undefined ? (
         <Text style={styles.hint}>
-          CommunityMarket commission on {dish ? "Food" : draft.category}: {rates[dish ? "Food" : draft.category]}%
+          CommunityMarket commission on {categoryLabel(dish ? "Food" : draft.category)}: {rates[dish ? "Food" : draft.category]}%
           {(() => {
             const p = parseInt(draft.price, 10);
             const rate = rates[dish ? "Food" : draft.category];
@@ -632,6 +653,7 @@ export default function SellerScreen() {
       productId: p.id,
       name: p.name,
       category: p.category,
+      subcategory: p.subcategory || "",
       price: String(p.price),
       stock: String(p.stock),
       description: p.description,
@@ -683,6 +705,7 @@ export default function SellerScreen() {
           pending,
           name: s.name || d.name,
           category: s.category || d.category,
+          subcategory: s.category && s.category !== d.category ? "" : d.subcategory,
           description: s.description || d.description,
           specs: Object.keys(s.specs).length
             ? Object.entries(s.specs).map(([label, value]) => ({ label, value }))
@@ -752,6 +775,7 @@ export default function SellerScreen() {
       productId: draft.productId,
       name: draft.name.trim(),
       category: isDish ? "Food" : draft.category,
+      subcategory: draft.subcategory,
       price,
       ...(isDish ? { soldOut: draft.soldOut } : { stock, options: opts.options, variants: opts.variants }),
       description: draft.description.trim(),
@@ -1050,7 +1074,7 @@ export default function SellerScreen() {
                         ? p.soldOut
                           ? "Sold out today"
                           : "Available today"
-                        : `${p.category} · ${p.stock} in stock`}
+                        : `${categoryLabel(p.category)}${p.subcategory ? ` · ${p.subcategory}` : ""} · ${p.stock} in stock`}
                       {p.options && p.options.length ? ` · ${p.options.map((o) => o.name).join(" & ")}` : ""}
                     </Text>
                   </View>

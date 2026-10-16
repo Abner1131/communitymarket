@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BrandLoader } from "../components/Brand";
 import { Icon, categoryIcon } from "../components/Icon";
+import { categoryLabel } from "../data/categories";
 import { categoryTint, colors, fonts, radius, shadow, text, ui } from "../theme";
 
 import { useCart } from "../context/CartContext";
@@ -79,6 +80,7 @@ export default function ProductScreen() {
           id: snap.id,
           name: typeof p.name === "string" ? p.name : "Product",
           category,
+          subcategory: typeof p.subcategory === "string" ? p.subcategory : "",
           price: Number(p.price) || 0,
           emoji: emojiFor(snap.id, category),
           description: typeof p.description === "string" ? p.description : "",
@@ -217,7 +219,10 @@ export default function ProductScreen() {
             <View style={styles.body}>
               <View style={styles.categoryChip}>
                 <Icon name={categoryIcon(product.category)} size={14} color={colors.green} />
-                <Text style={styles.category}>{product.category}</Text>
+                <Text style={styles.category}>
+                  {categoryLabel(product.category)}
+                  {product.subcategory ? ` · ${product.subcategory}` : ""}
+                </Text>
               </View>
               <Text style={styles.name}>{product.name}</Text>
               <Text style={styles.price}>

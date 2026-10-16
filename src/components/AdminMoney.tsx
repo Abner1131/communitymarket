@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
+import { categoryLabel } from "../data/categories";
 import { colors, fonts, radius, text, ui } from "../theme";
 
 import type {
@@ -308,7 +309,7 @@ function CommissionEditor({
       <View style={styles.divider} />
       {commission.categories.map((c) => (
         <View key={c} style={[styles.rowBetween, { marginTop: 6 }]}>
-          <Text style={styles.item}>{c}</Text>
+          <Text style={styles.item}>{categoryLabel(c)}</Text>
           <View style={styles.rateBox}>
             <TextInput
               style={styles.rateInput}

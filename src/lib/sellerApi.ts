@@ -32,6 +32,7 @@ export type SellerProduct = {
   id: string;
   name: string;
   category: string;
+  subcategory?: string;
   price: number;
   stock: number;
   description: string;
