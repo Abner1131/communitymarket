@@ -24,6 +24,7 @@ const REPORTS: { key: ExportReport; title: string; note: string; icon: IconName;
   { key: "payouts", title: "Payouts sent", note: "Withdrawals: who, amount, bank (last 4 digits), reference", icon: "arrow-up-right", ranged: true },
   { key: "problems", title: "Refunds and problems", note: "Customer complaints and how each was settled", icon: "alert", ranged: true },
   { key: "applications", title: "Applications and marketer codes", note: "Who each marketer brought in, who was approved", icon: "megaphone", ranged: true },
+  { key: "onboarding_fees", title: "Registration fees collected", note: "Each ₦500 taken from a new seller or rider, with a total to move to your fees account", icon: "receipt", ranged: true },
   { key: "marketer_pay", title: "Marketer pay statements", note: "Closed weeks: each person, amount, bank (last 4), paid", icon: "megaphone", ranged: true },
   { key: "marketer_earnings", title: "Marketer earnings detail", note: "Every order that earned marketer pay, and its status", icon: "megaphone", ranged: true },
   { key: "activity", title: "Activity log", note: "Who did what, and when", icon: "list", ranged: true },

@@ -460,16 +460,35 @@ function OnboardingEditor({
 
 function OutstandingDues({
   list,
+  collected,
+  stillOwed,
   working,
   onAdjust,
 }: {
   list: AdminDue[];
+  collected: number;
+  stillOwed: number;
   working: string | null;
   onAdjust: (due: AdminDue, change: { regOwed?: number; gearOwed?: number }) => void;
 }) {
-  if (!list.length) return null;
+  if (!list.length && !collected) return null;
   return (
     <>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Registration fees</Text>
+        <View style={styles.rowBetween}>
+          <Text style={styles.item}>Collected so far</Text>
+          <Text style={styles.value}>{money(collected)}</Text>
+        </View>
+        <View style={[styles.rowBetween, { marginTop: 4 }]}>
+          <Text style={styles.item}>Still to come</Text>
+          <Text style={styles.value}>{money(stillOwed)}</Text>
+        </View>
+        <Text style={styles.muted}>
+          This money is already in your Paystack balance. Move the collected amount to your fees account, then note it
+          down. Downloads → Registration fees collected lists every fee.
+        </Text>
+      </View>
       <Text style={styles.sectionTitle}>Sign-up fees still to collect ({list.length})</Text>
       <View style={styles.card}>
         {list.map((d, i) => (
@@ -819,7 +838,13 @@ export function AdminMoney({
   return (
     <>
       {state.onboarding && onAdjustDues ? (
-        <OutstandingDues list={state.onboarding.outstanding} working={working} onAdjust={onAdjustDues} />
+        <OutstandingDues
+          list={state.onboarding.outstanding}
+          collected={state.onboarding.regCollected || 0}
+          stillOwed={state.onboarding.regStillOwed || 0}
+          working={working}
+          onAdjust={onAdjustDues}
+        />
       ) : null}
       <View style={styles.statsRow}>
         <View style={[styles.stat, wallets.totalRequested > 0 && { backgroundColor: colors.goldSoft }]}>

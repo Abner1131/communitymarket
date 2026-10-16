@@ -353,7 +353,12 @@ export type AdminState = {
     requests: AdminWithdrawalRequest[];
     recentPaid: AdminPaidWithdrawal[];
   };
-  onboarding?: { settings: AdminOnboardingSettings; outstanding: AdminDue[] };
+  onboarding?: {
+    settings: AdminOnboardingSettings;
+    outstanding: AdminDue[];
+    regCollected?: number; // registration fees taken so far (gear not counted)
+    regStillOwed?: number;
+  };
   commission: { categories: string[]; maxRate: number; rates: Record<string, number> };
   pricing?: AdminPricing;
   delivery?: AdminDelivery;
@@ -512,7 +517,8 @@ export type ExportReport =
   | "terms"
   | "activity"
   | "marketer_pay"
-  | "marketer_earnings";
+  | "marketer_earnings"
+  | "onboarding_fees";
 
 /** A one-time download link (works once, for 5 minutes). Admins only. */
 export async function getExportLink(
