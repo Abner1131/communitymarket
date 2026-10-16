@@ -21,7 +21,7 @@ import { categoryTint, colors, fonts, radius, shadow, text, ui } from "../theme"
 
 import { useCart } from "../context/CartContext";
 import type { Product } from "../data/products";
-import { emojiFor, photosFrom } from "../lib/catalog";
+import { dishFrom, emojiFor, photosFrom } from "../lib/catalog";
 import { db } from "../lib/firebase";
 import {
   findVariant,
@@ -89,6 +89,7 @@ export default function ProductScreen() {
           photos: photosFrom(p.photos),
           specs: specsFrom(p.specs),
           ...variantsFrom(p.options, p.variants),
+          ...dishFrom(p),
         });
       },
       () => {
@@ -116,7 +117,18 @@ export default function ProductScreen() {
   const range = product ? priceRange(product) : { min: 0, max: 0 };
   const shownPrice = product ? (variant ? variantPrice(product, variant) : range.min) : 0;
   const showFrom = withOptions && !variant && range.min !== range.max;
-  const stockNow = product ? (withOptions ? (variant ? variant.stock : product.stock) : product.stock) : 0;
+  // A dish has no stock count: it is open, sold out today, or the restaurant is closed.
+  const dish = Boolean(product?.madeToOrder);
+  const closed = dish && product?.shopOpen === false;
+  const stockNow = product
+    ? closed
+      ? 0
+      : withOptions
+        ? variant
+          ? variant.stock
+          : product.stock
+        : product.stock
+    : 0;
 
   function choose(optionIndex: number, value: string) {
     const next = options.map((_, i) => picks[i] ?? null);
@@ -217,13 +229,22 @@ export default function ProductScreen() {
                 <Icon name="store" size={16} color={colors.muted} />
                 <Text style={[styles.muted, { marginTop: 0, flex: 1 }]}>
                 Sold by {product.seller} {"·"}{" "}
-                {stockNow > 0
-                  ? variant
-                    ? `${variant.stock} left in ${variantLabel(product, variant)}`
-                    : `${product.stock} in stock`
-                  : variant
-                    ? `${variantLabel(product, variant)} is sold out`
-                    : "Out of stock"}
+                {dish
+                  ? closed
+                    ? "Closed right now"
+                    : stockNow > 0
+                      ? product.prepTime
+                        ? `Ready in ${product.prepTime}`
+                        : "Cooked when you order"
+                      : "Sold out today"
+                  : stockNow > 0
+                    ? variant
+                      ? `${variant.stock} left in ${variantLabel(product, variant)}`
+                      : `${product.stock} in stock`
+                    : variant
+                      ? `${variantLabel(product, variant)} is sold out`
+                      : "Out of stock"}
+                {dish && product.shopHours ? ` ${"·"} Open ${product.shopHours}` : ""}
                 </Text>
               </View>
 
@@ -309,9 +330,13 @@ export default function ProductScreen() {
             onPress={() => void add()}
           >
             <Text style={styles.buttonText}>
-              {stockNow <= 0
-                ? "Sold out"
-                : added
+              {closed
+                ? "Closed right now"
+                : stockNow <= 0
+                  ? dish
+                    ? "Sold out today"
+                    : "Sold out"
+                  : added
                   ? "Added ✓"
                   : withOptions && !variant && missingOption
                     ? `Choose ${missingOption.name.toLowerCase()}`

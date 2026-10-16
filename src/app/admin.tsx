@@ -14,6 +14,7 @@ import {
 
 import { BrandLoader } from "../components/Brand";
 import { AdminDownloads, DownloadButton } from "../components/AdminDownloads";
+import { AdminMarketerPay, MarketerPaySettingsCard } from "../components/AdminMarketerPay";
 import { Icon, type IconName } from "../components/Icon";
 import { ScreenHeader } from "../components/ui";
 import { colors, fonts, radius, shadow, text, ui } from "../theme";
@@ -149,7 +150,9 @@ function ApplicationCard({
         <Text style={styles.item}>Vehicle: {app.vehicle === "keke" ? "Keke" : "Bike"}</Text>
       ) : (
         <>
-          <Text style={styles.item}>Shop: {app.businessName || "-"}</Text>
+          <Text style={styles.item}>
+            {app.businessType === "restaurant" ? "Restaurant" : "Shop"}: {app.businessName || "-"}
+          </Text>
           <Text style={styles.item}>Address: {app.businessAddress || "-"}</Text>
         </>
       )}
@@ -1063,6 +1066,7 @@ export default function AdminScreen() {
                 void run(`bank-${partyType}-${partyId}`, action, { partyType, partyId, reason })
               }
             />
+            <AdminMarketerPay />
           </>
         ) : null}
 
@@ -1200,6 +1204,17 @@ export default function AdminScreen() {
                 onSaveRewards={(settings) => void run("rewards", "setRewardsSettings", { settings })}
                 onBankAction={() => undefined}
               />
+            ) : null}
+            {state.marketerPaySettings ? (
+              <>
+                <Text style={styles.sectionTitle}>Marketing team</Text>
+                <MarketerPaySettingsCard
+                  key={JSON.stringify(state.marketerPaySettings)}
+                  settings={state.marketerPaySettings}
+                  saving={working === "marketerPay"}
+                  onSave={(marketerPay) => void run("marketerPay", "setMarketerPaySettings", { marketerPay })}
+                />
+              </>
             ) : null}
             {state.delivery ? (
               <View style={styles.card}>

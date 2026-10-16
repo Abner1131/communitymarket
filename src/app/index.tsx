@@ -275,6 +275,7 @@ export default function HomeScreen() {
             const tint = categoryTint(product.category);
             const range = priceRange(product);
             const options = hasOptions(product);
+            const closed = product.madeToOrder === true && product.shopOpen === false;
             const open = () =>
               router.push({
                 pathname: "/product",
@@ -309,6 +310,11 @@ export default function HomeScreen() {
                         {optionSummary(product)}
                       </Text>
                     ) : null}
+                    {product.madeToOrder ? (
+                      <Text style={[styles.optionText, closed && { color: colors.danger }]} numberOfLines={1}>
+                        {closed ? "Closed right now" : product.prepTime ? `Ready in ${product.prepTime}` : "Cooked to order"}
+                      </Text>
+                    ) : null}
                   </View>
                 </Pressable>
 
@@ -320,8 +326,9 @@ export default function HomeScreen() {
                   <Pressable
                     style={({ pressed }) => [styles.addButton, pressed && { backgroundColor: colors.greenPressed }]}
                     onPress={() => {
-                      // Sizes / colours are chosen on the product page.
-                      if (options) {
+                      // Sizes / colours are chosen on the product page. A closed
+                      // restaurant can't be added to the cart: show the page instead.
+                      if (options || closed) {
                         open();
                         return;
                       }
@@ -330,11 +337,13 @@ export default function HomeScreen() {
                     accessibilityLabel={
                       options
                         ? `Choose ${((product.options || [])[0]?.name || "option").toLowerCase()} for ${product.name}`
-                        : `Add ${product.name} to cart`
+                        : closed
+                          ? `${product.name}: restaurant is closed`
+                          : `Add ${product.name} to cart`
                     }
                     hitSlop={6}
                   >
-                    <Icon name={options ? "chevron-right" : "plus"} size={18} color="#ffffff" />
+                    <Icon name={options || closed ? "chevron-right" : "plus"} size={18} color="#ffffff" />
                   </Pressable>
                 </View>
               </View>

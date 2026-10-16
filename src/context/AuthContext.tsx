@@ -21,6 +21,7 @@ import { POLICIES_VERSION } from "../data/policies";
 import { clearScreenCache } from "../lib/screenCache";
 
 import { auth, db } from "../lib/firebase";
+import { normalizePhone, PHONE_MESSAGE } from "../lib/phone";
 import { unregisterPush } from "../lib/push";
 import type { User, UserRole } from "../types/community";
 
@@ -197,9 +198,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signUp(input: SignUpInput) {
     const name = input.name.trim();
-    const phone = input.phone.trim();
     if (!name) throw new Error("Please enter your name.");
-    if (!phone) throw new Error("Please enter your phone number.");
+    const phone = normalizePhone(input.phone); // checked before the account is created
+    if (!phone) throw new Error(PHONE_MESSAGE);
 
     pendingSignUp = { email: input.email.trim(), name, phone };
     try {
@@ -236,7 +237,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!firebaseUser) throw new Error("Please sign in.");
     const update: Record<string, unknown> = { updatedAt: serverTimestamp() };
     if (typeof changes.name === "string" && changes.name.trim()) update.name = changes.name.trim();
-    if (typeof changes.phone === "string") update.phone = changes.phone.trim();
+    if (typeof changes.phone === "string") {
+      const phone = normalizePhone(changes.phone);
+      if (!phone) throw new Error(PHONE_MESSAGE);
+      update.phone = phone;
+    }
     await updateDoc(doc(db, "users", firebaseUser.uid), update);
   }
 

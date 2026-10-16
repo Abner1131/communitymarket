@@ -28,6 +28,7 @@ import { colors, fonts, radius, text, ui } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { POLICIES_VERSION } from "../data/policies";
 import { db } from "../lib/firebase";
+import { normalizePhone } from "../lib/phone";
 
 type Application = {
   id: string;
@@ -54,6 +55,7 @@ export default function ApplyScreen() {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<"rider" | "seller">("rider");
   const [vehicle, setVehicle] = useState<"bike" | "keke">("bike");
+  const [businessType, setBusinessType] = useState<"shop" | "restaurant">("shop");
   const [businessName, setBusinessName] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
   const [note, setNote] = useState("");
@@ -102,8 +104,8 @@ export default function ApplyScreen() {
   async function submit() {
     setMessage("");
     if (!user) return;
-    if (!user.phone) {
-      setMessage("Add your phone number on the Account page first.");
+    if (!user.phone || !normalizePhone(user.phone)) {
+      setMessage("Your phone number must have 11 digits (like 08012345678) or start with +234. Fix it on the Account page first.");
       return;
     }
     if (role === "seller" && (!businessName.trim() || !businessAddress.trim())) {
@@ -137,11 +139,12 @@ export default function ApplyScreen() {
         uid: user.id,
         name: user.name,
         email: user.email ?? null,
-        phone: user.phone,
+        phone: normalizePhone(user.phone) || user.phone,
         requestedRole: role,
         vehicle: role === "rider" ? vehicle : null,
         businessName: role === "seller" ? businessName.trim().slice(0, 100) : null,
         businessAddress: role === "seller" ? businessAddress.trim().slice(0, 200) : null,
+        ...(role === "seller" ? { businessType } : {}),
         note: note.trim().slice(0, 500),
         status: "pending",
         createdAt: serverTimestamp(),
@@ -247,7 +250,19 @@ export default function ApplyScreen() {
                   </>
                 ) : (
                   <>
-                    <Text style={styles.label}>Shop name</Text>
+                    <Text style={styles.label}>What do you run?</Text>
+                    <View style={styles.choiceRow}>
+                      {(["shop", "restaurant"] as const).map((t) => (
+                        <Choice
+                          key={t}
+                          on={businessType === t}
+                          icon={t === "shop" ? "store" : "utensils"}
+                          label={t === "shop" ? "Shop" : "Restaurant"}
+                          onPress={() => setBusinessType(t)}
+                        />
+                      ))}
+                    </View>
+                    <Text style={styles.label}>{businessType === "restaurant" ? "Restaurant name" : "Shop name"}</Text>
                     <TextInput
                       style={styles.input}
                       placeholder="e.g. Amina Foods"

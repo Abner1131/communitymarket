@@ -21,8 +21,10 @@ import {
 
 import { BrandLoader } from "../components/Brand";
 
+import { MarketerTermsAgree } from "../components/MarketerTermsAgree";
 import { StaleNote } from "../components/StaleNote";
 import { useAuth } from "../context/AuthContext";
+import { MARKETER_TERMS_VERSION } from "../data/marketerTerms";
 import { useScreenCache } from "../lib/screenCache";
 import {
   MarketingApplication,
@@ -177,7 +179,7 @@ export default function MarketingScreen() {
                 isManager={user?.role === "marketing"}
                 busy={busy}
                 onCreate={(name, code, phone) => run("createMarketerCode", { name, code: code || undefined, phone }, "create")}
-                onCreateMine={(name, code, phone) => run("createMyCode", { name, code, phone }, "mine")}
+                onCreateMine={(name, code, phone) => run("createMyCode", { name, code, phone, agree: MARKETER_TERMS_VERSION }, "mine")}
                 onResetPin={(code) => run("resetMarketerPin", { code }, `pin-${code}`)}
                 onToggle={(code, active) => run("setMarketerCodeActive", { code, active }, `code-${code}`)}
               />
@@ -414,10 +416,11 @@ function MyCodeCard({
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [phone, setPhone] = useState("");
+  const [agreed, setAgreed] = useState(false);
   if (team && team.myCode && team.my) {
     return (
       <View style={[styles.card, { backgroundColor: "#0b4a2f" }]}>
-        <Text style={{ color: "#cfe0d5", fontWeight: "700" }}>Your pay, {team.monthName} so far</Text>
+        <Text style={{ color: "#cfe0d5", fontWeight: "700" }}>Your pay this week so far ({team.monthName})</Text>
         <Text style={{ color: "#fff", fontSize: 30, fontWeight: "800", marginTop: 4 }}>{naira(team.my.amount)}</Text>
         <Text style={{ color: "#cfe0d5", marginTop: 4, lineHeight: 19 }}>
           Your own sign-ups {naira(team.my.direct)} · your team {naira(team.my.team)}
@@ -429,7 +432,7 @@ function MyCodeCard({
       </View>
     );
   }
-  const ok = name.trim().length >= 2 && code.length >= 3 && phone.replace(/\D/g, "").length >= 10;
+  const ok = name.trim().length >= 2 && code.length >= 3 && phone.replace(/\D/g, "").length >= 10 && agreed;
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Your own code</Text>
@@ -448,8 +451,9 @@ function MyCodeCard({
         maxLength={10}
       />
       <TextInput style={styles.input} placeholder="Your phone number" placeholderTextColor="#888" keyboardType="phone-pad" value={phone} onChangeText={setPhone} maxLength={16} />
+      <MarketerTermsAgree kind="manager" settings={team ? team.settings : null} agreed={agreed} onChange={setAgreed} />
       <Pressable
-        style={[styles.primaryButton, (busy === "mine" || !ok) && { opacity: 0.5 }]}
+        style={[styles.primaryButton, { marginTop: 16 }, (busy === "mine" || !ok) && { opacity: 0.5 }]}
         disabled={busy === "mine" || !ok}
         onPress={() => void onCreateMine(name.trim(), code, phone.trim())}
       >
@@ -562,7 +566,7 @@ function Codes({
           {teamByCode[c.code] ? (
             <>
               <Text style={styles.item}>
-                Earned this month: {naira(teamByCode[c.code].earned)} · {teamByCode[c.code].counting} counting ·{" "}
+                Earned this week: {naira(teamByCode[c.code].earned)} · {teamByCode[c.code].counting} counting ·{" "}
                 {teamByCode[c.code].waiting} waiting
               </Text>
               <Text style={styles.hint}>

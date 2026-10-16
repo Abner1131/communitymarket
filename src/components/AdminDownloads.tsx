@@ -24,6 +24,8 @@ const REPORTS: { key: ExportReport; title: string; note: string; icon: IconName;
   { key: "payouts", title: "Payouts sent", note: "Withdrawals: who, amount, bank (last 4 digits), reference", icon: "arrow-up-right", ranged: true },
   { key: "problems", title: "Refunds and problems", note: "Customer complaints and how each was settled", icon: "alert", ranged: true },
   { key: "applications", title: "Applications and marketer codes", note: "Who each marketer brought in, who was approved", icon: "megaphone", ranged: true },
+  { key: "marketer_pay", title: "Marketer pay statements", note: "Closed weeks: each person, amount, bank (last 4), paid", icon: "megaphone", ranged: true },
+  { key: "marketer_earnings", title: "Marketer earnings detail", note: "Every order that earned marketer pay, and its status", icon: "megaphone", ranged: true },
   { key: "activity", title: "Activity log", note: "Who did what, and when", icon: "list", ranged: true },
   { key: "shops", title: "Shops", note: "All shops: owner phone, status, products, joined", icon: "store", ranged: false },
   { key: "riders", title: "Riders", note: "All riders: vehicle, status, joined", icon: "bike", ranged: false },
@@ -72,8 +74,8 @@ export async function downloadReport(report: ExportReport, range: { fromMs: numb
   return "Opening in your browser. The file saves to your Downloads.";
 }
 
-/** Small "Download" button for a list (last 30 days for dated reports). */
-export function DownloadButton({ report, label = "Download" }: { report: ExportReport; label?: string }) {
+/** Small "Download" button for a list (last `days` days for dated reports, 30 by default). */
+export function DownloadButton({ report, label = "Download", days = 30 }: { report: ExportReport; label?: string; days?: number }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const ranged = REPORTS.find((r) => r.key === report)?.ranged ?? true;
@@ -86,7 +88,8 @@ export function DownloadButton({ report, label = "Download" }: { report: ExportR
           setBusy(true);
           setMsg("");
           try {
-            const range = ranged ? (rangeFor("last_30", "", "") as { fromMs: number; toMs: number }) : null;
+            const last30 = rangeFor("last_30", "", "") as { fromMs: number; toMs: number };
+            const range = ranged ? { fromMs: last30.toMs - days * DAY_MS, toMs: last30.toMs } : null;
             await downloadReport(report, range);
           } catch (e: any) {
             setMsg(e?.message || "Could not download.");
@@ -94,7 +97,7 @@ export function DownloadButton({ report, label = "Download" }: { report: ExportR
             setBusy(false);
           }
         }}
-        accessibilityLabel={`${label}${ranged ? ", last 30 days" : ""}`}
+        accessibilityLabel={`${label}${ranged ? `, last ${days} days` : ""}`}
       >
         <Icon name="download" size={15} color={colors.green} />
         <Text style={styles.smallDownloadText}>{busy ? "..." : label}</Text>

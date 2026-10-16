@@ -19,6 +19,7 @@ import { colors, fonts, radius, shadow, text, ui } from "../theme";
 import { PasswordInput } from "../components/PasswordInput";
 
 import { friendlyAuthError, useAuth } from "../context/AuthContext";
+import { normalizePhone, PHONE_MESSAGE } from "../lib/phone";
 import { setSignInIntent, takeSignInNotice } from "../lib/signInIntent";
 import { applyInviteCode } from "../lib/walletApi";
 
@@ -58,7 +59,7 @@ export default function AuthScreen() {
     if (password.length < 6) return show("Enter a password of at least 6 characters.");
     if (mode === "signup") {
       if (!name.trim()) return show("Enter your full name.");
-      if (!/^[0-9+\s-]{7,20}$/.test(phone.trim())) return show("Enter a valid phone number.");
+      if (!normalizePhone(phone)) return show(PHONE_MESSAGE);
     }
 
     setBusy(true);
@@ -68,7 +69,7 @@ export default function AuthScreen() {
         setSignInIntent(mode === "admin" ? "admin" : null);
         await signIn(email, password);
       } else {
-        await signUp({ name, phone, email, password });
+        await signUp({ name, phone: normalizePhone(phone) || phone, email, password });
         // Optional invite code: saved in the background. If it's wrong, it can
         // be entered again later in Wallet.
         if (inviteCode.trim()) {

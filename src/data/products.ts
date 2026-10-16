@@ -15,6 +15,12 @@ export type Product = {
   // Sizes / colours (see src/lib/variants.ts). Without them: one price, one stock.
   options?: ProductOption[];
   variants?: ProductVariant[];
+  // Restaurant dishes (cooked to order): no stock count, only "sold out today".
+  // shopOpen / prepTime / shopHours are the restaurant's facts, copied by the server.
+  madeToOrder?: boolean;
+  shopOpen?: boolean;
+  prepTime?: string | null; // "20-30 min"
+  shopHours?: string | null; // "8am - 10pm"
 };
 
 export type ProductPhoto = { id: string; url: string; thumbUrl: string };

@@ -36,6 +36,9 @@ export type SellerProduct = {
   stock: number;
   description: string;
   active: boolean;
+  // Restaurant dishes: no stock count, just Available / Sold out today.
+  madeToOrder?: boolean;
+  soldOut?: boolean;
   photos: SellerPhoto[]; // first = cover
   specs: Record<string, string>;
   searchWords: Partial<Record<SearchLang, string[]>>;
@@ -81,6 +84,13 @@ export type SellerState = {
     name: string;
     location: { latitude: number; longitude: number } | null;
     active: boolean;
+    businessType?: "shop" | "restaurant" | "service";
+    // Restaurants only:
+    open?: boolean;
+    prepMin?: number | null;
+    prepMax?: number | null;
+    prepText?: string | null;
+    hours?: string;
   };
   stats: { toPrepare: number; deliveredOrders: number; deliveredSales: number };
   orders: SellerOrder[];
@@ -108,6 +118,7 @@ export async function sellerAction(
     | "me"
     | "markReady"
     | "saveProduct"
+    | "setShopInfo"
     | "setLocation"
     | "setBank"
     | "withdraw"

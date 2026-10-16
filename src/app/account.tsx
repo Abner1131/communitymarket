@@ -21,6 +21,7 @@ import { colors, fonts, radius, text, ui } from "../theme";
 import { DeleteAccountCard } from "../components/DeleteAccountCard";
 import { EmailVerifyCard } from "../components/EmailVerifyCard";
 import { useAuth } from "../context/AuthContext";
+import { normalizePhone, PHONE_MESSAGE } from "../lib/phone";
 
 const ROLE_STYLE: Record<string, { label: string; bg: string; fg: string }> = {
   customer: { label: "Customer", bg: colors.chip, fg: colors.ink2 },
@@ -56,12 +57,12 @@ export default function AccountScreen() {
 
   async function save() {
     if (!name.trim()) return setMessage("Name can't be empty.");
-    if (phone.trim() && !/^[0-9+\s-]{7,20}$/.test(phone.trim())) {
-      return setMessage("Enter a valid phone number.");
+    if (phone.trim() ? !normalizePhone(phone) : Boolean(user?.phone)) {
+      return setMessage(PHONE_MESSAGE);
     }
     setSaving(true);
     try {
-      await updateMyProfile({ name, phone });
+      await updateMyProfile({ name, ...(phone.trim() ? { phone } : {}) });
       setEditing(false);
     } catch (e: any) {
       setMessage(e?.message || "Could not save.");
@@ -185,6 +186,14 @@ export default function AccountScreen() {
         <View style={styles.group}>
           <Row icon="package" title="My orders" subtitle="Track your orders and deliveries" onPress={() => router.push("/orders")} />
           <Row icon="wallet" title="Wallet" subtitle="Balance, rewards and history" onPress={() => router.push("/wallet")} />
+          {user.role !== "admin" ? (
+            <Row
+              icon="megaphone"
+              title="Marketer earnings"
+              subtitle="For CommunityMarket marketers: your pay and bank"
+              onPress={() => router.push("/marketer" as any)}
+            />
+          ) : null}
           {user.role === "customer" ? (
             <Row
               icon="users"

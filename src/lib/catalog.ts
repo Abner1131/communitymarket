@@ -48,6 +48,17 @@ export function photosFrom(value: unknown): ProductPhoto[] {
     .slice(0, 3);
 }
 
+// Restaurant dishes: cooked to order, with the restaurant's open/closed state.
+export function dishFrom(p: Record<string, unknown>) {
+  if (p.madeToOrder !== true) return {};
+  return {
+    madeToOrder: true as const,
+    shopOpen: p.shopOpen !== false,
+    prepTime: typeof p.prepTime === "string" && p.prepTime ? p.prepTime : null,
+    shopHours: typeof p.shopHours === "string" && p.shopHours ? p.shopHours : null,
+  };
+}
+
 function sellerNameFor(sellerId: string, stored: unknown): string {
   if (typeof stored === "string" && stored.trim()) return stored;
   return sellers.find((s) => s.id === sellerId)?.name ?? "CommunityMarket seller";
@@ -81,6 +92,7 @@ export function subscribeCatalog(
               ? p.searchIndex.filter((w: unknown): w is string => typeof w === "string")
               : [],
             ...variantsFrom(p.options, p.variants),
+            ...dishFrom(p),
             isActive: true,
           };
         })

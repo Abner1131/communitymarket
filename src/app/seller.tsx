@@ -27,6 +27,7 @@ import {
   ProductOptionsEditor,
   type DraftOptions,
 } from "../components/ProductOptionsEditor";
+import { RestaurantCard, type ShopInfo } from "../components/RestaurantCard";
 import { WalletCard } from "../components/WalletCard";
 import { pickProductPhoto, type PickedPhoto } from "../lib/photoPick";
 import {
@@ -61,6 +62,7 @@ type Draft = {
   stock: string;
   description: string;
   active: boolean;
+  soldOut: boolean; // restaurant dishes only: "Sold out today"
   pending: PickedPhoto[]; // new photos, uploaded when the seller taps Save
   specs: { label: string; value: string }[];
   searchWords: Partial<Record<SearchLang, string[]>>;
@@ -77,6 +79,7 @@ const EMPTY_DRAFT: Draft = {
   stock: "",
   description: "",
   active: true,
+  soldOut: false,
   pending: [],
   specs: [],
   searchWords: {},
@@ -265,6 +268,7 @@ function PhotoTile({
 }
 
 function ProductForm({
+  dish,
   draft,
   existing,
   maxPhotos,
@@ -284,6 +288,7 @@ function ProductForm({
   onSave,
   onCancel,
 }: {
+  dish: boolean; // a restaurant dish: no stock or sizes, just Available / Sold out today
   draft: Draft;
   existing: SellerPhoto[];
   maxPhotos: number;
@@ -309,7 +314,9 @@ function ProductForm({
   const wordCount = SEARCH_LANGS.reduce((n, l) => n + (draft.searchWords[l.code]?.length || 0), 0);
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>{draft.productId ? "Edit product" : "New product"}</Text>
+      <Text style={styles.cardTitle}>
+        {draft.productId ? (dish ? "Edit dish" : "Edit product") : dish ? "New dish" : "New product"}
+      </Text>
 
       <Text style={styles.label}>
         Photos ({existing.length + draft.pending.length}/{maxPhotos})
@@ -388,29 +395,34 @@ function ProductForm({
         style={styles.input}
         value={draft.name}
         onChangeText={(name) => onChange({ ...draft, name })}
-        placeholder="e.g. Local rice 50kg"
+        placeholder={dish ? "e.g. Jollof rice with chicken" : "e.g. Local rice 50kg"}
       />
 
-      <Text style={styles.label}>Category</Text>
-      <View style={styles.chips}>
-        {categories.map((c) => (
-          <Pressable
-            key={c}
-            style={[styles.chip, draft.category === c && styles.chipActive]}
-            onPress={() => onChange({ ...draft, category: c })}
-          >
-            <Text style={[styles.chipText, draft.category === c && styles.chipTextActive]}>{c}</Text>
-          </Pressable>
-        ))}
-      </View>
+      {dish ? null : (
+        <>
+          <Text style={styles.label}>Category</Text>
+          <View style={styles.chips}>
+            {categories.map((c) => (
+              <Pressable
+                key={c}
+                style={[styles.chip, draft.category === c && styles.chipActive]}
+                onPress={() => onChange({ ...draft, category: c })}
+              >
+                <Text style={[styles.chipText, draft.category === c && styles.chipTextActive]}>{c}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      )}
 
-      {rates[draft.category] !== undefined ? (
+      {rates[dish ? "Food" : draft.category] !== undefined ? (
         <Text style={styles.hint}>
-          CommunityMarket commission on {draft.category}: {rates[draft.category]}%
+          CommunityMarket commission on {dish ? "Food" : draft.category}: {rates[dish ? "Food" : draft.category]}%
           {(() => {
             const p = parseInt(draft.price, 10);
+            const rate = rates[dish ? "Food" : draft.category];
             return Number.isInteger(p) && p > 0
-              ? ` · you get ${money(p - Math.round((p * rates[draft.category]) / 100))} per item`
+              ? ` · you get ${money(p - Math.round((p * rate) / 100))} per ${dish ? "dish" : "item"}`
               : "";
           })()}
         </Text>
@@ -427,7 +439,7 @@ function ProductForm({
             placeholder="25000"
           />
         </View>
-        {combinations(draft.opts.options).length ? null : (
+        {dish || combinations(draft.opts.options).length ? null : (
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>In stock</Text>
             <TextInput
@@ -441,7 +453,17 @@ function ProductForm({
         )}
       </View>
 
-      <ProductOptionsEditor value={draft.opts} onChange={(opts) => onChange({ ...draft, opts })} mainPrice={draft.price} />
+      {dish ? (
+        <View style={[styles.rowBetween, { marginTop: 14 }]}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={styles.value}>{draft.soldOut ? "Sold out today" : "Available today"}</Text>
+            <Text style={styles.hint}>Switch off when you run out. Customers then cannot order this dish.</Text>
+          </View>
+          <Switch value={!draft.soldOut} onValueChange={(on) => onChange({ ...draft, soldOut: !on })} />
+        </View>
+      ) : (
+        <ProductOptionsEditor value={draft.opts} onChange={(opts) => onChange({ ...draft, opts })} mainPrice={draft.price} />
+      )}
 
       <Text style={styles.label}>Description</Text>
       <TextInput
@@ -614,6 +636,7 @@ export default function SellerScreen() {
       stock: String(p.stock),
       description: p.description,
       active: p.active,
+      soldOut: p.soldOut === true,
       pending: [],
       specs: Object.entries(p.specs || {}).map(([label, value]) => ({ label, value: String(value) })),
       searchWords: p.searchWords || {},
@@ -717,21 +740,20 @@ export default function SellerScreen() {
     if (!draft) return;
     setFormError("");
     const price = parseInt(draft.price, 10);
-    const opts = optionsPayload(draft.opts);
+    const isDish = state?.seller.businessType === "restaurant";
+    const opts = isDish ? { options: [], variants: [] } : optionsPayload(draft.opts);
     if (typeof opts === "string") return setFormError(opts);
     const withOptions = opts.options.length > 0;
-    const stock = withOptions ? 0 : parseInt(draft.stock, 10); // with sizes, the server adds them up
-    if (!draft.name.trim()) return setFormError("Enter a product name.");
+    const stock = withOptions ? 0 : isDish ? 0 : parseInt(draft.stock, 10); // with sizes, the server adds them up
+    if (!draft.name.trim()) return setFormError(isDish ? "Enter the dish name." : "Enter a product name.");
     if (!Number.isInteger(price)) return setFormError(withOptions ? "Enter the main price." : "Enter a price.");
     if (!Number.isInteger(stock)) return setFormError("Enter how many are in stock.");
     const result = await run("save", "saveProduct", {
       productId: draft.productId,
       name: draft.name.trim(),
-      category: draft.category,
+      category: isDish ? "Food" : draft.category,
       price,
-      stock,
-      options: opts.options,
-      variants: opts.variants,
+      ...(isDish ? { soldOut: draft.soldOut } : { stock, options: opts.options, variants: opts.variants }),
       description: draft.description.trim(),
       active: draft.active,
       specs: specsToObject(draft.specs),
@@ -777,6 +799,25 @@ export default function SellerScreen() {
           ? "Saved with photos."
           : "Saved.",
     );
+  }
+
+  // Restaurants: open / closed, preparation time, hours.
+  async function saveShopInfo(info: ShopInfo) {
+    setNotice("");
+    return (await run("shop", "setShopInfo", info)) !== null;
+  }
+
+  // Restaurants: one tap on a dish to mark it sold out / available again.
+  async function toggleSoldOut(p: SellerProduct) {
+    setNotice("");
+    await run(`sold-${p.id}`, "saveProduct", {
+      productId: p.id,
+      name: p.name,
+      price: p.price,
+      description: p.description,
+      active: p.active,
+      soldOut: !p.soldOut,
+    });
   }
 
   async function useMyLocation() {
@@ -874,6 +915,10 @@ export default function SellerScreen() {
           </View>
         </View>
 
+        {seller.businessType === "restaurant" ? (
+          <RestaurantCard seller={seller} busy={working === "shop"} onSave={saveShopInfo} />
+        ) : null}
+
         <View style={styles.card}>
           <View style={styles.rowBetween}>
             <View style={{ flex: 1, paddingRight: 10 }}>
@@ -945,6 +990,7 @@ export default function SellerScreen() {
           <>
             {draft ? (
               <ProductForm
+                dish={seller.businessType === "restaurant"}
                 draft={draft}
                 existing={(draft.productId && products.find((p) => p.id === draft.productId)?.photos) || []}
                 maxPhotos={state.maxPhotos || 3}
@@ -976,7 +1022,9 @@ export default function SellerScreen() {
                   setDraft({ ...EMPTY_DRAFT, category: state.categories[0] || "Groceries" });
                 }}
               >
-                <Text style={styles.primaryButtonText}>+ Add product</Text>
+                <Text style={styles.primaryButtonText}>
+                  {seller.businessType === "restaurant" ? "+ Add dish" : "+ Add product"}
+                </Text>
               </Pressable>
             )}
 
@@ -998,14 +1046,29 @@ export default function SellerScreen() {
                   <View style={{ flex: 1, paddingRight: 10 }}>
                     <Text style={styles.cardTitle}>{p.name}</Text>
                     <Text style={styles.muted}>
-                      {p.category} {"·"} {p.stock} in stock
+                      {p.madeToOrder
+                        ? p.soldOut
+                          ? "Sold out today"
+                          : "Available today"
+                        : `${p.category} · ${p.stock} in stock`}
                       {p.options && p.options.length ? ` · ${p.options.map((o) => o.name).join(" & ")}` : ""}
                     </Text>
                   </View>
                   <Text style={styles.value}>{money(p.price)}</Text>
                 </View>
                 {!p.active ? <Text style={styles.hiddenText}>Hidden from customers</Text> : null}
-                {p.active && p.stock === 0 ? <Text style={styles.hiddenText}>Out of stock</Text> : null}
+                {p.active && p.stock === 0 && !p.madeToOrder ? <Text style={styles.hiddenText}>Out of stock</Text> : null}
+                {p.madeToOrder ? (
+                  <View style={[styles.rowBetween, { marginTop: 8 }]}>
+                    <Text style={styles.value}>{p.soldOut ? "Sold out" : "Available"}</Text>
+                    <Switch
+                      value={!p.soldOut}
+                      disabled={working !== null}
+                      onValueChange={() => void toggleSoldOut(p)}
+                      accessibilityLabel={`${p.name} available today`}
+                    />
+                  </View>
+                ) : null}
                 <Text style={styles.hint}>Tap to edit</Text>
               </Pressable>
             ))}

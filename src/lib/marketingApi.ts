@@ -2,6 +2,7 @@
 // but only with the marketing actions. The server refuses everything else for
 // a marketing login and never sends money, bank or customer details.
 
+import type { PayNumbers } from "../data/marketerTerms";
 import { adminDeviceHeaders } from "./adminDevice";
 import { API_URL, auth } from "./firebase";
 
@@ -51,6 +52,8 @@ export type MarketingRider = {
 export type MarketerCode = {
   code: string;
   name: string;
+  kind?: "manager" | "marketer";
+  managerCode?: string | null;
   active: boolean;
   applications: number;
   approved: number;
@@ -78,7 +81,33 @@ export type MarketingState = {
   generatedAtMs: number;
 };
 
-export type MarketingAction = "marketing" | "applicationNote" | "createMarketerCode" | "setMarketerCodeActive";
+// The signed-in manager's own code and team (earnings this month so far).
+export type MarketingTeam = {
+  myCode: string | null;
+  myName?: string;
+  monthName?: string;
+  my?: { direct: number; team: number; amount: number; waiting: number };
+  team?: {
+    code: string;
+    name: string;
+    active: boolean;
+    linked: boolean;
+    locked: boolean;
+    earned: number;
+    counting: number;
+    waiting: number;
+  }[];
+  settings?: PayNumbers;
+  termsVersion?: string;
+};
+
+export type MarketingAction =
+  | "marketing"
+  | "applicationNote"
+  | "createMarketerCode"
+  | "setMarketerCodeActive"
+  | "createMyCode"
+  | "resetMarketerPin";
 
 export class MarketingApiError extends Error {
   forbidden: boolean;
@@ -91,7 +120,7 @@ export class MarketingApiError extends Error {
 export async function marketingAction(
   action: MarketingAction,
   extra: Record<string, unknown> = {},
-): Promise<{ marketing: MarketingState; message: string | null }> {
+): Promise<{ marketing: MarketingState; team: MarketingTeam | null; message: string | null }> {
   const user = auth.currentUser;
   if (!user) throw new MarketingApiError("Please sign in.");
   const send = async (fresh: boolean) => {
@@ -108,5 +137,5 @@ export async function marketingAction(
   if (response.status === 403) response = await send(true);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new MarketingApiError(data.error || "Something went wrong.", response.status === 403);
-  return { marketing: data.marketing as MarketingState, message: data.message ?? null };
+  return { marketing: data.marketing as MarketingState, team: (data.team as MarketingTeam) ?? null, message: data.message ?? null };
 }

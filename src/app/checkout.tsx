@@ -22,6 +22,7 @@ import { quoteCheckout, submitCheckout, type CheckoutQuote } from "../lib/checko
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import FirebaseSignInCard from "../components/FirebaseSignInCard";
 import { auth } from "../lib/firebase";
+import { normalizePhone, PHONE_MESSAGE } from "../lib/phone";
 
 import { type DeliveryVehicle } from "../services/deliveryPricing";
 
@@ -153,8 +154,9 @@ export default function CheckoutScreen() {
       setErrorMessage("Please enter your full name.");
       return;
     }
-    if (!phone.trim()) {
-      setErrorMessage("Please enter your phone number.");
+    const cleanPhone = normalizePhone(phone);
+    if (!cleanPhone) {
+      setErrorMessage(PHONE_MESSAGE);
       return;
     }
     if (!address.trim()) {
@@ -181,7 +183,7 @@ export default function CheckoutScreen() {
         },
         vehiclePreference: selectedVehicle,
         customerName: customerName.trim(),
-        phone: phone.trim(),
+        phone: cleanPhone,
         address: address.trim(),
       });
 

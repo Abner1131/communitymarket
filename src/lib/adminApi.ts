@@ -10,6 +10,7 @@ export type AdminApplication = {
   vehicle: string | null;
   businessName: string | null;
   businessAddress: string | null;
+  businessType?: "shop" | "restaurant" | "service";
   termsAcceptedAtMs?: number | null;
   termsVersion?: string | null;
   marketerCode?: string | null; // signed up by which marketer
@@ -338,6 +339,7 @@ export type AdminState = {
   bankChecks?: AdminBankChecks;
   deletions?: AdminDeletion[]; // "Delete my account" requests, erased after 7 days
   backup?: AdminBackup;
+  marketerPaySettings?: MarketerPaySettings;
   message: string | null;
 };
 
@@ -366,6 +368,7 @@ export type AdminAction =
   | "rejectBank"
   | "liftBankHold"
   | "restoreAccount"
+  | "setMarketerPaySettings"
   | "backupNow";
 
 export class AdminApiError extends Error {
@@ -482,7 +485,9 @@ export type ExportReport =
   | "customers"
   | "applications"
   | "terms"
-  | "activity";
+  | "activity"
+  | "marketer_pay"
+  | "marketer_earnings";
 
 /** A one-time download link (works once, for 5 minutes). Admins only. */
 export async function getExportLink(
@@ -502,4 +507,78 @@ export async function getExportLink(
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new AdminApiError(data.error || "Could not make the download.", response.status === 403);
   return data as { url: string; message: string };
+}
+
+// ---------- Money -> Marketer pay ----------
+
+export type MarketerPaySettings = {
+  marketerPct: number; // % of what their shops/riders earn us
+  managerTeamPct: number; // manager's % of what each marketer earns
+  months: number;
+  shopActiveOrders: number;
+  riderActiveTrips: number;
+  capPct: number; // all pay together never above this % of what they earned us
+};
+
+export type MarketerPayLine = {
+  code: string;
+  name: string;
+  kind: "manager" | "marketer";
+  managerCode: string | null;
+  linked: boolean;
+  bank: { bankName: string; accountName: string; accountNumberMasked: string; verified: boolean } | null;
+  bankWaiting: boolean;
+  base: number; // what their shops/riders earned us
+  direct: number;
+  team: number;
+  amount: number;
+  shopsAndRiders: number;
+  waiting: { partyType: "seller" | "rider"; partyName: string; done: number; need: number }[];
+  waitingBase: number;
+  carried: number;
+  paid: boolean;
+  paidAtMs?: number | null;
+  reference?: string | null;
+  method?: string | null;
+};
+
+export type MarketerPayStatement = {
+  month: string; // the pay week's Monday, "2026-10-12" (Monday to Sunday)
+  monthName: string; // "12 Oct - 18 Oct 2026"
+  closed: boolean;
+  canClose: boolean;
+  settings: MarketerPaySettings;
+  lines: MarketerPayLine[];
+  totals: {
+    base: number;
+    pay: number;
+    payPct: number;
+    capPct: number;
+    reduced: boolean;
+    people: number;
+    paid: number;
+    unpaid: number;
+  };
+  selfReferrals: { code: string; partyName: string; partyType: string; base: number }[];
+  closedAtMs?: number;
+  payByMs?: number; // the Friday it is due
+  closedBy?: string | null;
+};
+
+export async function marketerPayAction(
+  action: "marketerPay" | "closeMarketerMonth" | "markMarketerPaid",
+  extra: Record<string, unknown>,
+): Promise<{ statement: MarketerPayStatement; message: string | null }> {
+  const user = auth.currentUser;
+  if (!user) throw new AdminApiError("Please sign in.");
+  const token = await user.getIdToken();
+  const device = await adminDeviceHeaders();
+  const response = await fetch(`${API_URL}/api/admin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...device },
+    body: JSON.stringify({ action, ...extra }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new AdminApiError(data.error || "Something went wrong.", response.status === 403);
+  return { statement: data.marketerPay as MarketerPayStatement, message: data.message ?? null };
 }
