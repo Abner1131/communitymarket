@@ -243,6 +243,28 @@ export type AdminPayoutSettings = {
   feeAbove50k: number;
 };
 
+// Sign-up fees and safety gear, taken from a new seller's / rider's first earnings.
+export type AdminOnboardingSettings = {
+  sellerFee: number;
+  riderFee: number;
+  jacketPrice: number;
+  helmetPrice: number;
+  gearSharePct: number;
+};
+
+export type AdminDue = {
+  id: string;
+  partyType: "seller" | "rider";
+  partyId: string;
+  name: string | null;
+  regOwed: number;
+  gearOwed: number;
+  total: number;
+  regPaid: number;
+  gearPaid: number;
+  sharePct: number;
+};
+
 export type AdminPaidWithdrawal = {
   id: string;
   partyType: "seller" | "rider";
@@ -331,6 +353,7 @@ export type AdminState = {
     requests: AdminWithdrawalRequest[];
     recentPaid: AdminPaidWithdrawal[];
   };
+  onboarding?: { settings: AdminOnboardingSettings; outstanding: AdminDue[] };
   commission: { categories: string[]; maxRate: number; rates: Record<string, number> };
   pricing?: AdminPricing;
   delivery?: AdminDelivery;
@@ -358,6 +381,8 @@ export type AdminAction =
   | "rejectWithdrawal"
   | "setCommissionRates"
   | "setPayoutSettings"
+  | "setOnboardingSettings"
+  | "adjustDues"
   | "setFundingSettings"
   | "setRewardsSettings"
   | "setDeliverySettings"

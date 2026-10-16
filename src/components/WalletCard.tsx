@@ -29,6 +29,8 @@ export type WalletSummary = {
   clearing: number; // still being settled by Paystack (includes `frozen`)
   frozen?: number; // held while a customer's problem report is checked
   nextClearAtMs: number | null;
+  // New sellers/riders: sign-up fee and gear still to be taken from earnings.
+  dues?: { regOwed: number; gearOwed: number; total: number; sharePct: number } | null;
   clearanceWorkingDays: number;
   fees: { upTo5k: number; upTo50k: number; above50k: number };
   pendingWithdrawal: number;
@@ -171,6 +173,20 @@ export function WalletCard({
         <Text style={styles.hint}>
           Clearing money is being settled by our payment provider. Next amount ready {when(wallet.nextClearAtMs)}.
         </Text>
+      ) : null}
+      {wallet.dues && wallet.dues.total > 0 ? (
+        <View style={styles.duesBox}>
+          <Text style={styles.duesTitle}>Sign-up fees still to pay: {money(wallet.dues.total)}</Text>
+          <Text style={styles.hint}>
+            Nothing to pay now. It is taken from your earnings:
+            {wallet.dues.regOwed > 0 ? ` registration ${money(wallet.dues.regOwed)} from your next payment` : ""}
+            {wallet.dues.regOwed > 0 && wallet.dues.gearOwed > 0 ? ", then" : ""}
+            {wallet.dues.gearOwed > 0
+              ? ` ${money(wallet.dues.gearOwed)} for your jacket and helmet, ${wallet.dues.sharePct}% of each payment, until it is paid`
+              : ""}
+            .
+          </Text>
+        </View>
       ) : null}
       {wallet.frozen && wallet.frozen > 0 ? (
         <Text style={styles.hint}>
@@ -409,6 +425,8 @@ const styles = StyleSheet.create({
   value: { fontWeight: "700" },
   muted: { color: "#666", marginTop: 3, fontSize: 13 },
   hint: { color: "#888", fontSize: 12, marginTop: 8 },
+  duesBox: { backgroundColor: "#fff8e1", borderRadius: 12, padding: 12, marginTop: 12 },
+  duesTitle: { fontWeight: "800", color: "#8a6100" },
   hintSmall: { color: "#888", fontSize: 11, marginTop: 2 },
   okText: { color: "#1e7d32", fontWeight: "700", marginTop: 10 },
   warnText: { color: "#b26a00", fontWeight: "700" },

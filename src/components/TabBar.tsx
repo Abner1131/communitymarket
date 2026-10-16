@@ -20,14 +20,14 @@ const TABS: { key: TabKey; label: string; icon: IconName; path: string }[] = [
 ];
 
 // Space a screen should leave at the bottom so the bar never covers content.
-export const TAB_BAR_SPACE = 110;
+export const TAB_BAR_SPACE = 112;
 
 export function TabBar({ active }: { active: TabKey }) {
   const insets = useSafeAreaInsets();
   const { cartCount } = useCart();
 
   return (
-    <View style={[styles.bar, { bottom: 14 + Math.max(insets.bottom, 8) }]} accessibilityRole="tablist">
+    <View style={[styles.bar, { bottom: Math.max(insets.bottom - 8, 6) }]} accessibilityRole="tablist">
       {TABS.map((tab) => {
         const on = tab.key === active;
         const badge = tab.key === "cart" && cartCount > 0 ? cartCount : 0;

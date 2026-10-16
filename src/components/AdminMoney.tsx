@@ -9,6 +9,8 @@ import type {
   AdminRewards,
   AdminRewardsSettings,
   AdminFundingSettings,
+  AdminDue,
+  AdminOnboardingSettings,
   AdminPayoutSettings,
   AdminState,
   AdminWithdrawalRequest,
@@ -390,6 +392,122 @@ function PayoutSettingsEditor({
   );
 }
 
+const ONBOARDING_FIELDS: { key: keyof AdminOnboardingSettings; label: string; unit: string }[] = [
+  { key: "sellerFee", label: "Seller registration fee", unit: "₦" },
+  { key: "riderFee", label: "Rider registration fee", unit: "₦" },
+  { key: "jacketPrice", label: "Reflective jacket price (0 = not charged)", unit: "₦" },
+  { key: "helmetPrice", label: "Helmet price (0 = not charged)", unit: "₦" },
+  { key: "gearSharePct", label: "Share of each rider payment taken for gear (5–100)", unit: "%" },
+];
+
+function OnboardingEditor({
+  settings,
+  saving,
+  onSave,
+}: {
+  settings: AdminOnboardingSettings;
+  saving: boolean;
+  onSave: (s: AdminOnboardingSettings) => void;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(ONBOARDING_FIELDS.map((f) => [f.key, String(settings[f.key])])),
+  );
+  const [error, setError] = useState("");
+
+  function save() {
+    const out = {} as AdminOnboardingSettings;
+    for (const f of ONBOARDING_FIELDS) {
+      const n = parseInt(values[f.key], 10);
+      if (!Number.isInteger(n) || n < 0) return setError(`${f.label}: enter a whole number.`);
+      out[f.key] = n;
+    }
+    if (out.gearSharePct < 5 || out.gearSharePct > 100) return setError("The gear share must be from 5 to 100.");
+    setError("");
+    onSave(out);
+  }
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Sign-up fees and safety gear</Text>
+      <Text style={styles.muted}>
+        Nobody pays up front. A new seller or rider owes these from the day you approve them, and it is taken from
+        their first earnings: the registration fee first, then a share of each payment for the jacket and helmet
+        (riders only) until it is paid. Changes apply to people approved from now on.
+      </Text>
+      <View style={styles.divider} />
+      {ONBOARDING_FIELDS.map((f) => (
+        <View key={f.key} style={[styles.rowBetween, { marginTop: 6 }]}>
+          <Text style={[styles.item, { flex: 1, paddingRight: 8, fontSize: 14 }]}>{f.label}</Text>
+          <View style={styles.rateBox}>
+            {f.unit === "₦" ? <Text style={styles.value}>₦</Text> : null}
+            <TextInput
+              style={styles.rateInput}
+              value={values[f.key]}
+              onChangeText={(t) => setValues({ ...values, [f.key]: t.replace(/[^0-9]/g, "").slice(0, 6) })}
+              keyboardType="number-pad"
+            />
+            {f.unit !== "₦" ? <Text style={styles.value}>{f.unit}</Text> : null}
+          </View>
+        </View>
+      ))}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <Pressable style={[styles.darkButton, saving && { opacity: 0.5 }]} disabled={saving} onPress={save}>
+        <Text style={styles.whiteText}>{saving ? "Saving..." : "Save sign-up fees"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function OutstandingDues({
+  list,
+  working,
+  onAdjust,
+}: {
+  list: AdminDue[];
+  working: string | null;
+  onAdjust: (due: AdminDue, change: { regOwed?: number; gearOwed?: number }) => void;
+}) {
+  if (!list.length) return null;
+  return (
+    <>
+      <Text style={styles.sectionTitle}>Sign-up fees still to collect ({list.length})</Text>
+      <View style={styles.card}>
+        {list.map((d, i) => (
+          <View key={d.id} style={i > 0 ? { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.line } : undefined}>
+            <View style={styles.rowBetween}>
+              <Text style={[styles.value, { flex: 1 }]}>
+                {d.name || d.partyId} · {d.partyType === "rider" ? "Rider" : "Seller"}
+              </Text>
+              <Text style={styles.value}>{money(d.total)}</Text>
+            </View>
+            <Text style={styles.muted}>
+              Registration {money(d.regOwed)} left{d.partyType === "rider" ? ` · Gear ${money(d.gearOwed)} left (${d.sharePct}% of each payment)` : ""}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              {d.gearOwed > 0 ? (
+                <Pressable
+                  style={[styles.smallButton, working === `due-${d.id}` && { opacity: 0.5 }]}
+                  disabled={working !== null}
+                  onPress={() => onAdjust(d, { gearOwed: 0 })}
+                >
+                  <Text style={styles.smallButtonText}>Has own gear</Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                style={[styles.smallButton, working === `due-${d.id}` && { opacity: 0.5 }]}
+                disabled={working !== null}
+                onPress={() => onAdjust(d, { regOwed: 0, gearOwed: 0 })}
+              >
+                <Text style={styles.smallButtonText}>Waive all</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+      </View>
+    </>
+  );
+}
+
 const REWARD_SWITCHES: { key: keyof AdminRewardsSettings; label: string }[] = [
   { key: "pointsEnabled", label: "Points on purchases" },
   { key: "customerReferralEnabled", label: "Customer referrals" },
@@ -626,6 +744,8 @@ export function AdminMoney({
   onSaveSettings,
   onSaveFunding,
   onSaveRewards,
+  onSaveOnboarding,
+  onAdjustDues,
   onBankAction,
 }: {
   /** "money": balances, bank checks, withdrawals. "settings": rewards, funding, payout and commission settings. */
@@ -639,6 +759,8 @@ export function AdminMoney({
   onSaveSettings: (settings: AdminPayoutSettings) => void;
   onSaveFunding: (settings: AdminFundingSettings) => void;
   onSaveRewards: (settings: AdminRewardsSettings) => void;
+  onSaveOnboarding?: (settings: AdminOnboardingSettings) => void;
+  onAdjustDues?: (due: AdminDue, change: { regOwed?: number; gearOwed?: number }) => void;
 }) {
   const { wallets, commission } = state;
   const [showWallets, setShowWallets] = useState(false);
@@ -659,6 +781,15 @@ export function AdminMoney({
           saving={working === "payoutSettings"}
           onSave={onSaveSettings}
         />
+
+        {state.onboarding && onSaveOnboarding ? (
+          <OnboardingEditor
+            key={JSON.stringify(state.onboarding.settings)}
+            settings={state.onboarding.settings}
+            saving={working === "onboarding"}
+            onSave={onSaveOnboarding}
+          />
+        ) : null}
 
         <Text style={styles.sectionTitle}>Rewards and referrals</Text>
         {state.rewards ? (
@@ -687,6 +818,9 @@ export function AdminMoney({
 
   return (
     <>
+      {state.onboarding && onAdjustDues ? (
+        <OutstandingDues list={state.onboarding.outstanding} working={working} onAdjust={onAdjustDues} />
+      ) : null}
       <View style={styles.statsRow}>
         <View style={[styles.stat, wallets.totalRequested > 0 && { backgroundColor: colors.goldSoft }]}>
           <Text style={styles.statNumber}>{money(wallets.totalRequested)}</Text>

@@ -5,11 +5,11 @@
 // POLICIES_UPDATED. Text format: "### " heading, "1. " numbered item,
 // "- " bullet, "| a | b |" table row (first row = column names), **bold**.
 
-export const POLICIES_UPDATED = "12 October 2026";
+export const POLICIES_UPDATED = "16 October 2026";
 
 // Raise this (new date) when a policy changes in a way people must agree to
 // again: everyone is then asked once, in the app, to agree to the new version.
-export const POLICIES_VERSION = "2026-10-12";
+export const POLICIES_VERSION = "2026-10-16";
 
 export const BUSINESS = {
   legalName: "EA.TSAMBI ENTERPRISES",
@@ -67,12 +67,15 @@ Points and referral rewards are a bonus, not money owed. Only users with a verif
 2. Keep stock up to date and have orders ready for the rider.
 3. Do not sell illegal, stolen, fake, expired or dangerous goods, or anything banned by Nigerian law.
 4. We charge a commission on each sale. The rate depends on the product category and is shown to you in the app.
+5. **Registration fee:** a new seller owes a one-time registration fee (the amount is shown in the app). You pay nothing up front. We take it from the money you earn on your first order(s), and your wallet shows what is left.
 
 ### 7. Rules for riders
 
 1. Hold a valid licence and papers for your vehicle, and ride safely.
 2. Collect orders from sellers and deliver them complete and on time.
 3. Never ask for the delivery code before handing over the order.
+4. **Safety gear:** wear a reflective jacket and a helmet on every trip. You may use your own or take ours.
+5. **Registration fee and gear:** a new rider owes a one-time registration fee and, if you take our jacket and helmet, their price. You pay nothing up front. We take the registration fee from your first payment(s), then part of each payment until the gear is paid. Your wallet shows what is left. Gear that is not yet fully paid remains ours and must be returned if you stop riding for us.
 
 ### 8. Things no one may do
 

@@ -1062,6 +1062,10 @@ export default function AdminScreen() {
               onSaveSettings={(settings) => void run("payoutSettings", "setPayoutSettings", { settings })}
               onSaveFunding={(settings) => void run("funding", "setFundingSettings", { settings })}
               onSaveRewards={(settings) => void run("rewards", "setRewardsSettings", { settings })}
+              onSaveOnboarding={(settings) => void run("onboarding", "setOnboardingSettings", { settings })}
+              onAdjustDues={(due, change) =>
+                void run(`due-${due.id}`, "adjustDues", { partyType: due.partyType, partyId: due.partyId, ...change })
+              }
               onBankAction={(action, partyType, partyId, reason) =>
                 void run(`bank-${partyType}-${partyId}`, action, { partyType, partyId, reason })
               }
@@ -1202,6 +1206,10 @@ export default function AdminScreen() {
                 onSaveSettings={(settings) => void run("payoutSettings", "setPayoutSettings", { settings })}
                 onSaveFunding={(settings) => void run("funding", "setFundingSettings", { settings })}
                 onSaveRewards={(settings) => void run("rewards", "setRewardsSettings", { settings })}
+              onSaveOnboarding={(settings) => void run("onboarding", "setOnboardingSettings", { settings })}
+              onAdjustDues={(due, change) =>
+                void run(`due-${due.id}`, "adjustDues", { partyType: due.partyType, partyId: due.partyId, ...change })
+              }
                 onBankAction={() => undefined}
               />
             ) : null}
