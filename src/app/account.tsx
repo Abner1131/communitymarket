@@ -18,6 +18,8 @@ import { Icon, type IconName } from "../components/Icon";
 import { ScreenHeader } from "../components/ui";
 import { colors, fonts, radius, text, ui } from "../theme";
 
+import { Avatar } from "../components/Avatar";
+import { changeProfilePhoto, removeProfilePhoto } from "../lib/profilePhoto";
 import { DeleteAccountCard } from "../components/DeleteAccountCard";
 import { EmailVerifyCard } from "../components/EmailVerifyCard";
 import { useAuth } from "../context/AuthContext";
@@ -37,6 +39,7 @@ export default function AccountScreen() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [message, setMessage] = useState("");
 
   if (!user) {
@@ -71,6 +74,28 @@ export default function AccountScreen() {
     }
   }
 
+  async function runPhoto(job: () => Promise<unknown>) {
+    setPhotoBusy(true);
+    setMessage("");
+    try {
+      await job();
+    } catch (e: any) {
+      Alert.alert("Profile picture", e?.message || "Could not save your photo. Please try again.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  function choosePhoto() {
+    const buttons: { text: string; style?: "cancel" | "destructive"; onPress?: () => void }[] = [
+      { text: "Take photo", onPress: () => runPhoto(() => changeProfilePhoto("camera")) },
+      { text: "Choose from gallery", onPress: () => runPhoto(() => changeProfilePhoto("library")) },
+    ];
+    if (user?.photoURL) buttons.push({ text: "Remove photo", style: "destructive", onPress: () => runPhoto(removeProfilePhoto) });
+    buttons.push({ text: "Cancel", style: "cancel" });
+    Alert.alert("Profile picture", "Only you can see your picture.", buttons);
+  }
+
   async function handleSignOut() {
     await signOut();
     router.replace("/auth" as any);
@@ -88,9 +113,14 @@ export default function AccountScreen() {
         {/* PROFILE */}
         <View style={styles.card}>
           <View style={styles.profileRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user.name.trim().charAt(0).toUpperCase()}</Text>
-            </View>
+            <Pressable onPress={choosePhoto} disabled={photoBusy} accessibilityRole="button" accessibilityLabel="Change profile picture">
+              <View style={photoBusy && { opacity: 0.5 }}>
+                <Avatar name={user.name} photoURL={user.photoURL} size={64} />
+              </View>
+              <View style={styles.cameraBadge}>
+                <Icon name="camera" size={12} color={colors.green} />
+              </View>
+            </Pressable>
             <View style={{ flex: 1 }}>
               <Text style={styles.profileName}>{user.name}</Text>
               <Text style={styles.muted}>{user.email}</Text>
@@ -273,15 +303,19 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: TAB_BAR_SPACE },
   card: { ...ui.card, padding: 18, marginBottom: 6 },
   profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.green,
+  cameraBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.gold,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.card,
   },
-  avatarText: { color: colors.gold, fontSize: 22, fontFamily: fonts.display },
   profileName: { fontFamily: fonts.displayBold, fontSize: 19, color: colors.ink },
   muted: { ...text.small, marginTop: 2 },
   roleBadge: { alignSelf: "flex-start", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, marginTop: 14 },

@@ -74,6 +74,7 @@ function profileFromDoc(uid: string, data: any, fallbackEmail: string | null): U
     name: typeof data?.name === "string" && data.name.trim() ? data.name : "Customer",
     phone: typeof data?.phone === "string" ? data.phone : "",
     email: typeof data?.email === "string" ? data.email : fallbackEmail ?? undefined,
+    photoURL: typeof data?.photoURL === "string" && data.photoURL ? data.photoURL : null,
     role,
     status: data?.status === "suspended" || data?.status === "inactive" ? data.status : "active",
     createdAt: toIso(data?.createdAt),

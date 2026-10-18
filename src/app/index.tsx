@@ -17,6 +17,7 @@ import { ProductCard } from "../components/ProductCard";
 import { Icon, type IconName } from "../components/Icon";
 import PoweredByGreenFusion from "../components/PoweredByGreenFusion";
 import { TAB_BAR_SPACE, TabBar } from "../components/TabBar";
+import { Avatar } from "../components/Avatar";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { CATEGORY_DEFS } from "../data/categories";
@@ -124,7 +125,9 @@ export default function HomeScreen() {
           onPress={() => router.push("/account")}
           accessibilityLabel="Account"
         >
-          {firstName ? (
+          {user?.photoURL ? (
+            <Avatar name={firstName} photoURL={user.photoURL} size={42} />
+          ) : firstName ? (
             <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
           ) : (
             <Icon name="user" size={20} color={colors.ink} />

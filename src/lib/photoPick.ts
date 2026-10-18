@@ -10,7 +10,12 @@ export class PhotoPickError extends Error {}
 
 // Take a picture or choose one, crop it square, and shrink it so the upload
 // is small and fast on mobile data. Returns null if the seller cancels.
-export async function pickProductPhoto(source: "camera" | "library"): Promise<PickedPhoto | null> {
+export async function pickProductPhoto(
+  source: "camera" | "library",
+  opts: { what?: string; maxSide?: number } = {},
+): Promise<PickedPhoto | null> {
+  const what = opts.what ?? "product photos";
+  const maxSide = opts.maxSide ?? MAX_SIDE;
   const permission =
     source === "camera"
       ? await ImagePicker.requestCameraPermissionsAsync()
@@ -18,8 +23,8 @@ export async function pickProductPhoto(source: "camera" | "library"): Promise<Pi
   if (!permission.granted) {
     throw new PhotoPickError(
       source === "camera"
-        ? "Allow camera access in your phone settings to take product photos."
-        : "Allow photo access in your phone settings to choose product photos.",
+        ? `Allow camera access in your phone settings to take ${what}.`
+        : `Allow photo access in your phone settings to choose ${what}.`,
     );
   }
 
@@ -39,8 +44,8 @@ export async function pickProductPhoto(source: "camera" | "library"): Promise<Pi
   const asset = result.assets[0];
   const longest = Math.max(asset.width || 0, asset.height || 0);
   const context = ImageManipulator.manipulate(asset.uri);
-  if (longest > MAX_SIDE) {
-    context.resize(asset.width >= asset.height ? { width: MAX_SIDE } : { height: MAX_SIDE });
+  if (longest > maxSide) {
+    context.resize(asset.width >= asset.height ? { width: maxSide } : { height: maxSide });
   }
   const rendered = await context.renderAsync();
   const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY, base64: true });

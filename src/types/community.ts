@@ -56,6 +56,8 @@ export type User = {
   name: string;
   phone: string;
   email?: string;
+  /** Profile picture link (private: only the owner sees it). */
+  photoURL?: string | null;
   role: UserRole;
   status: UserStatus;
   createdAt: string;

@@ -105,7 +105,7 @@ const PRIVACY = `We collect only what we need to run orders, deliveries and paym
 
 | Who | Information | Why |
 | --- | --- | --- |
-| Everyone | Name, email, phone number, password (stored by Google Firebase, never seen by us) | Create and secure your account |
+| Everyone | Name, email, phone number, password (stored by Google Firebase, never seen by us), and an optional profile picture that only you can see in the app (remove it any time in Account) | Create and secure your account |
 | Customers | Delivery address and map location, orders, wallet top-ups, refunds, reports and their photos | Deliver orders, take payment, resolve problems |
 | Sellers | Shop name, business address and type, products and photos, bank account number and name | List products, pay you, confirm the bank account is yours |
 | Riders | Vehicle type, location while using the rider app, trips, bank account number and name | Assign nearby deliveries, pay you |
