@@ -22,7 +22,9 @@ const FIELDS: { key: string; label: string; hint?: string; group: string }[] = [
   { group: "Distance", key: "freeKm", label: "Free km in the base fee" },
   { group: "Distance", key: "roadFactor", label: "Road factor", hint: "1.3 = roads are 30% longer than a straight line" },
   { group: "Distance", key: "bigOrderFrom", label: "Big order from (₦ goods)" },
-  { group: "Extra fees", key: "serviceFee", label: "Service fee per order (₦)", hint: "0 = off" },
+  { group: "Extra fees", key: "serviceFee", label: "Service fee per order (₦)", hint: "covers the Paystack card fee. 0 = off" },
+  { group: "Extra fees", key: "serviceFeeLowBelow", label: "Lower service fee when goods are under (₦)", hint: "0 = off" },
+  { group: "Extra fees", key: "serviceFeeLow", label: "Lower service fee (₦)" },
   { group: "Extra fees", key: "smallOrderBelow", label: "Small order below (₦ goods)", hint: "0 = off" },
   { group: "Extra fees", key: "smallOrderFee", label: "Small-order fee (₦)" },
   { group: "Rider pay", key: "riderPay.base", label: "Per trip (₦)" },
@@ -49,6 +51,8 @@ function fromForm(f: Form): PricingSettings {
     roadFactor: n("roadFactor"),
     bigOrderFrom: n("bigOrderFrom"),
     serviceFee: n("serviceFee"),
+    serviceFeeLowBelow: n("serviceFeeLowBelow"),
+    serviceFeeLow: n("serviceFeeLow"),
     smallOrderBelow: n("smallOrderBelow"),
     smallOrderFee: n("smallOrderFee"),
     riderPay: { base: n("riderPay.base"), perKm: n("riderPay.perKm"), perExtraStop: n("riderPay.perExtraStop") },
@@ -63,7 +67,8 @@ function charge(p: PricingSettings, km: number, vehicle: "bike" | "keke", goods:
   if (p.bigOrderFrom > 0 && goods >= p.bigOrderFrom) delivery += v.bigOrderExtra;
   delivery = Math.round(delivery);
   const smallOrder = p.smallOrderBelow > 0 && goods < p.smallOrderBelow ? Math.round(p.smallOrderFee) : 0;
-  return { delivery, service: Math.round(p.serviceFee), smallOrder, total: delivery + Math.round(p.serviceFee) + smallOrder };
+  const service = Math.round(p.serviceFeeLowBelow > 0 && goods < p.serviceFeeLowBelow ? p.serviceFeeLow : p.serviceFee);
+  return { delivery, service, smallOrder, total: delivery + service + smallOrder };
 }
 
 function riderPay(p: PricingSettings, km: number, drops: number) {
