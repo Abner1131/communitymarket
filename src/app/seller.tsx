@@ -28,6 +28,7 @@ import {
   type DraftOptions,
 } from "../components/ProductOptionsEditor";
 import { categoryLabel, categorySubs } from "../data/categories";
+import { suggestWeight, WEIGHT_CHOICES, type Weight } from "../data/weight";
 import { RestaurantCard, type ShopInfo } from "../components/RestaurantCard";
 import { WalletCard } from "../components/WalletCard";
 import { pickProductPhoto, type PickedPhoto } from "../lib/photoPick";
@@ -60,6 +61,8 @@ type Draft = {
   name: string;
   category: string;
   subcategory: string; // group inside the category ("" = none)
+  weight: Weight; // how heavy to carry
+  weightSet: boolean; // true once the seller picked it (stops the automatic guess)
   price: string;
   stock: string;
   description: string;
@@ -78,6 +81,8 @@ const EMPTY_DRAFT: Draft = {
   name: "",
   category: "Groceries",
   subcategory: "",
+  weight: "light",
+  weightSet: false,
   price: "",
   stock: "",
   description: "",
@@ -397,7 +402,9 @@ function ProductForm({
       <TextInput
         style={styles.input}
         value={draft.name}
-        onChangeText={(name) => onChange({ ...draft, name })}
+        onChangeText={(name) =>
+          onChange({ ...draft, name, ...(draft.weightSet || dish ? {} : { weight: suggestWeight(name, draft.category) }) })
+        }
         placeholder={dish ? "e.g. Jollof rice with chicken" : "e.g. Local rice 50kg"}
       />
 
@@ -435,6 +442,26 @@ function ProductForm({
           <Text style={styles.hint}>Customers can find your product faster inside its group.</Text>
         </>
       ) : null}
+
+      {dish ? null : (
+        <>
+          <Text style={styles.label}>How heavy is it?</Text>
+          <View style={styles.chips}>
+            {WEIGHT_CHOICES.map((w) => (
+              <Pressable
+                key={w.key}
+                style={[styles.chip, draft.weight === w.key && styles.chipActive]}
+                onPress={() => onChange({ ...draft, weight: w.key, weightSet: true })}
+              >
+                <Text style={[styles.chipText, draft.weight === w.key && styles.chipTextActive]}>{w.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.hint}>
+            {WEIGHT_CHOICES.find((w) => w.key === draft.weight)?.note} Heavy orders are delivered alone, so the customer pays an extra fee.
+          </Text>
+        </>
+      )}
 
       {rates[dish ? "Food" : draft.category] !== undefined ? (
         <Text style={styles.hint}>
@@ -654,6 +681,8 @@ export default function SellerScreen() {
       name: p.name,
       category: p.category,
       subcategory: p.subcategory || "",
+      weight: p.weight || "light",
+      weightSet: true,
       price: String(p.price),
       stock: String(p.stock),
       description: p.description,
@@ -776,6 +805,7 @@ export default function SellerScreen() {
       name: draft.name.trim(),
       category: isDish ? "Food" : draft.category,
       subcategory: draft.subcategory,
+      ...(isDish ? {} : { weight: draft.weight }),
       price,
       ...(isDish ? { soldOut: draft.soldOut } : { stock, options: opts.options, variants: opts.variants }),
       description: draft.description.trim(),

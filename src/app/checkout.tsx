@@ -121,6 +121,9 @@ export default function CheckoutScreen() {
   const deliveryOnly = parts ? parts.delivery : deliveryFee;
   const feeText = quoteLoading ? "Calculating..." : quote ? `₦${deliveryOnly.toLocaleString()}` : "—";
 
+  const heavyLoad = Boolean(quote && quote.weight && quote.weight !== "light");
+  const shownVehicle = heavyLoad ? "keke" : selectedVehicle;
+
   const grandTotal = quote ? quote.total : cartTotal + deliveryFee;
 
   async function handleGetLocation() {
@@ -305,6 +308,13 @@ export default function CheckoutScreen() {
         </SectionCard>
 
         <SectionCard icon="bike" title="Delivery vehicle">
+          {heavyLoad ? (
+            <Notice
+              tone="info"
+              text="Your cart has a heavy item, so it goes by keke and is delivered on its own. A small heavy-load fee is added."
+              style={{ marginBottom: 12 }}
+            />
+          ) : null}
           <View style={styles.vehicleRow}>
             {(
               [
@@ -312,12 +322,12 @@ export default function CheckoutScreen() {
                 { key: "keke", icon: "truck", name: "Keke", note: "Larger orders" },
               ] as const
             ).map((v) => {
-              const on = selectedVehicle === v.key;
+              const on = shownVehicle === v.key;
               return (
                 <Pressable
                   key={v.key}
                   style={[styles.vehicleCard, on && styles.vehicleSelected]}
-                  onPress={() => setSelectedVehicle(v.key)}
+                  onPress={() => (heavyLoad ? undefined : setSelectedVehicle(v.key))}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: on }}
                 >
@@ -411,6 +421,9 @@ export default function CheckoutScreen() {
         <SectionCard icon="receipt" title="Order summary">
           <SummaryRow label="Subtotal" value={`₦${cartTotal.toLocaleString()}`} />
           <SummaryRow label="Delivery" value={customerLocation ? feeText : "Set location"} />
+          {parts && (parts.heavy ?? 0) > 0 ? (
+            <SummaryRow label="Heavy load fee" value={`₦${(parts.heavy ?? 0).toLocaleString()}`} />
+          ) : null}
           {parts && parts.service > 0 ? <SummaryRow label="Service fee" value={`₦${parts.service.toLocaleString()}`} /> : null}
           {parts && parts.smallOrder > 0 ? (
             <SummaryRow label="Small-order fee" value={`₦${parts.smallOrder.toLocaleString()}`} />

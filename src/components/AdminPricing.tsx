@@ -28,6 +28,8 @@ const FIELDS: { key: string; label: string; hint?: string; group: string }[] = [
   { group: "Extra fees", key: "serviceFee", label: "Flat service fee (₦)", hint: "used only when the percent is 0" },
   { group: "Extra fees", key: "smallOrderBelow", label: "Small order below (₦ goods)", hint: "0 = off" },
   { group: "Extra fees", key: "smallOrderFee", label: "Small-order fee (₦)" },
+  { group: "Heavy loads", key: "heavyExtra", label: "Heavy order fee (₦)", hint: "bag of rice or maize. Goes by keke, alone" },
+  { group: "Heavy loads", key: "veryHeavyExtra", label: "Very heavy order fee (₦)", hint: "cement, roofing, many bags" },
   { group: "Rider pay", key: "riderPay.base", label: "Per trip (₦)" },
   { group: "Rider pay", key: "riderPay.perKm", label: "Per km of the route (₦)" },
   { group: "Rider pay", key: "riderPay.perExtraStop", label: "Per extra drop-off (₦)" },
@@ -57,6 +59,8 @@ function fromForm(f: Form): PricingSettings {
     serviceFeeMax: n("serviceFeeMax"),
     smallOrderBelow: n("smallOrderBelow"),
     smallOrderFee: n("smallOrderFee"),
+    heavyExtra: n("heavyExtra"),
+    veryHeavyExtra: n("veryHeavyExtra"),
     riderPay: { base: n("riderPay.base"), perKm: n("riderPay.perKm"), perExtraStop: n("riderPay.perExtraStop") },
   };
 }

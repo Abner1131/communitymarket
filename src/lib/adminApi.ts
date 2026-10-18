@@ -291,6 +291,8 @@ export type PricingSettings = {
   serviceFeeMax: number;
   smallOrderBelow: number;
   smallOrderFee: number;
+  heavyExtra: number;
+  veryHeavyExtra: number;
   riderPay: { base: number; perKm: number; perExtraStop: number };
 };
 

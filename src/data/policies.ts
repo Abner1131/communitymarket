@@ -9,7 +9,7 @@ export const POLICIES_UPDATED = "16 October 2026";
 
 // Raise this (new date) when a policy changes in a way people must agree to
 // again: everyone is then asked once, in the app, to agree to the new version.
-export const POLICIES_VERSION = "2026-10-17";
+export const POLICIES_VERSION = "2026-10-18";
 
 export const BUSINESS = {
   legalName: "EA.TSAMBI ENTERPRISES",
@@ -45,7 +45,7 @@ CommunityMarket is an online marketplace in Bauchi. Independent **sellers** list
 
 1. Prices are set by sellers. The app shows the item price, the delivery fee and a small **service fee** (which helps cover payment processing costs) before you pay.
 2. Payment is made through **Paystack** or your CommunityMarket wallet. An order that is not paid within **30 minutes** expires.
-3. Your order may be delivered together with other nearby orders by the same rider.
+3. Your order may be delivered together with other nearby orders by the same rider. **Heavy items** (such as a bag of rice or maize) go by keke, on their own, with a heavy-load fee shown before you pay.
 4. On arrival, give the rider your **delivery code** only after you receive your order. Giving the code confirms delivery.
 5. Delivery times are estimates. Delays can happen because of traffic, weather or stock.
 

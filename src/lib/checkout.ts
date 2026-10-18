@@ -37,13 +37,15 @@ export async function submitCheckout(params: {
   }
   return data;
 }
-// The delivery fee in parts: delivery itself, service fee, small-order fee.
-export type DeliveryParts = { delivery: number; service: number; smallOrder: number };
+// The delivery fee in parts: delivery itself, heavy-load fee, service fee, small-order fee.
+export type DeliveryParts = { delivery: number; heavy?: number; service: number; smallOrder: number };
 
 export type CheckoutQuote = {
   subtotal: number;
   deliveryFee: number; // all parts together
   deliveryParts?: DeliveryParts;
+  weight?: "light" | "heavy" | "very_heavy"; // the heaviest item in the cart
+  vehicle?: "bike" | "keke"; // keke is forced for heavy loads
   total: number;
   distanceKm: number; // shop(s) -> customer, as the rider rides
   shops: { name: string; location: { latitude: number; longitude: number } }[];

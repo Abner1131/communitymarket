@@ -33,6 +33,7 @@ export type SellerProduct = {
   name: string;
   category: string;
   subcategory?: string;
+  weight?: "light" | "heavy" | "very_heavy";
   price: number;
   stock: number;
   description: string;
