@@ -22,9 +22,10 @@ const FIELDS: { key: string; label: string; hint?: string; group: string }[] = [
   { group: "Distance", key: "freeKm", label: "Free km in the base fee" },
   { group: "Distance", key: "roadFactor", label: "Road factor", hint: "1.3 = roads are 30% longer than a straight line" },
   { group: "Distance", key: "bigOrderFrom", label: "Big order from (₦ goods)" },
-  { group: "Extra fees", key: "serviceFee", label: "Service fee per order (₦)", hint: "covers the Paystack card fee. 0 = off" },
-  { group: "Extra fees", key: "serviceFeeLowBelow", label: "Lower service fee when goods are under (₦)", hint: "0 = off" },
-  { group: "Extra fees", key: "serviceFeeLow", label: "Lower service fee (₦)" },
+  { group: "Extra fees", key: "serviceFeePercent", label: "Service fee (% of goods + delivery)", hint: "covers the Paystack card fee. 0 = use the flat fee below" },
+  { group: "Extra fees", key: "serviceFeeMin", label: "Service fee minimum (₦)" },
+  { group: "Extra fees", key: "serviceFeeMax", label: "Service fee maximum (₦)" },
+  { group: "Extra fees", key: "serviceFee", label: "Flat service fee (₦)", hint: "used only when the percent is 0" },
   { group: "Extra fees", key: "smallOrderBelow", label: "Small order below (₦ goods)", hint: "0 = off" },
   { group: "Extra fees", key: "smallOrderFee", label: "Small-order fee (₦)" },
   { group: "Rider pay", key: "riderPay.base", label: "Per trip (₦)" },
@@ -51,8 +52,9 @@ function fromForm(f: Form): PricingSettings {
     roadFactor: n("roadFactor"),
     bigOrderFrom: n("bigOrderFrom"),
     serviceFee: n("serviceFee"),
-    serviceFeeLowBelow: n("serviceFeeLowBelow"),
-    serviceFeeLow: n("serviceFeeLow"),
+    serviceFeePercent: n("serviceFeePercent"),
+    serviceFeeMin: n("serviceFeeMin"),
+    serviceFeeMax: n("serviceFeeMax"),
     smallOrderBelow: n("smallOrderBelow"),
     smallOrderFee: n("smallOrderFee"),
     riderPay: { base: n("riderPay.base"), perKm: n("riderPay.perKm"), perExtraStop: n("riderPay.perExtraStop") },
@@ -67,7 +69,11 @@ function charge(p: PricingSettings, km: number, vehicle: "bike" | "keke", goods:
   if (p.bigOrderFrom > 0 && goods >= p.bigOrderFrom) delivery += v.bigOrderExtra;
   delivery = Math.round(delivery);
   const smallOrder = p.smallOrderBelow > 0 && goods < p.smallOrderBelow ? Math.round(p.smallOrderFee) : 0;
-  const service = Math.round(p.serviceFeeLowBelow > 0 && goods < p.serviceFeeLowBelow ? p.serviceFeeLow : p.serviceFee);
+  const service = Math.round(
+    p.serviceFeePercent > 0
+      ? Math.min(p.serviceFeeMax, Math.max(p.serviceFeeMin, ((goods + delivery) * p.serviceFeePercent) / 100))
+      : p.serviceFee,
+  );
   return { delivery, service, smallOrder, total: delivery + service + smallOrder };
 }
 
@@ -129,7 +135,7 @@ export function AdminPricing({
         <Text style={styles.title}>Delivery prices and rider pay {open ? "▴" : "▾"}</Text>
         <Text style={styles.hint}>
           Bike {naira(pricing.settings.bike.baseFee)} for {pricing.settings.freeKm} km, then {naira(pricing.settings.bike.perKm)}/km ·
-          road ×{pricing.settings.roadFactor} · service {naira(pricing.settings.serviceFee)} · rider {naira(pricing.settings.riderPay.base)}/trip
+          road ×{pricing.settings.roadFactor} · service {pricing.settings.serviceFeePercent > 0 ? `${pricing.settings.serviceFeePercent}% (${naira(pricing.settings.serviceFeeMin)}–${naira(pricing.settings.serviceFeeMax)})` : naira(pricing.settings.serviceFee)} · rider {naira(pricing.settings.riderPay.base)}/trip
         </Text>
       </Pressable>
 

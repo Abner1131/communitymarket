@@ -286,8 +286,9 @@ export type PricingSettings = {
   roadFactor: number;
   bigOrderFrom: number;
   serviceFee: number;
-  serviceFeeLowBelow: number;
-  serviceFeeLow: number;
+  serviceFeePercent: number;
+  serviceFeeMin: number;
+  serviceFeeMax: number;
   smallOrderBelow: number;
   smallOrderFee: number;
   riderPay: { base: number; perKm: number; perExtraStop: number };
