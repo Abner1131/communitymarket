@@ -1,3 +1,5 @@
+import { DashHero } from "../components/DashHero";
+import { dashStyles } from "../theme/dash";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -939,7 +941,20 @@ export default function SellerScreen() {
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => void run(null, "me")} />}
       >
-        {header}
+        <Pressable onPress={() => router.replace("/")}>
+          <Text style={styles.backText}>{"←"} Home</Text>
+        </Pressable>
+        <DashHero
+          eyebrow="Seller dashboard"
+          title={seller.name}
+          bigLabel="Available to withdraw"
+          big={money(state.wallet ? state.wallet.available : 0)}
+          pills={[
+            { label: "To prepare", value: String(stats.toPrepare) },
+            { label: "Delivered", value: String(stats.deliveredOrders) },
+            { label: "Sales", value: money(stats.deliveredSales) },
+          ]}
+        />
 
         <StaleNote fromCache={sellerCache.fromCache} failed={!!errorMessage} savedAtMs={sellerCache.savedAtMs} />
 
@@ -953,21 +968,6 @@ export default function SellerScreen() {
             <Text style={styles.noticeText}>{notice}</Text>
           </Pressable>
         ) : null}
-
-        <View style={styles.statsRow}>
-          <View style={[styles.stat, stats.toPrepare > 0 && { backgroundColor: "#fff4e5" }]}>
-            <Text style={styles.statNumber}>{stats.toPrepare}</Text>
-            <Text style={styles.statLabel}>To prepare</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{stats.deliveredOrders}</Text>
-            <Text style={styles.statLabel}>Delivered</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{money(stats.deliveredSales)}</Text>
-            <Text style={styles.statLabel}>Sales</Text>
-          </View>
-        </View>
 
         {seller.businessType === "restaurant" ? (
           <RestaurantCard seller={seller} busy={working === "shop"} onSave={saveShopInfo} />
@@ -1133,7 +1133,7 @@ export default function SellerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = dashStyles({
   variantText: { color: "#1e7d32", fontWeight: "700" },
   safe: { flex: 1, backgroundColor: "#f5f6f8" },
   container: { padding: 20, paddingBottom: 60 },

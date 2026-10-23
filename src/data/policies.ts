@@ -5,7 +5,7 @@
 // POLICIES_UPDATED. Text format: "### " heading, "1. " numbered item,
 // "- " bullet, "| a | b |" table row (first row = column names), **bold**.
 
-export const POLICIES_UPDATED = "16 October 2026";
+export const POLICIES_UPDATED = "18 October 2026";
 
 // Raise this (new date) when a policy changes in a way people must agree to
 // again: everyone is then asked once, in the app, to agree to the new version.

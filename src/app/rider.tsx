@@ -1,3 +1,5 @@
+import { DashHero } from "../components/DashHero";
+import { dashStyles } from "../theme/dash";
 import { router } from "expo-router";
 import {
   createUserWithEmailAndPassword,
@@ -254,7 +256,21 @@ export default function RiderScreen() {
         <Pressable onPress={() => router.replace("/")}>
           <Text style={styles.backText}>{"←"} Home</Text>
         </Pressable>
-        <Text style={styles.title}>Rider</Text>
+        {authChecked && firebaseUser && notLinkedEmail === null && rider ? (
+          <DashHero
+            eyebrow="Rider dashboard"
+            title={rider.name}
+            bigLabel="Total earned (all time)"
+            big={`${NAIRA}${rider.earningsTotal.toLocaleString()}`}
+            pills={[
+              { label: "Trips", value: String(rider.completedTrips) },
+              { label: "Status", value: rider.availability === "busy" ? "On trip" : rider.availability === "available" ? "Online" : "Offline" },
+              { label: "Rating", value: rider.rating ? String(rider.rating) : "New" },
+            ]}
+          />
+        ) : (
+          <Text style={styles.title}>Rider</Text>
+        )}
 
         {!authChecked ? (
           <BrandLoader style={{ marginTop: 40 }} />
@@ -509,7 +525,7 @@ export default function RiderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = dashStyles({
   safe: { flex: 1, backgroundColor: "#f5f6f8" },
   container: { padding: 20, paddingBottom: 60 },
   backText: { fontWeight: "700", marginBottom: 14 },

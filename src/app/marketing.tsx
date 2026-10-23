@@ -4,6 +4,8 @@
 // admin), which shops and riders are active, and marketer codes. No money,
 // bank details, settings or customer contacts: the server never sends them.
 
+import { DashHero } from "../components/DashHero";
+import { dashStyles } from "../theme/dash";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -123,7 +125,26 @@ export default function MarketingScreen() {
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => void run("marketing")} />}
       >
-        {header}
+        {state ? (
+          <>
+            <Pressable onPress={() => router.replace("/")}>
+              <Text style={styles.backText}>{"←"} Home</Text>
+            </Pressable>
+            <DashHero
+              eyebrow="Marketing dashboard"
+              title="Marketing"
+              bigLabel="Customers"
+              big={String(state.growth.customers)}
+              pills={[
+                { label: "New this week", value: `+${state.growth.newCustomers7}` },
+                { label: "Shops", value: String(state.growth.shops) },
+                { label: "Riders", value: String(state.growth.riders) },
+              ]}
+            />
+          </>
+        ) : (
+          header
+        )}
         <StaleNote fromCache={cache.fromCache} failed={!!error} savedAtMs={cache.savedAtMs} />
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
@@ -598,7 +619,7 @@ function Codes({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = dashStyles({
   safe: { flex: 1, backgroundColor: "#f5f6f8" },
   container: { padding: 20, paddingBottom: 60 },
   backText: { fontWeight: "700", marginBottom: 12, color: "#111" },
@@ -654,4 +675,4 @@ const styles = StyleSheet.create({
   okBox: { backgroundColor: "#e3f4ea", borderRadius: 12, padding: 12, marginBottom: 12 },
   okText: { color: "#0a6b40", fontWeight: "700" },
   error: { color: "#b00020", marginBottom: 10 },
-});
+}, ["tabs"]);
